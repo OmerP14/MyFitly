@@ -1,0 +1,605 @@
+import React, { useState, useEffect } from 'react';
+import { Text, View, ScrollView, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import Card from '../components/Card';
+import SectionHeader from '../components/SectionHeader';
+import ProgressRing from '../components/ProgressRing';
+import StatTile from '../components/StatTile';
+import PrimaryButton from '../components/PrimaryButton';
+import MiniChart from '../components/MiniChart';
+import { spacing } from '../theme/colors';
+import { useTheme } from '../context/ThemeContext';
+import { useUser } from '../context/UserContext';
+import { supabase } from '../config/supabase';
+import * as programService from '../services/programService';
+
+export default function DashboardScreen({ navigation }) {
+  const { colors } = useTheme();
+  const { userData } = useUser();
+  const [weightData, setWeightData] = useState([]);
+  const [lastWeight, setLastWeight] = useState(null);
+  const [weightProgress, setWeightProgress] = useState(0);
+  const [todayWorkout, setTodayWorkout] = useState([]);
+  const [weeklyStats, setWeeklyStats] = useState({});
+  const [maxWeights, setMaxWeights] = useState({});
+  const [workoutHistory, setWorkoutHistory] = useState([]);
+  const [totalWorkouts, setTotalWorkouts] = useState(0);
+  const [completedWorkouts, setCompletedWorkouts] = useState(0);
+
+  // Hedef kilo ilerlemesini hesapla
+  const calculateWeightProgress = () => {
+    if (!userData || !userData.current_weight || !userData.target_weight) {
+      console.log('⚠️ Kilo ilerlemesi hesaplanamıyor: userData eksik');
+      setWeightProgress(0);
+      return;
+    }
+
+    const startWeight = userData.current_weight; // Başlangıç kilosu
+    const targetWeight = userData.target_weight; // Hedef kilo
+    const currentWeight = weightData && weightData.length > 0 ? weightData[weightData.length - 1].weight : startWeight; // En son kaydedilen kilo
+
+    console.log('📊 Kilo ilerlemesi hesaplanıyor:', {
+      startWeight,
+      targetWeight,
+      currentWeight,
+      weightDataLength: weightData?.length || 0
+    });
+
+    // Kilo verme durumu (startWeight > targetWeight)
+    if (startWeight > targetWeight) {
+      const totalWeightToLose = startWeight - targetWeight;
+      const weightLost = startWeight - currentWeight;
+      const progress = Math.max(0, Math.min(100, (weightLost / totalWeightToLose) * 100));
+      console.log('📉 Kilo verme ilerlemesi:', { totalWeightToLose, weightLost, progress });
+      setWeightProgress(progress);
+    }
+    // Kilo alma durumu (startWeight < targetWeight)
+    else if (startWeight < targetWeight) {
+      const totalWeightToGain = targetWeight - startWeight;
+      const weightGained = currentWeight - startWeight;
+      const progress = Math.max(0, Math.min(100, (weightGained / totalWeightToGain) * 100));
+      console.log('📈 Kilo alma ilerlemesi:', { totalWeightToGain, weightGained, progress });
+      setWeightProgress(progress);
+    }
+    // Hedefe ulaşıldı
+    else {
+      setWeightProgress(100);
+    }
+  };
+
+  // Kilo verilerini yükle
+  const loadWeightData = async () => {
+    try {
+      if (!userData?.id) return;
+
+      const { data, error } = await supabase
+        .from('weight_tracking')
+        .select('*')
+        .eq('user_id', userData.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        // Tarih sırasına göre sırala (en yeni en sonda)
+        const sortedData = data.sort((a, b) => new Date(a.measurement_date || a.date) - new Date(b.measurement_date || b.date));
+        setWeightData(sortedData);
+        
+        // En son (en yeni) kaydın kilosu
+        const lastEntry = sortedData[sortedData.length - 1];
+        setLastWeight(lastEntry.weight);
+        
+        console.log('📊 Kilo verileri yüklendi:', {
+          totalRecords: sortedData.length,
+          lastWeight: lastEntry.weight,
+          lastDate: lastEntry.measurement_date || lastEntry.date
+        });
+      } else {
+        setLastWeight(null);
+        setWeightData([]);
+        console.log('⚠️ Kilo verisi bulunamadı');
+      }
+    } catch (error) {
+      console.error('Kilo verileri yüklenemedi:', error);
+    }
+  };
+
+  // Bugünkü antrenmanı yükle
+  const loadTodayWorkout = async () => {
+    try {
+      if (!userData?.id) {
+        console.log('❌ userData.id yok');
+        return;
+      }
+
+      // Bugünün günü (0=Pazar, 1=Pazartesi, ..., 6=Cumartesi)
+      const today = new Date().getDay();
+      console.log('📅 Bugünün günü:', today);
+      
+      // Haftalık istatistikleri programService'den al
+      const weeklyStats = await programService.getWeeklyStats(userData.id);
+      console.log('📊 Haftalık istatistikler:', weeklyStats);
+      
+      if (weeklyStats && weeklyStats[today]) {
+        const todayExercises = weeklyStats[today].exercises || [];
+        console.log('🏋️ Bugünkü egzersizler:', todayExercises);
+        setTodayWorkout(todayExercises);
+        
+        // Haftalık istatistikleri hesapla
+        let weeklyCount = 0;
+        let totalSets = 0;
+        
+        for (let day = 0; day < 7; day++) {
+          const dayStats = weeklyStats[day];
+          if (dayStats && dayStats.total > 0) {
+            weeklyCount++;
+            totalSets += dayStats.exercises.reduce((sum, ex) => sum + (ex.sets || 0), 0);
+          }
+        }
+        
+        console.log('📈 Haftalık istatistikler:', { workoutDays: weeklyCount, totalSets });
+        setWeeklyStats({
+          workoutDays: weeklyCount,
+          totalSets: totalSets
+        });
+      } else {
+        console.log('⚠️ Bugün için egzersiz bulunamadı');
+        setTodayWorkout([]);
+        setWeeklyStats({ workoutDays: 0, totalSets: 0 });
+      }
+    } catch (error) {
+      console.error('Antrenman verileri yüklenemedi:', error);
+      setTodayWorkout([]);
+      setWeeklyStats({ workoutDays: 0, totalSets: 0 });
+    }
+  };
+
+  // Workout geçmişini yükle
+  const loadWorkoutHistory = async () => {
+    try {
+      if (!userData?.id) return;
+
+      // Supabase'den workout_sessions tablosunu kontrol et
+      const { data: sessions, error } = await supabase
+        .from('workout_sessions')
+        .select('*')
+        .eq('user_id', userData.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.log('⚠️ Workout sessions yüklenemedi:', error.message);
+        // Hata durumunda programService'den egzersizleri al
+        const weeklyStats = await programService.getWeeklyStats(userData.id);
+        let totalExercises = 0;
+        let completedExercises = 0;
+        
+        for (let day = 0; day < 7; day++) {
+          const dayStats = weeklyStats[day];
+          if (dayStats && dayStats.exercises) {
+            totalExercises += dayStats.exercises.length;
+            completedExercises += dayStats.exercises.filter(ex => ex.completed).length;
+          }
+        }
+        
+        setTotalWorkouts(totalExercises);
+        setCompletedWorkouts(completedExercises);
+        setWorkoutHistory([]);
+        return;
+      }
+
+      if (sessions && sessions.length > 0) {
+        setWorkoutHistory(sessions);
+        setTotalWorkouts(sessions.length);
+        setCompletedWorkouts(sessions.filter(s => s.completed).length);
+      } else {
+        // Sessions yoksa programService'den egzersizleri al
+        const weeklyStats = await programService.getWeeklyStats(userData.id);
+        let totalExercises = 0;
+        let completedExercises = 0;
+        
+        for (let day = 0; day < 7; day++) {
+          const dayStats = weeklyStats[day];
+          if (dayStats && dayStats.exercises) {
+            totalExercises += dayStats.exercises.length;
+            completedExercises += dayStats.exercises.filter(ex => ex.completed).length;
+          }
+        }
+        
+        setTotalWorkouts(totalExercises);
+        setCompletedWorkouts(completedExercises);
+        setWorkoutHistory([]);
+      }
+
+      console.log('📊 Workout geçmişi yüklendi:', { totalWorkouts, completedWorkouts, historyLength: sessions?.length || 0 });
+    } catch (error) {
+      console.error('Workout geçmişi yüklenemedi:', error);
+      setWorkoutHistory([]);
+      setTotalWorkouts(0);
+      setCompletedWorkouts(0);
+    }
+  };
+
+  // Maksimum ağırlıkları yükle
+  const loadMaxWeights = async () => {
+    try {
+      if (!userData?.id) return;
+
+      const { data, error } = await supabase
+        .from('strength_tracking')
+        .select('exercise_name, max_weight')
+        .eq('user_id', userData.id)
+        .order('max_weight', { ascending: false });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        // Her egzersiz için maksimum ağırlığı bul
+        const maxWeightsMap = {};
+        data.forEach(entry => {
+          const exerciseName = entry.exercise_name;
+          if (!maxWeightsMap[exerciseName] || entry.max_weight > maxWeightsMap[exerciseName]) {
+            maxWeightsMap[exerciseName] = entry.max_weight;
+          }
+        });
+
+        // En yüksek 5 egzersizi al
+        const sortedMaxWeights = Object.entries(maxWeightsMap)
+          .sort(([,a], [,b]) => b - a)
+          .slice(0, 5)
+          .reduce((obj, [key, value]) => {
+            obj[key] = value;
+            return obj;
+          }, {});
+
+        setMaxWeights(sortedMaxWeights);
+      } else {
+        setMaxWeights({});
+      }
+    } catch (error) {
+      console.error('Maksimum ağırlıklar yüklenemedi:', error);
+      setMaxWeights({});
+    }
+  };
+
+  useEffect(() => {
+    loadWeightData();
+    loadTodayWorkout();
+    loadMaxWeights();
+    loadWorkoutHistory();
+  }, [userData?.id]);
+
+  useEffect(() => {
+    calculateWeightProgress();
+  }, [userData, weightData]);
+
+  return (
+    <LinearGradient colors={[colors.background, colors.backgroundAlt]} style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+        <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 32 }}>
+          <Text style={{ color: colors.text, fontSize: 26, fontWeight: '800', marginBottom: spacing.sm }}>
+            Merhaba 👋
+          </Text>
+          
+          <Text style={{ color: colors.primary, fontSize: 18, fontWeight: '600', marginBottom: spacing.md, textAlign: 'center' }}>
+            "Disiplin &gt; Motivasyon" • Hedefine odaklan, sürekli ilerle
+          </Text>
+
+          <Card style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
+            <View style={{ width: 86, height: 86, marginRight: spacing.md }}>
+              <ProgressRing 
+                size={86} 
+                stroke={8} 
+                progress={weightProgress} 
+                color={weightProgress > 0 ? colors.success : colors.primary}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>
+                Hedef Kilo İlerlemesi
+              </Text>
+              {userData?.current_weight && userData?.target_weight && lastWeight ? (
+                <View style={{ marginTop: 6 }}>
+                  <Text style={{ 
+                    color: weightProgress > 0 ? colors.success : colors.textMuted, 
+                    fontSize: 16, 
+                    fontWeight: '600' 
+                  }}>
+                    %{Math.round(weightProgress)} Tamamlandı
+                  </Text>
+                  <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>
+                    {userData.current_weight}kg → {userData.target_weight}kg
+                  </Text>
+                  <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                    Şu an: {lastWeight}kg
+                  </Text>
+                </View>
+              ) : (
+                <Text style={{ color: colors.textMuted, marginTop: 6 }}>
+                  {!userData?.current_weight ? 'Başlangıç kilosu girin' :
+                   !userData?.target_weight ? 'Hedef kilosu girin' :
+                   !lastWeight ? 'Kilo kaydı ekleyin' : 'Veri yükleniyor...'}
+                </Text>
+              )}
+            </View>
+          </Card>
+
+          {/* Genel İstatistikler */}
+          <Card style={{ marginBottom: spacing.md }}>
+            <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: 16 }}>Bu Hafta Özeti</Text>
+            <View style={{ flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm }}>
+              <StatTile 
+                label="Bu hafta" 
+                value={`${weeklyStats.workoutDays || 0} antrenman`} 
+                icon="calendar" 
+                color={colors.primary} 
+                style={{ flex: 1 }}
+              >
+              </StatTile>
+              <StatTile 
+                label="Son kilo" 
+                value={lastWeight ? `${lastWeight}kg` : '-- kg'} 
+                icon="scale" 
+                color={colors.success} 
+                style={{ flex: 1 }}
+              >
+              </StatTile>
+              <StatTile 
+                label="Toplam set" 
+                value={`${weeklyStats.totalSets || 0}`} 
+                icon="list" 
+                color={colors.info} 
+                style={{ flex: 1 }}
+              >
+              </StatTile>
+            </View>
+            
+            {/* İkinci satır - Yeni veriler */}
+            <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+              <StatTile 
+                label="Toplam egzersiz" 
+                value={`${totalWorkouts}`} 
+                icon="barbell" 
+                color={colors.warning} 
+                style={{ flex: 1 }}
+              >
+              </StatTile>
+              <StatTile 
+                label="Tamamlanan" 
+                value={`${completedWorkouts}`} 
+                icon="checkmark-circle" 
+                color={colors.success} 
+                style={{ flex: 1 }}
+              >
+              </StatTile>
+              <StatTile 
+                label="İlerleme" 
+                value={totalWorkouts > 0 ? `%${Math.round((completedWorkouts / totalWorkouts) * 100)}` : '%0'} 
+                icon="trending-up" 
+                color={colors.purple} 
+                style={{ flex: 1 }}
+              >
+              </StatTile>
+            </View>
+          </Card>
+
+          {/* Son Antrenmanlar */}
+          {workoutHistory.length > 0 && (
+            <Card style={{ marginBottom: spacing.md }}>
+              <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: 16 }}>Son Antrenmanlar</Text>
+              <View style={{ gap: spacing.xs }}>
+                {workoutHistory.slice(0, 3).map((session, index) => (
+                  <View key={session.id || index} style={{
+                    backgroundColor: 'rgba(255, 122, 0, 0.1)',
+                    borderRadius: 12,
+                    padding: spacing.sm,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    borderLeftWidth: 3,
+                    borderLeftColor: session.completed ? colors.success : colors.primary
+                  }}>
+                    <View style={{
+                      backgroundColor: session.completed ? colors.success : colors.primary,
+                      borderRadius: 20,
+                      width: 32,
+                      height: 32,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: spacing.sm
+                    }}>
+                      <Text style={{ 
+                        color: colors.background, 
+                        fontSize: 12, 
+                        fontWeight: '700' 
+                      }}>
+                        {index + 1}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ 
+                        color: colors.text, 
+                        fontSize: 14, 
+                        fontWeight: '600',
+                        marginBottom: 2
+                      }}>
+                        {session.name || 'Antrenman'}
+                      </Text>
+                      <Text style={{ 
+                        color: colors.textMuted, 
+                        fontSize: 12 
+                      }}>
+                        {new Date(session.created_at).toLocaleDateString('tr-TR')} • 
+                        {session.duration ? `${session.duration} dk` : 'Süre bilinmiyor'}
+                      </Text>
+                    </View>
+                    <View style={{
+                      backgroundColor: session.completed ? 'rgba(0, 208, 132, 0.2)' : 'rgba(255, 122, 0, 0.2)',
+                      borderRadius: 8,
+                      paddingHorizontal: 8,
+                      paddingVertical: 4
+                    }}>
+                      <Text style={{
+                        color: session.completed ? colors.success : colors.primary,
+                        fontSize: 10,
+                        fontWeight: '700'
+                      }}>
+                        {session.completed ? '✅' : '⏳'}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+              {workoutHistory.length > 3 && (
+                <Text style={{ 
+                  color: colors.textMuted, 
+                  fontSize: 12, 
+                  textAlign: 'center', 
+                  marginTop: spacing.sm 
+                }}>
+                  +{workoutHistory.length - 3} antrenman daha...
+                </Text>
+              )}
+            </Card>
+          )}
+
+          {/* Maksimum Ağırlıklar */}
+          <Card style={{ marginBottom: spacing.md }}>
+            <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: 16 }}>Maksimum Ağırlıklar</Text>
+            {Object.keys(maxWeights).length > 0 ? (
+              <View>
+                {Object.entries(maxWeights).map(([exerciseName, maxWeight], index) => (
+                  <View key={exerciseName} style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingVertical: spacing.sm,
+                    borderBottomWidth: index < Object.keys(maxWeights).length - 1 ? 1 : 0,
+                    borderBottomColor: colors.border
+                  }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>
+                        {exerciseName}
+                      </Text>
+                    </View>
+                    <View style={{
+                      backgroundColor: colors.primary,
+                      borderRadius: 8,
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: spacing.xs
+                    }}>
+                      <Text style={{ color: colors.background, fontSize: 14, fontWeight: '700' }}>
+                        {maxWeight}kg
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+                <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: spacing.sm }}>
+                  En yüksek 5 egzersiz gösteriliyor
+                </Text>
+              </View>
+            ) : (
+              <Text style={{ color: colors.textMuted, textAlign: 'center', padding: spacing.md }}>
+                Henüz güç takibi kaydı yok
+              </Text>
+            )}
+          </Card>
+
+          <Card style={{ marginBottom: spacing.md }}>
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 12 }}>Bugünkü Antrenman</Text>
+            {todayWorkout.length > 0 ? (
+              <View>
+                <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: spacing.sm }}>
+                  {todayWorkout.length} egzersiz planlandı
+                </Text>
+                {todayWorkout.slice(0, 3).map((exercise, index) => (
+                  <View key={index} style={{ 
+                    flexDirection: 'row', 
+                    alignItems: 'center', 
+                    marginBottom: spacing.xs,
+                    paddingVertical: spacing.xs,
+                    paddingHorizontal: spacing.sm,
+                    backgroundColor: colors.backgroundAlt,
+                    borderRadius: 8
+                  }}>
+                    <View style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: colors.primary,
+                      marginRight: spacing.sm
+                    }} />
+                    <Text style={{ color: colors.text, fontSize: 14, flex: 1 }}>
+                      {exercise.name}
+                    </Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                      {exercise.sets} set
+                    </Text>
+                  </View>
+                ))}
+                {todayWorkout.length > 3 && (
+                  <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: spacing.sm }}>
+                    +{todayWorkout.length - 3} egzersiz daha
+                  </Text>
+                )}
+              </View>
+            ) : (
+              <Text style={{ color: colors.textMuted, textAlign: 'center', padding: spacing.md }}>
+                Bugün için antrenman planlanmamış
+              </Text>
+            )}
+          </Card>
+
+          <PrimaryButton
+            title={todayWorkout.length > 0 ? "Bugünkü Antrenmanı Başlat 🔥" : "Antrenman Planla 📝"}
+            icon={<Ionicons name={todayWorkout.length > 0 ? "play-circle" : "add-circle"} size={20} color="#1E1E2F" />}
+            variant={todayWorkout.length > 0 ? "success" : "primary"}
+            onPress={() => {
+              if (todayWorkout.length > 0) {
+                // Gerçek verilerle antrenman başlat
+                const totalSets = todayWorkout.reduce((sum, ex) => sum + (ex.sets || 0), 0);
+                const estimatedTime = Math.ceil(todayWorkout.length * 8); // Egzersiz başına 8 dakika
+                
+                Alert.alert(
+                  'Antrenman Başlatılıyor! 🔥',
+                  `Bugünkü antrenmanınıza hazır mısın?\n\n• ${todayWorkout.length} egzersiz\n• ${totalSets} set\n• Tahmini süre: ${estimatedTime} dakika\n\n${todayWorkout.slice(0, 3).map(ex => `• ${ex.name}`).join('\n')}${todayWorkout.length > 3 ? `\n• +${todayWorkout.length - 3} egzersiz daha` : ''}`,
+                  [
+                    { text: 'İptal', style: 'cancel' },
+                    { 
+                      text: 'Başlat! 💪', 
+                      style: 'default',
+                      onPress: () => {
+                        navigation.navigate('Workout');
+                      }
+                    }
+                  ]
+                );
+              } else {
+                // Antrenman planla
+                Alert.alert(
+                  'Antrenman Planla 📝',
+                  'Bugün için henüz antrenman planlanmamış. Program ekranından antrenmanınızı planlayın!',
+                  [
+                    { text: 'Tamam', style: 'cancel' },
+                    { 
+                      text: 'Programa Git 📋', 
+                      style: 'default',
+                      onPress: () => {
+                        navigation.navigate('Program');
+                      }
+                    }
+                  ]
+                );
+              }
+            }}
+            style={{ marginBottom: spacing.md }}
+          />
+
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
+  );
+}
+
