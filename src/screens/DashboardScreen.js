@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Text, View, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { Text, View, ScrollView, TouchableOpacity, Dimensions, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
 import Card from '../components/Card';
 import ProgressRing from '../components/ProgressRing';
 import { spacing } from '../theme/colors';
@@ -12,6 +13,12 @@ import { supabase } from '../config/supabase';
 import * as programService from '../services/programService';
 
 const screenWidth = Dimensions.get('window').width;
+
+// AdMob Banner ID (Test ID kullanıyoruz - gerçek uygulama için değiştirin)
+const adUnitId = __DEV__ ? TestIds.BANNER : Platform.select({
+  ios: 'ca-app-pub-xxxxxxxxxxxxx/yyyyyyyyyyyyyy', // iOS Banner ID buraya gelecek
+  android: 'ca-app-pub-xxxxxxxxxxxxx/yyyyyyyyyyyyyy', // Android Banner ID buraya gelecek
+});
 
 export default function DashboardScreen({ navigation }) {
   const { colors } = useTheme();
@@ -665,6 +672,31 @@ export default function DashboardScreen({ navigation }) {
               Hedefine odaklan, sürekli ilerle 💪
             </Text>
           </Card>
+
+          {/* AdMob Banner Reklam */}
+          <View style={{ 
+            marginTop: spacing.lg,
+            alignItems: 'center',
+            backgroundColor: colors.card,
+            borderRadius: 16,
+            overflow: 'hidden',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: colors.background === '#FFFFFF' ? 0.1 : 0,
+            shadowRadius: 4,
+            elevation: colors.background === '#FFFFFF' ? 2 : 0
+          }}>
+            <BannerAd
+              unitId={adUnitId}
+              size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+              requestOptions={{
+                requestNonPersonalizedAdsOnly: true,
+              }}
+              onAdFailedToLoad={(error) => {
+                console.log('Banner reklam yüklenemedi:', error);
+              }}
+            />
+          </View>
 
         </ScrollView>
       </SafeAreaView>
