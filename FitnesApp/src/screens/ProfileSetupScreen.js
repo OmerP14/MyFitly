@@ -9,9 +9,9 @@ import { spacing } from '../theme/colors';
 
 export default function ProfileSetupScreen() {
   const { colors } = useTheme();
-  const { userData, updateUserData } = useUser();
+  const { userData, updateUserData, session, refreshUser } = useUser();
   
-  const [name, setName] = useState(userData?.name || '');
+  const [name, setName] = useState(userData?.name || session?.user?.email?.split('@')[0] || '');
   const [age, setAge] = useState(userData?.age?.toString() || '');
   const [height, setHeight] = useState(userData?.height?.toString() || '');
   const [currentWeight, setCurrentWeight] = useState(userData?.current_weight?.toString() || '');
@@ -48,13 +48,48 @@ export default function ProfileSetupScreen() {
       setLoading(true);
       console.log('📝 Profil tamamlanıyor...');
 
-      await updateUserData({
-        name: name.trim(),
-        age: parseInt(age),
-        height: parseInt(height),
-        current_weight: parseFloat(currentWeight),
-        target_weight: parseFloat(targetWeight)
-      });
+      // Eğer userData yoksa (yeni kullanıcı), önce profil oluştur/güncelle
+      if (!userData && session?.user) {
+        const { supabase } = require('../config/supabase');
+        
+        // UPSERT kullan - eğer kullanıcı varsa güncelle, yoksa oluştur
+        const { error: upsertError } = await supabase
+          .from('users')
+          .upsert([
+            {
+              id: session.user.id,
+              email: session.user.email,
+              name: name.trim(),
+              age: parseInt(age),
+              height: parseInt(height),
+              current_weight: parseFloat(currentWeight),
+              target_weight: parseFloat(targetWeight),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }
+          ], { 
+            onConflict: 'id' // ID çakışması durumunda güncelle
+          });
+
+        if (upsertError) {
+          console.error('❌ Profil oluşturma/güncelleme hatası:', upsertError);
+          Alert.alert('Hata', 'Profil oluşturulurken bir hata oluştu');
+          return;
+        }
+        console.log('✅ Profil başarıyla oluşturuldu/güncellendi');
+      } else {
+        // Mevcut profili güncelle
+        await updateUserData({
+          name: name.trim(),
+          age: parseInt(age),
+          height: parseInt(height),
+          current_weight: parseFloat(currentWeight),
+          target_weight: parseFloat(targetWeight)
+        });
+      }
+
+      // Kullanıcı bağlamını yenile ki needsProfileCompletion false olsun
+      await refreshUser();
 
       console.log('✅ Profil tamamlandı!');
       Alert.alert('Tebrikler! 🎉', 'Profilin tamamlandı! Artık fitness yolculuğuna başlayabilirsin.');

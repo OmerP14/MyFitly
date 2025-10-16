@@ -7,6 +7,7 @@ import { View, Text, ActivityIndicator } from 'react-native';
 import { Tabs, RootStack } from './src/navigation/Tabs';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { UserProvider, useUser } from './src/context/UserContext';
+import { LanguageProvider } from './src/context/LanguageContext';
 import WorkoutScreen from './src/screens/WorkoutScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
@@ -110,11 +111,13 @@ function AppContent() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <ThemeProvider>
-        <UserProvider>
-          <AppContent />
-        </UserProvider>
-      </ThemeProvider>
+      <LanguageProvider>
+        <ThemeProvider>
+          <UserProvider>
+            <AppContent />
+          </UserProvider>
+        </ThemeProvider>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }

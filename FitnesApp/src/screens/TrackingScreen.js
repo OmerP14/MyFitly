@@ -10,6 +10,8 @@ import SectionHeader from '../components/SectionHeader';
 import { spacing } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
+import { useLanguage } from '../context/LanguageContext';
+import { getTranslations } from '../utils/translations';
 
 // trackingService'i dene, yoksa devam et
 let trackingService = null;
@@ -34,6 +36,8 @@ const screenWidth = Dimensions.get('window').width;
 export default function TrackingScreen() {
   const { colors, isDarkMode } = useTheme();
   const { userData, isLoading: userLoading, updateUserData } = useUser();
+  const { language } = useLanguage();
+  const t = getTranslations(language);
   const userUUID = userData?.id;
 
   // Chart config - dinamik renkler kullanıyor
@@ -59,7 +63,7 @@ export default function TrackingScreen() {
     },
   };
 
-  const [selectedPeriod, setSelectedPeriod] = useState('Aylık');
+  const [selectedPeriod, setSelectedPeriod] = useState('monthly');
   const [selectedTracking, setSelectedTracking] = useState('weight');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showGoalModal, setShowGoalModal] = useState(false);
@@ -81,15 +85,15 @@ export default function TrackingScreen() {
   // Hedef kiloya ulaşıldığında yeni hedef belirleme modalı göster
   const showNewTargetModal = (currentWeight, oldTargetWeight) => {
     Alert.alert(
-      '🎉 Hedef Kiloya Ulaşıldı!',
-      `Tebrikler! Hedef kilonuz ${oldTargetWeight}kg'ya ulaştınız.\n\nMevcut kilonuz: ${currentWeight}kg\n\nYeni bir hedef kilo belirlemelisiniz.`,
+      t.target_reached_title || '🎉 Hedef Kiloya Ulaşıldı!',
+      `${t.target_reached_message || 'Tebrikler! Hedef kilonuz'} ${oldTargetWeight}kg'ya ulaştınız.\n\n${t.current_weight || 'Mevcut kilonuz'}: ${currentWeight}kg\n\n${t.set_new_target || 'Yeni bir hedef kilo belirlemelisiniz.'}.`,
       [
         {
-          text: 'Hedef Belirle',
+          text: t.set_target || 'Hedef Belirle',
           onPress: () => setShowGoalModal(true)
         },
         {
-          text: 'Daha Sonra',
+          text: t.later || 'Daha Sonra',
           style: 'cancel'
         }
       ]
@@ -199,9 +203,9 @@ export default function TrackingScreen() {
   const [strengthData, setStrengthData] = useState([]);
 
   const periodMapping = {
-    'Haftalık': 'weekly',
-    'Aylık': 'monthly',
-    'Yıllık': 'yearly'
+    'weekly': 'weekly',
+    'monthly': 'monthly',
+    'yearly': 'yearly'
   };
 
   // Ağırlık verilerini egzersiz ismine göre grupla ve her egzersiz için ayrı kart oluştur
@@ -515,18 +519,18 @@ export default function TrackingScreen() {
 
   const handleSaveData = async () => {
     if (!userUUID || userData?.isOffline) {
-      Alert.alert('Backend Bağlantısı Yok', 'Lütfen SUPABASE_MASTER_SETUP.sql dosyasını Supabase\'e yükleyin.');
+      Alert.alert(t.no_backend_connection || 'Backend Bağlantısı Yok', t.please_upload_sql || 'Lütfen SUPABASE_MASTER_SETUP.sql dosyasını Supabase\'e yükleyin.');
       return;
     }
 
     if (!trackingService) {
-      Alert.alert('Hata', 'Tracking service yüklenemedi.');
+      Alert.alert(t.error || 'Hata', t.tracking_service_error || 'Tracking service yüklenemedi.');
       return;
     }
     
     // Validation
     if (selectedTracking === 'weight' && (!newWeight || newWeight.trim() === '')) {
-      Alert.alert('Uyarı', 'Lütfen kilo değeri girin');
+      Alert.alert(t.warning || 'Uyarı', t.please_enter_weight || 'Lütfen kilo değeri girin');
       return;
     }
 
@@ -535,15 +539,15 @@ export default function TrackingScreen() {
       const targetWeight = parseFloat(userData?.target_weight || 0);
       if (!targetWeight || targetWeight <= 0) {
         Alert.alert(
-          'Hedef Kilo Gerekli',
-          'Kilo verisi eklemek için önce bir hedef kilo belirlemeniz gerekiyor.',
+          t.target_weight_required || 'Hedef Kilo Gerekli',
+          t.target_weight_required_message || 'Kilo verisi eklemek için önce bir hedef kilo belirlemeniz gerekiyor.',
           [
             {
-              text: 'Hedef Belirle',
+              text: t.set_target || 'Hedef Belirle',
               onPress: () => setShowGoalModal(true)
             },
             {
-              text: 'İptal',
+              text: t.cancel || 'İptal',
               style: 'cancel'
             }
           ]
@@ -553,7 +557,7 @@ export default function TrackingScreen() {
     }
 
     if (selectedTracking === 'strength' && (!newExercise || !newReps || newExercise.trim() === '' || newReps.trim() === '')) {
-      Alert.alert('Uyarı', 'Lütfen egzersiz adı ve ağırlık bilgisi girin');
+      Alert.alert(t.warning || 'Uyarı', t.please_enter_exercise_weight || 'Lütfen egzersiz adı ve ağırlık bilgisi girin');
       return;
     }
 
@@ -589,7 +593,7 @@ export default function TrackingScreen() {
               showNewTargetModal(newWeightValue, currentTargetWeight);
             }, 1000); // 1 saniye bekle ki başarı mesajı görünsün
           } else {
-            Alert.alert('Başarılı', 'Kilo verisi kaydedildi!');
+            Alert.alert(t.success || 'Başarılı', t.weight_data_saved || 'Kilo verisi kaydedildi!');
           }
           
           setShowAddModal(false);
@@ -630,7 +634,7 @@ export default function TrackingScreen() {
                   difference: Math.abs(currentWeight - targetWeight)
                 });
                 
-                const result = await motivationService.checkAndAddAchievements(userUUID, userStats);
+                const result = await motivationService.checkAndAddAchievements(userUUID, userStats, language);
                 console.log('🏆 Başarım kontrolü sonucu:', result);
                 
                 if (result.success && result.data.length > 0) {
@@ -672,7 +676,7 @@ export default function TrackingScreen() {
         const { reps, weight } = trackingService.parseRepsAndWeight(newReps);
         
         if (!weight || weight === 0) {
-          Alert.alert('Hata', 'Geçersiz ağırlık formatı. Örnek: 8x65kg');
+          Alert.alert(t.error || 'Hata', t.invalid_weight_format || 'Geçersiz ağırlık formatı. Örnek: 8x65kg');
           setSaving(false);
           return;
         }
@@ -689,11 +693,11 @@ export default function TrackingScreen() {
         if (result?.success) {
           if (result.is_new_record) {
             Alert.alert(
-              '🎉 Yeni Rekor!',
-              `${newExercise} egzersizinde yeni rekorunuz: ${weight}kg!\n${result.improvement}kg gelişim!`
+              t.new_record_title || '🎉 Yeni Rekor!',
+              `${newExercise} ${t.exercise_new_record || 'egzersizinde yeni rekorunuz'}: ${weight}kg!\n${result.improvement}kg ${t.improvement || 'gelişim'}!`
             );
           } else {
-            Alert.alert('Başarılı', 'Ağırlık verisi kaydedildi!');
+            Alert.alert(t.success || 'Başarılı', t.strength_data_saved || 'Ağırlık verisi kaydedildi!');
           }
           setShowAddModal(false);
           setNewExercise('');
@@ -774,7 +778,7 @@ export default function TrackingScreen() {
                   totalEntries: totalEntries
                 });
                 
-                const result = await motivationService.checkAndAddAchievements(userUUID, userStats);
+                const result = await motivationService.checkAndAddAchievements(userUUID, userStats, language);
                 console.log('🏆 Ağırlık başarım kontrolü sonucu:', result);
                 
                 if (result.success && result.data.length > 0) {
@@ -810,11 +814,11 @@ export default function TrackingScreen() {
             loadData();
           }, 500);
         } else {
-          throw new Error(result?.message || 'Kaydetme başarısız');
+          throw new Error(result?.message || t.save_failed || 'Kaydetme başarısız');
         }
       }
     } catch (error) {
-      Alert.alert('Hata', error.message || 'Veri kaydedilemedi');
+      Alert.alert(t.error || 'Hata', error.message || t.data_save_failed || 'Veri kaydedilemedi');
     } finally {
       setSaving(false);
     }
@@ -823,39 +827,39 @@ export default function TrackingScreen() {
   // Silme fonksiyonu
   const handleDeleteEntry = async (entryId, type) => {
     if (!userUUID || userData?.isOffline) {
-      Alert.alert('Backend Bağlantısı Yok', 'Lütfen SUPABASE_MASTER_SETUP.sql dosyasını Supabase\'e yükleyin.');
+      Alert.alert(t.no_backend_connection || 'Backend Bağlantısı Yok', t.please_upload_sql || 'Lütfen SUPABASE_MASTER_SETUP.sql dosyasını Supabase\'e yükleyin.');
       return;
     }
 
     Alert.alert(
-      'Kaydı Sil',
-      'Bu kaydı silmek istediğinizden emin misiniz?',
+      t.delete_entry || 'Kaydı Sil',
+      t.confirm_delete_entry || 'Bu kaydı silmek istediğinizden emin misiniz?',
       [
-        { text: 'İptal', style: 'cancel' },
+        { text: t.cancel || 'İptal', style: 'cancel' },
         { 
-          text: 'Sil', 
+          text: t.delete || 'Sil', 
           style: 'destructive',
           onPress: async () => {
             try {
               if (type === 'weight') {
                 const result = await trackingService.deleteWeightEntry(entryId, userUUID);
                 if (result?.success) {
-                  Alert.alert('Başarılı', 'Kilo kaydı silindi!');
+                  Alert.alert(t.success || 'Başarılı', t.weight_entry_deleted || 'Kilo kaydı silindi!');
                   loadData();
                 } else {
-                  Alert.alert('Hata', result?.message || 'Kayıt silinemedi');
+                  Alert.alert(t.error || 'Hata', result?.message || t.entry_delete_failed || 'Kayıt silinemedi');
                 }
               } else if (type === 'strength') {
                 const result = await trackingService.deleteStrengthEntry(entryId, userUUID);
                 if (result?.success) {
-                  Alert.alert('Başarılı', 'Ağırlık kaydı silindi!');
+                  Alert.alert(t.success || 'Başarılı', t.strength_entry_deleted || 'Ağırlık kaydı silindi!');
                   loadData();
                 } else {
-                  Alert.alert('Hata', result?.message || 'Kayıt silinemedi');
+                  Alert.alert(t.error || 'Hata', result?.message || t.entry_delete_failed || 'Kayıt silinemedi');
                 }
               }
             } catch (error) {
-              Alert.alert('Hata', error.message || 'Kayıt silinemedi');
+              Alert.alert(t.error || 'Hata', error.message || t.entry_delete_failed || 'Kayıt silinemedi');
             }
           }
         }
@@ -865,22 +869,22 @@ export default function TrackingScreen() {
 
   const handleSaveGoal = async () => {
     if (!userUUID || userData?.isOffline) {
-      Alert.alert('Backend Bağlantısı Yok', 'Lütfen SUPABASE_MASTER_SETUP.sql dosyasını Supabase\'e yükleyin.');
+      Alert.alert(t.no_backend_connection || 'Backend Bağlantısı Yok', t.please_upload_sql || 'Lütfen SUPABASE_MASTER_SETUP.sql dosyasını Supabase\'e yükleyin.');
       return;
     }
 
     if (!trackingService) {
-      Alert.alert('Hata', 'Tracking service yüklenemedi.');
+      Alert.alert(t.error || 'Hata', t.tracking_service_error || 'Tracking service yüklenemedi.');
       return;
     }
 
     if (selectedTracking === 'weight' && !weightGoal) {
-      Alert.alert('Uyarı', 'Lütfen hedef kilo girin');
+      Alert.alert(t.warning || 'Uyarı', t.please_enter_target_weight || 'Lütfen hedef kilo girin');
       return;
     }
 
     if (selectedTracking === 'strength' && (!strengthGoal || !selectedExerciseForGoal)) {
-      Alert.alert('Uyarı', 'Lütfen egzersiz seçin ve hedef ağırlık girin');
+      Alert.alert(t.warning || 'Uyarı', t.please_select_exercise_target || 'Lütfen egzersiz seçin ve hedef ağırlık girin');
       return;
     }
 
@@ -919,7 +923,7 @@ export default function TrackingScreen() {
 
       if (error) throw error;
 
-      Alert.alert('Başarılı', `Hedef ${selectedTracking === 'weight' ? 'kilo' : 'ağırlık'} kaydedildi!`);
+      Alert.alert(t.success || 'Başarılı', `${t.target || 'Hedef'} ${selectedTracking === 'weight' ? (t.weight || 'kilo') : (t.strength || 'ağırlık')} ${t.saved || 'kaydedildi'}!`);
       setShowGoalModal(false);
       setWeightGoal('');
       setStrengthGoal('');
@@ -931,35 +935,43 @@ export default function TrackingScreen() {
       }, 500);
       
     } catch (error) {
-      Alert.alert('Hata', error.message || 'Hedef kaydedilemedi');
+      Alert.alert(t.error || 'Hata', error.message || t.target_save_failed || 'Hedef kaydedilemedi');
     } finally {
       setSaving(false);
     }
   };
 
-  const renderPeriodButton = (period) => (
-    <TouchableOpacity
-      key={period}
-      onPress={() => setSelectedPeriod(period)}
-      style={{
-        backgroundColor: selectedPeriod === period ? colors.primary : colors.background,
-        borderRadius: 20,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        marginRight: spacing.sm,
-        borderWidth: 1,
-        borderColor: colors.primary
-      }}
-    >
-      <Text style={{
-        color: selectedPeriod === period ? colors.background : colors.primary,
-        fontSize: 14,
-        fontWeight: '600'
-      }}>
-        {period}
-      </Text>
-    </TouchableOpacity>
-  );
+  const renderPeriodButton = (periodKey) => {
+    const periodTranslations = {
+      'weekly': t.weekly || 'Haftalık',
+      'monthly': t.monthly || 'Aylık',
+      'yearly': t.yearly || 'Yıllık'
+    };
+    
+    return (
+      <TouchableOpacity
+        key={periodKey}
+        onPress={() => setSelectedPeriod(periodKey)}
+        style={{
+          backgroundColor: selectedPeriod === periodKey ? colors.primary : colors.background,
+          borderRadius: 20,
+          paddingHorizontal: 16,
+          paddingVertical: 8,
+          marginRight: spacing.sm,
+          borderWidth: 1,
+          borderColor: colors.primary
+        }}
+      >
+        <Text style={{
+          color: selectedPeriod === periodKey ? colors.background : colors.primary,
+          fontSize: 14,
+          fontWeight: '600'
+        }}>
+          {periodTranslations[periodKey]}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   const renderTrackingButton = (type, title, icon) => (
     <TouchableOpacity
@@ -993,7 +1005,7 @@ export default function TrackingScreen() {
       <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={{ color: colors.text, fontSize: 16, marginTop: spacing.md }}>
-          Yükleniyor...
+          {t.loading || 'Yükleniyor...'}
         </Text>
       </View>
     );
@@ -1005,8 +1017,8 @@ export default function TrackingScreen() {
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.md, paddingBottom: 100 }}>
           {/* Header */}
           <SectionHeader 
-            title="Takip ve Analiz" 
-            subtitle="İlerlemenizi grafiklerle takip edin"
+            title={t.tracking_analysis || "Takip ve Analiz"} 
+            subtitle={t.track_progress_with_charts || "İlerlemenizi grafiklerle takip edin"}
             right={
               <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                 <TouchableOpacity onPress={() => setShowGoalModal(true)}>
@@ -1022,21 +1034,21 @@ export default function TrackingScreen() {
           {/* Takip Türü Seçimi */}
           <View style={{ marginBottom: spacing.lg }}>
             <View style={{ flexDirection: 'row', marginBottom: spacing.md }}>
-              {renderTrackingButton('weight', 'Kilo Takibi', '📊')}
-              {renderTrackingButton('strength', 'Ağırlık Takibi', '🏋️')}
+              {renderTrackingButton('weight', t.weight_tracking || 'Kilo Takibi', '📊')}
+              {renderTrackingButton('strength', t.strength_tracking || 'Ağırlık Takibi', '🏋️')}
             </View>
           </View>
 
           {/* Zaman Periyodu */}
           <View style={{ flexDirection: 'row', marginBottom: spacing.lg, flexWrap: 'wrap' }}>
-            {['Haftalık', 'Aylık', 'Yıllık'].map(renderPeriodButton)}
+            {['weekly', 'monthly', 'yearly'].map(renderPeriodButton)}
           </View>
 
           {/* Dashboard İstatistikleri - Kart Kart */}
           {dashboardStats && (
             <Card style={{ marginBottom: spacing.lg, alignItems: 'center' }}>
               <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: spacing.md, textAlign: 'center' }}>
-                📈 Dashboard İstatistikleri
+                📈 {t.dashboard_statistics || 'Dashboard İstatistikleri'}
               </Text>
               
               {selectedTracking === 'weight' ? (
@@ -1055,7 +1067,7 @@ export default function TrackingScreen() {
                       alignItems: 'center',
                       paddingHorizontal: spacing.xs
                     }}>
-                      <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>Hedef Kilo</Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>{t.target_weight || 'Hedef Kilo'}</Text>
                       <Text style={{ color: colors.primary, fontSize: 20, fontWeight: '700', textAlign: 'center' }}>
                         {userData?.target_weight ? `${userData.target_weight}kg` : '--'}
                       </Text>
@@ -1065,7 +1077,7 @@ export default function TrackingScreen() {
                       alignItems: 'center',
                       paddingHorizontal: spacing.xs
                     }}>
-                      <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>Hedef İlerleme</Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>{t.target_progress || 'Hedef İlerleme'}</Text>
                       <Text style={{ 
                         color: (() => {
                           const targetWeight = userData?.target_weight || 0;
@@ -1118,7 +1130,7 @@ export default function TrackingScreen() {
                       alignItems: 'center',
                       paddingHorizontal: spacing.xs
                     }}>
-                      <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>Kilo Değişimi</Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>{t.weight_change || 'Kilo Değişimi'}</Text>
                       <Text style={{ 
                         color: (() => {
                           const normalizedWeightData = normalizeWeightData(weightData);
@@ -1153,7 +1165,7 @@ export default function TrackingScreen() {
                       alignItems: 'center',
                       paddingHorizontal: spacing.xs
                     }}>
-                      <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>Mevcut Kilo</Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>{t.current_weight || 'Mevcut Kilo'}</Text>
                       <Text style={{ 
                         color: colors.info,
                         fontSize: 20, 
@@ -1186,7 +1198,7 @@ export default function TrackingScreen() {
                       alignItems: 'center',
                       paddingHorizontal: spacing.xs
                     }}>
-                      <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>Aktif Günler</Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>{t.active_days || 'Aktif Günler'}</Text>
                       <Text style={{ 
                         color: colors.purple,
                         fontSize: 20, 
@@ -1288,7 +1300,7 @@ export default function TrackingScreen() {
                               alignItems: 'center',
                               paddingHorizontal: spacing.xs
                             }}>
-                              <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>En Yüksek</Text>
+                              <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>{t.highest || 'En Yüksek'}</Text>
                               <Text style={{ 
                                 color: colors.primary,
                                 fontSize: 18, 
@@ -1304,7 +1316,7 @@ export default function TrackingScreen() {
                               alignItems: 'center',
                               paddingHorizontal: spacing.xs
                             }}>
-                              <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>Değişim</Text>
+                              <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>{t.change || 'Değişim'}</Text>
                               <Text style={{ 
                                 color: getStrengthChangeColor(change),
                                 fontSize: 18, 
@@ -1329,7 +1341,7 @@ export default function TrackingScreen() {
                               alignItems: 'center',
                               paddingHorizontal: spacing.xs
                             }}>
-                              <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>İlk Kayıt</Text>
+                              <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>{t.first_record || 'İlk Kayıt'}</Text>
                               <Text style={{ 
                                 color: colors.info,
                                 fontSize: 18, 
@@ -1345,7 +1357,7 @@ export default function TrackingScreen() {
                               alignItems: 'center',
                               paddingHorizontal: spacing.xs
                             }}>
-                              <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>Son Ağırlık</Text>
+                              <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>{t.last_weight || 'Son Ağırlık'}</Text>
                               <Text style={{ 
                                 color: colors.warning,
                                 fontSize: 18, 
@@ -1369,7 +1381,7 @@ export default function TrackingScreen() {
                               alignItems: 'center',
                               paddingHorizontal: spacing.xs
                             }}>
-                              <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>Toplam Kayıt</Text>
+                              <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>{t.total_records || 'Toplam Kayıt'}</Text>
                               <Text style={{ 
                                 color: colors.purple,
                                 fontSize: 18, 
@@ -1385,7 +1397,7 @@ export default function TrackingScreen() {
                               alignItems: 'center',
                               paddingHorizontal: spacing.xs
                             }}>
-                              <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>İlerleme</Text>
+                              <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>{t.progress || 'İlerleme'}</Text>
                               <Text style={{ 
                                 color: getProgressColor(progressPercent),
                                 fontSize: 18, 
@@ -1436,7 +1448,7 @@ export default function TrackingScreen() {
                   return (
                     <>
                       <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: spacing.md }}>
-                        📊 Kilo Trendi (0 kayıt)
+                        📊 {t.weight_trend || 'Kilo Trendi'} (0 {t.records || 'kayıt'})
                       </Text>
                       <View style={{ 
                         height: 220, 
@@ -1447,15 +1459,15 @@ export default function TrackingScreen() {
                         marginVertical: spacing.sm
                       }}>
                         <Text style={{ color: colors.textMuted, fontSize: 16, textAlign: 'center' }}>
-                          Henüz kilo kaydı yok
+                          {t.no_weight_records || 'Henüz kilo kaydı yok'}
                         </Text>
                         <Text style={{ color: colors.textMuted, fontSize: 14, textAlign: 'center', marginTop: spacing.xs }}>
-                          İlk kaydını eklemek için + butonuna bas
+                          {t.add_first_record || 'İlk kaydını eklemek için + butonuna bas'}
                         </Text>
                       </View>
                       <View style={{ marginTop: spacing.sm, paddingHorizontal: spacing.sm }}>
                         <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>
-                          Son kilo: -- kg
+                          {t.last_weight || 'Son kilo'}: -- kg
                         </Text>
                       </View>
                     </>
@@ -1477,7 +1489,7 @@ export default function TrackingScreen() {
                 return (
                   <>
                     <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: spacing.md }}>
-                      📊 Kilo Trendi ({normalizedWeightData.length} kayıt)
+                      📊 {t.weight_trend || 'Kilo Trendi'} ({normalizedWeightData.length} {t.records || 'kayıt'})
                     </Text>
                     <View style={{ alignItems: 'center', width: '100%' }}>
                       <ScrollView 
@@ -1505,10 +1517,10 @@ export default function TrackingScreen() {
                     </View>
                     <View style={{ marginTop: spacing.sm, paddingHorizontal: spacing.sm }}>
                       <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>
-                        Son kilo: {sortedForChart[sortedForChart.length - 1]?.weight || 0}kg
+                        {t.last_weight || 'Son kilo'}: {sortedForChart[sortedForChart.length - 1]?.weight || 0}kg
                         {normalizedWeightData.length !== weightData.length && (
                           <Text style={{ color: colors.warning }}>
-                            {' '}({weightData.length - normalizedWeightData.length} anormal kayıt filtrelendi)
+                            {' '}({weightData.length - normalizedWeightData.length} {t.abnormal_records_filtered || 'anormal kayıt filtrelendi'})
                           </Text>
                         )}
                       </Text>
@@ -1520,10 +1532,10 @@ export default function TrackingScreen() {
           ) : selectedTracking === 'strength' && strengthData?.length > 0 ? (
             <Card style={{ marginBottom: spacing.lg }}>
               <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: spacing.md }}>
-                🏋️ Ağırlık Trendi ({(() => {
+                🏋️ {t.strength_trend || 'Ağırlık Trendi'} ({(() => {
                   const groupedExercises = getGroupedStrengthData();
                   const totalRecords = groupedExercises.reduce((sum, exercise) => sum + exercise.history.length, 0);
-                  return `${totalRecords} kayıt`;
+                  return `${totalRecords} ${t.records || 'kayıt'}`;
                 })()})
               </Text>
               
@@ -1653,7 +1665,7 @@ export default function TrackingScreen() {
                               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <Ionicons name="remove" size={16} color={colors.warning} />
                                 <Text style={{ color: colors.warning, fontSize: 12, fontWeight: '600', marginLeft: spacing.xs }}>
-                                  Değişim yok
+                                  {t.no_change || 'Değişim yok'}
                                 </Text>
                               </View>
                             );
@@ -1669,25 +1681,25 @@ export default function TrackingScreen() {
                         marginTop: spacing.sm
                       }}>
                         <View style={{ alignItems: 'center' }}>
-                          <Text style={{ color: colors.textMuted, fontSize: 12 }}>Toplam</Text>
+                          <Text style={{ color: colors.textMuted, fontSize: 12 }}>{t.total || 'Toplam'}</Text>
                           <Text style={{ color: colors.primary, fontSize: 14, fontWeight: '600' }}>
-                            {item.history.length} kayıt
+                            {item.history.length} {t.records || 'kayıt'}
                           </Text>
                         </View>
                         <View style={{ alignItems: 'center' }}>
-                          <Text style={{ color: colors.textMuted, fontSize: 12 }}>İlk</Text>
+                          <Text style={{ color: colors.textMuted, fontSize: 12 }}>{t.first || 'İlk'}</Text>
                           <Text style={{ color: colors.success, fontSize: 14, fontWeight: '600' }}>
                             {item.history[item.history.length - 1]?.weight}kg
                           </Text>
                         </View>
                         <View style={{ alignItems: 'center' }}>
-                          <Text style={{ color: colors.textMuted, fontSize: 12 }}>Son</Text>
+                          <Text style={{ color: colors.textMuted, fontSize: 12 }}>{t.last || 'Son'}</Text>
                           <Text style={{ color: colors.warning, fontSize: 14, fontWeight: '600' }}>
                             {item.history[0]?.weight}kg
                           </Text>
                         </View>
                         <View style={{ alignItems: 'center' }}>
-                          <Text style={{ color: colors.textMuted, fontSize: 12 }}>Artış</Text>
+                          <Text style={{ color: colors.textMuted, fontSize: 12 }}>{t.increase || 'Artış'}</Text>
                           <Text style={{ 
                             color: (item.history[0]?.weight - item.history[item.history.length - 1]?.weight) >= 0 
                               ? colors.success : colors.error, 
@@ -1723,8 +1735,8 @@ export default function TrackingScreen() {
             <Card style={{ alignItems: 'center', padding: spacing.xl }}>
               <Text style={{ color: colors.textMuted, fontSize: 16, textAlign: 'center' }}>
                 {selectedTracking === 'weight' 
-                  ? 'Henüz kilo verisi yok. İlk kaydınızı ekleyin!'
-                  : 'Henüz ağırlık verisi yok. İlk kaydınızı ekleyin!'
+                  ? (t.no_weight_data || 'Henüz kilo verisi yok. İlk kaydınızı ekleyin!')
+                  : (t.no_strength_data || 'Henüz ağırlık verisi yok. İlk kaydınızı ekleyin!')
                 }
               </Text>
               <TouchableOpacity 
@@ -1738,7 +1750,7 @@ export default function TrackingScreen() {
                 }}
               >
                 <Text style={{ color: colors.background, fontSize: 14, fontWeight: '600' }}>
-                  İlk Kaydı Ekle
+                  {t.add_first_record || 'İlk Kaydı Ekle'}
                 </Text>
               </TouchableOpacity>
             </Card>
@@ -1749,7 +1761,7 @@ export default function TrackingScreen() {
             (selectedTracking === 'strength' && strengthData?.length > 0)) && (
             <Card>
               <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: spacing.md }}>
-                📝 Son Kayıtlar - {selectedTracking === 'weight' ? 'Kilo Takibi' : 'Ağırlık Takibi'}
+                📝 {t.recent_records || 'Son Kayıtlar'} - {selectedTracking === 'weight' ? (t.weight_tracking || 'Kilo Takibi') : (t.strength_tracking || 'Ağırlık Takibi')}
               </Text>
               
 
@@ -1768,9 +1780,9 @@ export default function TrackingScreen() {
                     borderBottomColor: colors.border
                   }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.text, fontWeight: '600' }}>⚖️ Kilo</Text>
+                      <Text style={{ color: colors.text, fontWeight: '600' }}>⚖️ {t.weight || 'Kilo'}</Text>
                       <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-                        {new Date(entry.measurement_date || entry.date).toLocaleDateString('tr-TR')}
+                        {new Date(entry.measurement_date || entry.date).toLocaleDateString(language === 'en' ? 'en-US' : 'tr-TR')}
                       </Text>
                     </View>
                     <Text style={{ color: colors.primary, fontWeight: '700', marginRight: spacing.sm }}>
@@ -1810,7 +1822,7 @@ export default function TrackingScreen() {
                       🏋️ {entry.exercise_name || entry.name}
                     </Text>
                     <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-                      {new Date(entry.measurement_date || entry.date).toLocaleDateString('tr-TR')}
+                      {new Date(entry.measurement_date || entry.date).toLocaleDateString(language === 'en' ? 'en-US' : 'tr-TR')}
                     </Text>
                   </View>
                   <Text style={{ color: colors.primary, fontWeight: '700', marginRight: spacing.sm }}>
@@ -1860,7 +1872,7 @@ export default function TrackingScreen() {
                 maxHeight: '80%'
               }}>
                 <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: spacing.lg }}>
-                  {selectedTracking === 'weight' ? '📊 Kilo Ekle' : '🏋️ Ağırlık Ekle'}
+                  {selectedTracking === 'weight' ? `📊 ${t.add_weight || 'Kilo Ekle'}` : `🏋️ ${t.add_strength || 'Ağırlık Ekle'}`}
                 </Text>
 
                 {/* Kilo Takibi */}
@@ -1868,7 +1880,7 @@ export default function TrackingScreen() {
                   <TextInput
                     value={newWeight}
                     onChangeText={setNewWeight}
-                    placeholder="Kilo (kg) - Örn: 73.2"
+                    placeholder={t.weight_placeholder || "Kilo (kg) - Örn: 73.2"}
                     placeholderTextColor={colors.textMuted}
                     style={{
                       backgroundColor: colors.background,
@@ -1887,7 +1899,7 @@ export default function TrackingScreen() {
                 {selectedTracking === 'strength' && (
                   <>
                     <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginBottom: spacing.sm }}>
-                      Egzersiz Seçimi
+                      {t.exercise_selection || 'Egzersiz Seçimi'}
                     </Text>
                     
                     {/* Bilinen Egzersizler */}
@@ -1922,7 +1934,7 @@ export default function TrackingScreen() {
                     <TextInput
                       value={newExercise}
                       onChangeText={setNewExercise}
-                      placeholder="Özel egzersiz adı - Örn: Custom Exercise"
+                      placeholder={t.custom_exercise_placeholder || "Özel egzersiz adı - Örn: Custom Exercise"}
                       placeholderTextColor={colors.textMuted}
                       style={{
                         backgroundColor: colors.background,
@@ -1939,7 +1951,7 @@ export default function TrackingScreen() {
                     <TextInput
                       value={newReps}
                       onChangeText={setNewReps}
-                      placeholder="Tekrar x Ağırlık - Örn: 8x65kg"
+                      placeholder={t.reps_weight_placeholder || "Tekrar x Ağırlık - Örn: 8x65kg"}
                       placeholderTextColor={colors.textMuted}
                       style={{
                         backgroundColor: colors.background,
@@ -1974,7 +1986,7 @@ export default function TrackingScreen() {
                     }}
                   >
                     <Text style={{ color: colors.background, fontSize: 16, fontWeight: '700' }}>
-                      {saving ? "⏳ Kaydediliyor..." : "✅ Kaydet"}
+                      {saving ? (t.saving || "⏳ Kaydediliyor...") : (t.save || "✅ Kaydet")}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -1995,7 +2007,7 @@ export default function TrackingScreen() {
                     }}
                   >
                     <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '700' }}>
-                      ❌ İptal
+                      ❌ {t.cancel || 'İptal'}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -2029,19 +2041,19 @@ export default function TrackingScreen() {
                 maxHeight: '80%'
               }}>
                 <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: spacing.lg }}>
-                  {selectedTracking === 'weight' ? '🎯 Hedef Kilo Belirle' : '🏋️ Hedef Ağırlık Belirle'}
+                  {selectedTracking === 'weight' ? `🎯 ${t.set_target_weight || 'Hedef Kilo Belirle'}` : `🏋️ ${t.set_target_strength || 'Hedef Ağırlık Belirle'}`}
                 </Text>
 
                 {/* Kilo Hedefi */}
                 {selectedTracking === 'weight' && (
                   <View style={{ marginBottom: spacing.md }}>
                     <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginBottom: spacing.sm }}>
-                      Hedef Kilo (kg)
+                      {t.target_weight || 'Hedef Kilo'} (kg)
                     </Text>
                     <TextInput
                       value={weightGoal}
                       onChangeText={setWeightGoal}
-                      placeholder="Örn: 65.0"
+                      placeholder={t.weight_example || "Örn: 65.0"}
                       placeholderTextColor={colors.textMuted}
                       style={{
                         backgroundColor: colors.background,
@@ -2056,10 +2068,10 @@ export default function TrackingScreen() {
                       onSubmitEditing={handleSaveGoal}
                     />
                     <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: spacing.xs }}>
-                      Mevcut hedef: {userData?.target_weight || 'Belirtilmemiş'}kg
+                      {t.current_target || 'Mevcut hedef'}: {userData?.target_weight || (t.not_specified || 'Belirtilmemiş')}kg
                       {userData?.target_weight && (
                         <Text style={{ color: colors.primary, fontWeight: '600' }}>
-                          {' '}(Mevcut kilo: {userData?.current_weight || '--'}kg)
+                          {' '}({t.current_weight || 'Mevcut kilo'}: {userData?.current_weight || '--'}kg)
                         </Text>
                       )}
                     </Text>
@@ -2071,7 +2083,7 @@ export default function TrackingScreen() {
                   <>
                     <View style={{ marginBottom: spacing.md }}>
                       <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginBottom: spacing.sm }}>
-                        Egzersiz Seçimi
+                        {t.exercise_selection || 'Egzersiz Seçimi'}
                       </Text>
                       
                       {/* Egzersiz Seçimi */}
@@ -2103,12 +2115,12 @@ export default function TrackingScreen() {
                       </ScrollView>
                       
                       <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginBottom: spacing.sm }}>
-                        Hedef Ağırlık (kg)
+                        {t.target_weight || 'Hedef Ağırlık'} (kg)
                       </Text>
                       <TextInput
                         value={strengthGoal}
                         onChangeText={setStrengthGoal}
-                        placeholder="Örn: 100.0"
+                        placeholder={t.weight_example || "Örn: 100.0"}
                         placeholderTextColor={colors.textMuted}
                         style={{
                           backgroundColor: colors.background,
@@ -2124,8 +2136,8 @@ export default function TrackingScreen() {
                       />
                       <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: spacing.xs }}>
                         {selectedExerciseForGoal ? 
-                          `Mevcut hedef (${selectedExerciseForGoal}): ${exerciseTargets[selectedExerciseForGoal] || 'Belirtilmemiş'}kg` :
-                          'Önce egzersiz seçin'
+                          `${t.current_target || 'Mevcut hedef'} (${selectedExerciseForGoal}): ${exerciseTargets[selectedExerciseForGoal] || (t.not_specified || 'Belirtilmemiş')}kg` :
+                          (t.select_exercise_first || 'Önce egzersiz seçin')
                         }
                       </Text>
                     </View>
@@ -2150,7 +2162,7 @@ export default function TrackingScreen() {
                     }}
                   >
                     <Text style={{ color: colors.background, fontSize: 16, fontWeight: '700' }}>
-                      {saving ? "⏳ Kaydediliyor..." : "🎯 Hedef Kaydet"}
+                      {saving ? (t.saving || "⏳ Kaydediliyor...") : `🎯 ${t.save_target || 'Hedef Kaydet'}`}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -2171,7 +2183,7 @@ export default function TrackingScreen() {
                     }}
                   >
                     <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '700' }}>
-                      ❌ İptal
+                      ❌ {t.cancel || 'İptal'}
                     </Text>
                   </TouchableOpacity>
                 </View>

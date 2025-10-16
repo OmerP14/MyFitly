@@ -21,9 +21,16 @@ export const UserProvider = ({ children }) => {
 
   // Kullanıcıyı başlat
   const initializeUser = async () => {
+    let timeoutId = null;
     try {
       setIsLoading(true);
       console.log('🔄 Kullanıcı başlatılıyor...');
+      
+      // Timeout koruma - maksimum 10 saniye
+      timeoutId = setTimeout(() => {
+        console.warn('⏰ Initialize timeout - loading false yapılıyor');
+        setIsLoading(false);
+      }, 10000);
       
       // Mevcut session'ı kontrol et
       const { data: { session: currentSession } } = await supabase.auth.getSession();
@@ -41,28 +48,19 @@ export const UserProvider = ({ children }) => {
           .single();
         
         if (error || !userProfile) {
-          console.warn('⚠️ Kullanıcı profili bulunamadı, yeni profil oluşturuluyor...');
-          // Yeni profil oluştur
-          const { data: newProfile, error: createError } = await supabase
-            .from('users')
-            .insert([{
-              id: currentSession.user.id,
-              email: currentSession.user.email,
-              name: currentSession.user.email?.split('@')[0] || 'Kullanıcı',
-              created_at: new Date().toISOString()
-            }])
-            .select()
-            .single();
-          
-          if (newProfile) {
-            setUserData(newProfile);
-            setNeedsProfileCompletion(true); // Profil doldurması gerekiyor
-          }
+          console.warn('⚠️ Kullanıcı profili bulunamadı');
+          // Profil yoksa sadece bilgilendir, otomatik oluşturma
+          setUserData(null);
+          setNeedsProfileCompletion(true); // Profil oluşturması gerekiyor
         } else {
           setUserData(userProfile);
           // Profil eksik mi kontrol et
           if (!userProfile.age || !userProfile.height || !userProfile.current_weight || !userProfile.target_weight) {
+            console.log('⚠️ Profil eksik bilgiler var, tamamlanması gerekiyor');
             setNeedsProfileCompletion(true);
+          } else {
+            console.log('✅ Profil tamamlanmış');
+            setNeedsProfileCompletion(false);
           }
         }
       } else {
@@ -75,6 +73,7 @@ export const UserProvider = ({ children }) => {
     } catch (error) {
       console.error('❌ Kullanıcı başlatma hatası:', error);
     } finally {
+      if (timeoutId) clearTimeout(timeoutId);
       setIsLoading(false);
     }
   };
@@ -112,7 +111,11 @@ export const UserProvider = ({ children }) => {
           setUserData(updatedProfile);
           // Profil tamamlandı mı kontrol et
           if (updatedProfile.age && updatedProfile.height && updatedProfile.current_weight && updatedProfile.target_weight) {
+            console.log('✅ Profil güncelleme sonrası tamamlanmış');
             setNeedsProfileCompletion(false);
+          } else {
+            console.log('⚠️ Profil güncelleme sonrası hala eksik bilgiler var');
+            setNeedsProfileCompletion(true);
           }
         }
       }
@@ -145,16 +148,25 @@ export const UserProvider = ({ children }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       console.log('🔔 Auth state değişti:', event);
       
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      if (event === 'SIGNED_IN') {
+        // Sadece yeni giriş yapıldığında kullanıcı verilerini yükle
         setSession(currentSession);
         if (currentSession?.user) {
           await initializeUser();
+        }
+      } else if (event === 'TOKEN_REFRESHED') {
+        // Token yenilendiğinde sadece session'ı güncelle, tekrar initialize etme
+        console.log('🔄 Token yenilendi, session güncelleniyor...');
+        setSession(currentSession);
+        if (currentSession?.user) {
+          setUserId(currentSession.user.id);
         }
       } else if (event === 'SIGNED_OUT') {
         setSession(null);
         setUserId(null);
         setUserData(null);
         setNeedsProfileCompletion(false);
+        setIsLoading(false);
       }
     });
 

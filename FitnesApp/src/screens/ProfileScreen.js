@@ -9,8 +9,11 @@ import SectionHeader from '../components/SectionHeader';
 import { spacing } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
+import { useLanguage } from '../context/LanguageContext';
+import { getTranslations } from '../utils/translations';
 import { supabase } from '../config/supabase';
 import * as notificationService from '../services/notificationService';
+import LanguageSelector from '../components/LanguageSelector';
 
 const ProfileMenuItem = ({ icon, title, subtitle, onPress, showArrow = true, colors }) => (
   <TouchableOpacity onPress={onPress} style={{
@@ -51,12 +54,15 @@ export default function ProfileScreen() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
   const { isDarkMode, toggleTheme, colors } = useTheme();
   const { userId, userData, updateUserData, refreshUser, logout, isLoading } = useUser();
+  const { language } = useLanguage();
+  const t = getTranslations(language);
   
   // Local state for form editing
   const [localUserData, setLocalUserData] = useState({
-    name: 'Yükleniyor...',
+    name: t?.loading || 'Loading...',
     email: '',
     weight: 0,
     targetWeight: 0,
@@ -69,7 +75,7 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (userData && !showEditModal) {
       setLocalUserData({
-        name: userData.name || 'Kullanıcı',
+        name: userData.name || t.name || 'User',
         email: userData.email || '',
         weight: userData.current_weight || 0,
         targetWeight: userData.target_weight || 0,
@@ -88,7 +94,7 @@ export default function ProfileScreen() {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (status !== 'granted') {
-        Alert.alert('İzin Gerekli', 'Galeri erişimi için izin vermeniz gerekiyor.');
+        Alert.alert(t.permission_required, t.gallery_permission_required);
         return;
       }
 
@@ -111,12 +117,12 @@ export default function ProfileScreen() {
           profile_photo_url: photoUri
         });
         
-        Alert.alert('Başarılı', 'Profil fotoğrafınız güncellendi!');
+        Alert.alert(t.successful, t.photo_selected_success);
         setShowPhotoModal(false);
       }
     } catch (error) {
       console.error('Galeri hatası:', error);
-      Alert.alert('Hata', 'Fotoğraf seçilirken bir hata oluştu.');
+      Alert.alert(t.error, t.photo_selection_error);
     }
   };
 
@@ -127,7 +133,7 @@ export default function ProfileScreen() {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       
       if (status !== 'granted') {
-        Alert.alert('İzin Gerekli', 'Kamera erişimi için izin vermeniz gerekiyor.');
+        Alert.alert(t.permission_required, t.camera_permission_required);
         return;
       }
 
@@ -149,12 +155,12 @@ export default function ProfileScreen() {
           profile_photo_url: photoUri
         });
         
-        Alert.alert('Başarılı', 'Profil fotoğrafınız güncellendi!');
+        Alert.alert(t.successful, t.photo_selected_success);
         setShowPhotoModal(false);
       }
     } catch (error) {
       console.error('Kamera hatası:', error);
-      Alert.alert('Hata', 'Fotoğraf çekilirken bir hata oluştu.');
+      Alert.alert(t.error, t.photo_capture_error);
     }
   };
 
@@ -169,11 +175,11 @@ export default function ProfileScreen() {
         profile_photo_url: null
       });
       
-      Alert.alert('Başarılı', 'Profil fotoğrafınız kaldırıldı!');
+      Alert.alert(t.successful, t.photo_removed_success);
       setShowPhotoModal(false);
     } catch (error) {
       console.error('Fotoğraf kaldırma hatası:', error);
-      Alert.alert('Hata', 'Fotoğraf kaldırılırken bir hata oluştu.');
+      Alert.alert(t.error, t.photo_remove_error);
     }
   };
 
@@ -200,7 +206,7 @@ export default function ProfileScreen() {
         }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
             <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>
-              Profil Fotoğrafı
+              {t.profile_photo_title}
             </Text>
             <TouchableOpacity onPress={() => setShowPhotoModal(false)}>
               <Ionicons name="close" size={24} color={colors.textMuted} />
@@ -208,7 +214,7 @@ export default function ProfileScreen() {
           </View>
 
           <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: spacing.lg }}>
-            Galeri veya kameradan fotoğraf seçin
+            {t.profile_photo_desc}
           </Text>
 
           {/* Galeri Butonu */}
@@ -231,7 +237,7 @@ export default function ProfileScreen() {
           >
             <Ionicons name="images" size={24} color={colors.background} style={{ marginRight: spacing.sm }} />
             <Text style={{ color: colors.background, fontSize: 16, fontWeight: '700' }}>
-              📱 Galeriden Seç
+              📱 {t.choose_from_gallery}
             </Text>
           </TouchableOpacity>
 
@@ -255,7 +261,7 @@ export default function ProfileScreen() {
           >
             <Ionicons name="camera" size={24} color={colors.background} style={{ marginRight: spacing.sm }} />
             <Text style={{ color: colors.background, fontSize: 16, fontWeight: '700' }}>
-              📷 Kameradan Çek
+              📷 {t.take_photo}
             </Text>
           </TouchableOpacity>
 
@@ -273,7 +279,7 @@ export default function ProfileScreen() {
               }}
             >
               <Text style={{ color: colors.error, fontSize: 14, fontWeight: '600' }}>
-                🗑️ Fotoğrafı Kaldır
+                🗑️ {t.remove_photo}
               </Text>
             </TouchableOpacity>
           )}
@@ -288,8 +294,8 @@ export default function ProfileScreen() {
         <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 32 }}>
           {/* Header */}
           <SectionHeader 
-            title="Profil" 
-            subtitle="Hesap ayarları ve kişisel bilgiler"
+            title={t.profile} 
+            subtitle={t.account_settings}
           />
 
           {/* Profile Card */}
@@ -350,7 +356,7 @@ export default function ProfileScreen() {
               {localUserData.name}
             </Text>
             <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: spacing.md }}>
-              {localUserData.email || 'Email girilmedi'}
+              {localUserData.email || t.email_not_entered}
             </Text>
             <TouchableOpacity onPress={() => setShowEditModal(true)} style={{
               backgroundColor: colors.primary,
@@ -364,7 +370,7 @@ export default function ProfileScreen() {
               shadowRadius: 2
             }}>
               <Text style={{ color: colors.background, fontSize: 14, fontWeight: '800' }}>
-                ✏️ Profili Düzenle
+                ✏️ {t.edit_profile}
               </Text>
             </TouchableOpacity>
           </Card>
@@ -372,24 +378,24 @@ export default function ProfileScreen() {
           {/* Stats */}
           <Card style={{ marginBottom: spacing.md }}>
             <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: spacing.md }}>
-              Kişisel Bilgiler
+              {t.personal_information}
             </Text>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <View style={{ alignItems: 'center', flex: 1 }}>
                 <Text style={{ color: colors.text, fontSize: 24, fontWeight: '800' }}>{localUserData.weight || 0}</Text>
-                <Text style={{ color: colors.textMuted, fontSize: 12 }}>Mevcut Kilo</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 12 }}>{t.current_weight_label}</Text>
               </View>
               <View style={{ alignItems: 'center', flex: 1 }}>
                 <Text style={{ color: colors.text, fontSize: 24, fontWeight: '800' }}>{localUserData.targetWeight || 0}</Text>
-                <Text style={{ color: colors.textMuted, fontSize: 12 }}>Hedef Kilo</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 12 }}>{t.target_weight_label}</Text>
               </View>
               <View style={{ alignItems: 'center', flex: 1 }}>
                 <Text style={{ color: colors.text, fontSize: 24, fontWeight: '800' }}>{localUserData.age || 0}</Text>
-                <Text style={{ color: colors.textMuted, fontSize: 12 }}>Yaş</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 12 }}>{t.age}</Text>
               </View>
               <View style={{ alignItems: 'center', flex: 1 }}>
                 <Text style={{ color: colors.text, fontSize: 24, fontWeight: '800' }}>{localUserData.height || 0}</Text>
-                <Text style={{ color: colors.textMuted, fontSize: 12 }}>Boy (cm)</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 12 }}>{t.height}</Text>
               </View>
             </View>
           </Card>
@@ -415,10 +421,10 @@ export default function ProfileScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }}>
-                  Bildirimler
+                  {t.notifications}
                 </Text>
                 <Text style={{ color: colors.textMuted, fontSize: 14, marginTop: 2 }}>
-                  Antrenman hatırlatıcıları
+                  {t.workout_reminders}
                 </Text>
               </View>
               <Switch
@@ -437,7 +443,7 @@ export default function ProfileScreen() {
                         // Egzersiz verilerini al
                         try {
                           const programService = require('../services/programService');
-                          const weeklyStats = await programService.getWeeklyStats(contextUserData?.id);
+                          const weeklyStats = await programService.getWeeklyStats(userData?.id);
                           
                           // Egzersiz günlerini organize et
                           const exercises = {};
@@ -449,24 +455,29 @@ export default function ProfileScreen() {
                           const result = await notificationService.updateWorkoutNotifications(exercises, true);
                           
                           if (result.success) {
+                            const daysString = Array.isArray(result.scheduledDays) && result.scheduledDays.length > 0 
+                              ? result.scheduledDays.join(', ')
+                              : (language === 'en' 
+                                  ? 'Every workout day at 09:00'
+                                  : "Her antrenman günü saat 09:00'da");
                             Alert.alert(
-                              '🔔 Bildirimler Açıldı!',
-                              `📅 Antrenman Hatırlatıcıları:\nHer antrenman günü saat 09:00'da\n\n${result.scheduledDays.join(', ')}\n\n✨ Motivasyon Bildirimleri:\nHaftada 2-3 kez rastgele saatlerde\n\nHedefine ulaşmak için seni motive edeceğiz! 💪`,
-                              [{ text: 'Harika!' }]
+                              t.notifications_enabled,
+                              t.notifications_schedule_info.replace('{days}', daysString),
+                              [{ text: t.great }]
                             );
                           }
                         } catch (error) {
                           console.error('Antrenman verileri alınamadı:', error);
                           Alert.alert(
-                            '✅ Bildirimler Açıldı',
-                            'Antrenman eklediğinizde otomatik olarak bildirimler zamanlanacak.'
+                            t.notifications_enabled_simple,
+                            t.notifications_auto_schedule
                           );
                         }
                       } else {
                         Alert.alert(
-                          'İzin Gerekli',
-                          'Bildirim göndermek için uygulama ayarlarından bildirim izni vermeniz gerekiyor.',
-                          [{ text: 'Tamam' }]
+                          t.permission_required,
+                          t.notification_permission_required,
+                          [{ text: t.ok }]
                         );
                         setNotificationsEnabled(false);
                       }
@@ -474,14 +485,14 @@ export default function ProfileScreen() {
                       // Bildirimleri kapat
                       await notificationService.cancelAllNotifications();
                       Alert.alert(
-                        '🔕 Bildirimler Kapatıldı',
-                        'Artık antrenman hatırlatıcıları almayacaksınız.',
-                        [{ text: 'Tamam' }]
+                        t.notifications_disabled,
+                        t.notifications_disabled_desc,
+                        [{ text: t.ok }]
                       );
                     }
                   } catch (error) {
                     console.error('Bildirim ayarı güncelleme hatası:', error);
-                    Alert.alert('Hata', 'Bildirim ayarı güncellenirken bir hata oluştu.');
+                    Alert.alert(t.error, t.notification_settings_error);
                   }
                 }}
                 trackColor={{ false: colors.border, true: colors.primary }}
@@ -489,7 +500,7 @@ export default function ProfileScreen() {
               />
             </View>
 
-            {/* Karanlık Tema */}
+            {/* Dark Theme */}
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)' }}>
               <View style={{
                 width: 40,
@@ -504,10 +515,10 @@ export default function ProfileScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }}>
-                  Karanlık Tema
+                  {t.dark_theme}
                 </Text>
                 <Text style={{ color: colors.textMuted, fontSize: 14, marginTop: 2 }}>
-                  Görünüm ayarları
+                  {t.appearance_settings}
                 </Text>
               </View>
               <Switch
@@ -531,37 +542,37 @@ export default function ProfileScreen() {
             <ProfileMenuItem
               colors={colors}
               icon="download"
-              title="Verileri Dışa Aktar"
-              subtitle="Tüm verilerini yedekle"
+              title={t.data_export}
+              subtitle={t.export_all_data}
               onPress={async () => {
                 try {
                   Alert.alert(
-                    'Veri Dışa Aktarma',
-                    'Tüm verileriniz JSON formatında dışa aktarılacak. Devam edilsin mi?',
+                    t.data_export_title,
+                    t.data_export_confirm,
                     [
-                      { text: 'İptal', style: 'cancel' },
+                      { text: t.cancel, style: 'cancel' },
                       {
-                        text: 'Dışa Aktar',
+                        text: t.export_data,
                         onPress: async () => {
                           try {
                             // Kullanıcı verilerini Supabase'den çek
                             const { data: workoutSessions } = await supabase
                               .from('workout_sessions')
                               .select('*')
-                              .eq('user_id', contextUserData?.id);
+                              .eq('user_id', userData?.id);
 
                             const { data: weightTracking } = await supabase
                               .from('weight_tracking')
                               .select('*')
-                              .eq('user_id', contextUserData?.id);
+                              .eq('user_id', userData?.id);
 
                             const { data: strengthTracking } = await supabase
                               .from('strength_tracking')
                               .select('*')
-                              .eq('user_id', contextUserData?.id);
+                              .eq('user_id', userData?.id);
 
                             const exportData = {
-                              user: contextUserData,
+                              user: userData,
                               workoutSessions: workoutSessions || [],
                               weightTracking: weightTracking || [],
                               strengthTracking: strengthTracking || [],
@@ -576,10 +587,10 @@ export default function ProfileScreen() {
                               title: 'FitnesApp Veri Yedekleme'
                             });
 
-                            Alert.alert('Başarılı', 'Verileriniz başarıyla dışa aktarıldı!');
+                            Alert.alert(t.successful, t.data_exported_success);
                           } catch (error) {
                             console.error('Veri dışa aktarma hatası:', error);
-                            Alert.alert('Hata', 'Veriler dışa aktarılırken bir hata oluştu.');
+                            Alert.alert(t.error, t.data_export_error);
                           }
                         }
                       }
@@ -587,51 +598,96 @@ export default function ProfileScreen() {
                   );
                 } catch (error) {
                   console.error('Dışa aktarma hatası:', error);
-                  Alert.alert('Hata', 'Bir hata oluştu.');
+                  Alert.alert(t.error, t.export_error_general);
                 }
               }}
             />
             <ProfileMenuItem
               colors={colors}
               icon="cloud-upload"
-              title="Buluta Yedekle"
-              subtitle="Supabase'e otomatik yedeklenmiş"
+              title={t.cloud_backup}
+              subtitle={t.auto_backup_info}
               onPress={() => {
                 Alert.alert(
-                  'Bulut Yedekleme',
-                  'Verileriniz otomatik olarak Supabase bulut veritabanına kaydediliyor. Ek bir işlem yapmanıza gerek yok!',
-                  [{ text: 'Tamam' }]
+                  t.cloud_backup_title,
+                  t.cloud_backup_message,
+                  [{ text: t.ok }]
                 );
               }}
             />
             <ProfileMenuItem
               colors={colors}
               icon="share"
-              title="Verileri Paylaş"
-              subtitle="Antrenör veya arkadaşlarla"
+              title={t.share_data}
+              subtitle={t.share_with_trainer}
               onPress={async () => {
                 try {
+                  const dateStr = new Date().toLocaleDateString(language === 'en' ? 'en-US' : 'tr-TR');
                   const shareMessage = `
-🏋️ FitnesApp İlerleme Raporu
+${t.progress_report_header}
 
-👤 Ad: ${localUserData.name}
-⚖️ Mevcut Kilo: ${localUserData.weight} kg
-🎯 Hedef Kilo: ${localUserData.targetWeight} kg
-📏 Boy: ${localUserData.height} cm
-🎂 Yaş: ${localUserData.age}
+👤 ${t.share_name_label}: ${localUserData.name}
+⚖️ ${t.share_current_weight_label}: ${localUserData.weight} kg
+🎯 ${t.share_target_weight_label}: ${localUserData.targetWeight} kg
+📏 ${t.share_height_label}: ${localUserData.height} cm
+🎂 ${t.share_age_label}: ${localUserData.age}
 
-📊 Bu rapor ${new Date().toLocaleDateString('tr-TR')} tarihinde oluşturuldu.
+📊 ${t.share_report_created.replace('{date}', dateStr)}
                   `.trim();
 
                   await Share.share({
                     message: shareMessage,
-                    title: 'FitnesApp İlerleme Raporu'
+                    title: t.progress_report_title
                   });
                 } catch (error) {
                   console.error('Paylaşma hatası:', error);
-                  Alert.alert('Hata', 'Paylaşma sırasında bir hata oluştu.');
+                  Alert.alert(t.error, t.share_error);
                 }
               }}
+            />
+          </Card>
+
+          {/* Language & Theme */}
+          <Card style={{ marginBottom: spacing.md }}>
+            <TouchableOpacity
+              onPress={() => setShowLanguageModal(true)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: spacing.md,
+                borderBottomWidth: 1,
+                borderBottomColor: colors.border
+              }}
+            >
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: 'rgba(255, 122, 0, 0.2)',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginRight: spacing.md
+              }}>
+                <Ionicons name="language" size={20} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }}>
+                  {t.language}
+                </Text>
+                <Text style={{ color: colors.textMuted, fontSize: 14, marginTop: 2 }}>
+                  {language === 'tr' ? 'Türkçe' : 'English'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+            </TouchableOpacity>
+            
+            <ProfileMenuItem
+              colors={colors}
+              icon="moon"
+              title={isDarkMode ? t.light_mode : t.dark_mode}
+              subtitle={isDarkMode ? t.switch_to_light : t.switch_to_dark}
+              onPress={toggleTheme}
+              showArrow={false}
             />
           </Card>
 
@@ -640,16 +696,16 @@ export default function ProfileScreen() {
             <ProfileMenuItem
               colors={colors}
               icon="help-circle"
-              title="Yardım & Destek"
-              subtitle="SSS ve iletişim"
+              title={t.help_support}
+              subtitle={t.faq_contact}
               onPress={() => {
                 Alert.alert(
-                  'Yardım & Destek',
-                  '📧 Email: omerpehriz4@gmail.com\n\n💬 Sıkça Sorulan Sorular:\n\n1. Nasıl egzersiz eklerim?\n2. Nasıl ilerleme takibi yaparım?\n3. Verilerim güvende mi?\n\nDaha fazla bilgi için bana email atabilirsiniz.',
+                  t.help_support_title,
+                  t.help_support_message,
                   [
-                    { text: 'Kapat', style: 'cancel' },
+                    { text: t.close_button, style: 'cancel' },
                     {
-                      text: 'E-posta Gönder',
+                      text: t.send_email_button,
                       onPress: () => Linking.openURL('mailto:omerpehriz4@gmail.com')
                     }
                   ]
@@ -659,16 +715,16 @@ export default function ProfileScreen() {
             <ProfileMenuItem
               colors={colors}
               icon="star"
-              title="Uygulamayı Değerlendir"
-              subtitle="App Store'da puanla"
+              title={t.rate_app}
+              subtitle={t.rate_app_subtitle}
               onPress={() => {
                 Alert.alert(
-                  'Uygulamayı Beğendiniz mi?',
-                  'Görüşleriniz bizim için çok değerli! App Store\'da 5 yıldız vererek bizi destekleyebilirsiniz.',
+                  t.rate_app_confirm_title,
+                  t.rate_app_confirm_message,
                   [
-                    { text: 'Belki Sonra', style: 'cancel' },
+                    { text: t.maybe_later, style: 'cancel' },
                     {
-                      text: 'App Store\'a Git',
+                      text: t.go_to_app_store,
                       onPress: () => {
                         // iOS için App Store linki
                         const storeUrl = Platform.OS === 'ios' 
@@ -684,16 +740,16 @@ export default function ProfileScreen() {
             <ProfileMenuItem
               colors={colors}
               icon="information-circle"
-              title="Hakkında"
-              subtitle="Versiyon 1.0.0"
+              title={t.about}
+              subtitle={t.version}
               onPress={() => {
                 Alert.alert(
-                  'FitnesApp v1.0.0',
-                  '🏋️ Modern fitness tracking uygulaması\n\n👨‍💻 Geliştirici: Ömer Pehriz\n\n📱 React Native ile geliştirildi\n🔐 Supabase ile güvenli veri depolama\n\n© 2024 FitnesApp. Tüm hakları saklıdır.',
+                  t.about_app_title,
+                  t.about_app_message,
                   [
-                    { text: 'Tamam' },
+                    { text: t.ok },
                     {
-                      text: 'Gizlilik Politikası',
+                      text: t.privacy_policy,
                       onPress: () => Linking.openURL('https://fitnesapp.com/privacy')
                     }
                   ]
@@ -706,12 +762,12 @@ export default function ProfileScreen() {
           <TouchableOpacity 
             onPress={() => {
               Alert.alert(
-                'Çıkış Yap',
-                'Çıkış yapmak istediğinizden emin misiniz? Verileriniz güvenle saklanıyor ve tekrar giriş yaptığınızda geri yüklenecek.',
+                t.logout_title,
+                t.logout_confirm_message,
                 [
-                  { text: 'İptal', style: 'cancel' },
+                  { text: t.cancel, style: 'cancel' },
                   {
-                    text: 'Çıkış Yap',
+                    text: t.logout_button,
                     style: 'destructive',
                     onPress: async () => {
                       try {
@@ -719,7 +775,7 @@ export default function ProfileScreen() {
                         // Navigation otomatik olacak çünkü UserContext session'ı izliyor
                       } catch (error) {
                         console.error('❌ Çıkış hatası:', error);
-                        Alert.alert('Hata', 'Çıkış yapılırken bir hata oluştu.');
+                        Alert.alert(t.error, t.logout_error);
                       }
                     }
                   }
@@ -737,7 +793,7 @@ export default function ProfileScreen() {
           >
             <Ionicons name="log-out" size={20} color="#FF4757" style={{ marginRight: 8 }} />
             <Text style={{ color: '#FF4757', fontSize: 16, fontWeight: '600' }}>
-              Çıkış Yap
+              {t.logout}
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -770,13 +826,13 @@ export default function ProfileScreen() {
                 maxHeight: '80%'
               }}>
               <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: spacing.lg }}>
-                Profili Düzenle
+                {t.edit_profile}
               </Text>
 
               <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={{ gap: spacing.md }}>
                   <View>
-                    <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: 8 }}>Ad Soyad</Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: 8 }}>{t.full_name_label}</Text>
                     <TextInput
                       value={localUserData.name}
                       onChangeText={(text) => setLocalUserData({...localUserData, name: text})}
@@ -795,7 +851,7 @@ export default function ProfileScreen() {
                   </View>
 
                   <View>
-                    <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: 8 }}>Email</Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: 8 }}>{t.email}</Text>
                     <TextInput
                       value={localUserData.email}
                       onChangeText={(text) => setLocalUserData({...localUserData, email: text})}
@@ -816,7 +872,7 @@ export default function ProfileScreen() {
 
                   <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: 8 }}>Kilo (kg)</Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: 8 }}>{t.weight_kg}</Text>
                       <TextInput
                         value={localUserData.weight.toString()}
                         onChangeText={(text) => setLocalUserData({...localUserData, weight: parseFloat(text) || 0})}
@@ -832,7 +888,7 @@ export default function ProfileScreen() {
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: 8 }}>Hedef (kg)</Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: 8 }}>{t.target_kg}</Text>
                       <TextInput
                         value={localUserData.targetWeight.toString()}
                         onChangeText={(text) => setLocalUserData({...localUserData, targetWeight: parseFloat(text) || 0})}
@@ -851,7 +907,7 @@ export default function ProfileScreen() {
 
                   <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: 8 }}>Yaş</Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: 8 }}>{t.age}</Text>
                       <TextInput
                         value={localUserData.age.toString()}
                         onChangeText={(text) => setLocalUserData({...localUserData, age: parseInt(text) || 0})}
@@ -867,7 +923,7 @@ export default function ProfileScreen() {
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: 8 }}>Boy (cm)</Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: 8 }}>{t.height}</Text>
                       <TextInput
                         value={localUserData.height.toString()}
                         onChangeText={(text) => setLocalUserData({...localUserData, height: parseInt(text) || 0})}
@@ -890,7 +946,7 @@ export default function ProfileScreen() {
                 <TouchableOpacity
                   onPress={async () => {
                     if (!localUserData.name || !localUserData.email) {
-                      Alert.alert('Uyarı', 'Ad ve email alanları zorunludur');
+                      Alert.alert(t.warning, t.name_email_required);
                       return;
                     }
 
@@ -926,7 +982,7 @@ export default function ProfileScreen() {
                   }}
                 >
                   <Text style={{ color: colors.background, fontSize: 16, fontWeight: '700' }}>
-                    ✅ Kaydet
+                    ✅ {t.save}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -942,7 +998,7 @@ export default function ProfileScreen() {
                   }}
                 >
                   <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '700' }}>
-                    ❌ İptal
+                    ❌ {t.cancel}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -950,6 +1006,13 @@ export default function ProfileScreen() {
             </View>
           </KeyboardAvoidingView>
         </Modal>
+
+        {/* Language Selection Modal */}
+        <LanguageSelector
+          visible={showLanguageModal}
+          onClose={() => setShowLanguageModal(false)}
+          showInModal={true}
+        />
       </SafeAreaView>
     </LinearGradient>
   );

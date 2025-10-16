@@ -34,20 +34,32 @@ const useRewardedAd = () => {
       });
 
       if (!mobileAds || !RewardedAd) {
-        console.log('⚠️ AdMob mevcut değil, reklam sistemi devre dışı');
+        console.log('⚠️ AdMob mevcut değil (Expo Go kullanıyorsunuz), reklam sistemi devre dışı');
         setAdInitialized(false);
+        setLoading(false);
+        setLoaded(false);
         return;
       }
 
       try {
         console.log('🚀 AdMob başlatılıyor...');
-        const result = await mobileAds.initialize();
-        console.log('✅ AdMob başlatıldı:', result);
+        // mobileAds bir function değil, object olabilir
+        if (typeof mobileAds?.initialize === 'function') {
+          const result = await mobileAds.initialize();
+          console.log('✅ AdMob başlatıldı:', result);
+        } else if (typeof mobileAds === 'function') {
+          const result = await mobileAds().initialize();
+          console.log('✅ AdMob başlatıldı:', result);
+        } else {
+          console.log('⚠️ AdMob initialize fonksiyonu bulunamadı');
+        }
         setAdInitialized(true);
       } catch (error) {
-        console.error('❌ AdMob başlatma hatası:', error);
-        // Hata olsa bile devam et
-        setAdInitialized(true);
+        console.error('❌ AdMob başlatma hatası (normal - Expo Go):', error.message);
+        // Hata durumunda reklam sistemini devre dışı bırak
+        setAdInitialized(false);
+        setLoading(false);
+        setLoaded(false);
       }
     };
 
@@ -92,22 +104,30 @@ const useRewardedAd = () => {
         }
       );
 
-      const unsubscribeFailed = rewardedAd.addAdEventListener(
-        'adFailedToLoad',
-        (error) => {
-          console.error('❌ Reklam yükleme başarısız:', error);
-          setLoading(false);
-          setLoaded(false);
+      // AdFailedToLoad event - string yerine enum kullan
+      let unsubscribeFailed = null;
+      try {
+        if (RewardedAdEventType.AD_FAILED_TO_LOAD) {
+          unsubscribeFailed = rewardedAd.addAdEventListener(
+            RewardedAdEventType.AD_FAILED_TO_LOAD,
+            (error) => {
+              console.error('❌ Reklam yükleme başarısız:', error);
+              setLoading(false);
+              setLoaded(false);
+            }
+          );
         }
-      );
+      } catch (err) {
+        console.warn('⚠️ AD_FAILED_TO_LOAD event listener eklenemedi');
+      }
 
       setRewarded(rewardedAd);
 
       // Cleanup
       return () => {
-        unsubscribeLoaded();
-        unsubscribeEarned();
-        unsubscribeFailed();
+        if (unsubscribeLoaded) unsubscribeLoaded();
+        if (unsubscribeEarned) unsubscribeEarned();
+        if (unsubscribeFailed) unsubscribeFailed();
       };
     } catch (error) {
       console.error('❌ Rewarded Ad oluşturma hatası:', error);

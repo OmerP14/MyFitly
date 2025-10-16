@@ -1,25 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import { Text, View, ScrollView, TouchableOpacity, FlatList, Modal, TextInput, Alert, Switch, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Text, View, ScrollView, TouchableOpacity, FlatList, Modal, TextInput, Alert, Switch, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import Card from '../components/Card';
 import SectionHeader from '../components/SectionHeader';
 import { spacing } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
+import { useLanguage } from '../context/LanguageContext';
+import { getTranslations, translateExerciseName } from '../utils/translations';
 import * as programService from '../services/programService';
 import * as notificationService from '../services/notificationService';
+import useRewardedAd from '../hooks/useRewardedAd';
 
-const weekDays = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 const currentDay = new Date().getDay(); // JavaScript standardı: 0=Pazar, 1=Pazartesi...
 
-const ProgramScreen = ({ navigation }) => {
+const ProgramScreen = ({ navigation, route }) => {
   const { colors } = useTheme();
   const { userData, userId, isLoading: userLoading } = useUser();
+  const { language } = useLanguage();
+  const t = getTranslations(language);
+  
+  // Dil bazlı günler array'i - kısa isimler (ekrana sığması için)
+  const weekDays = [
+    language === 'en' ? 'Sun' : 'Paz',
+    language === 'en' ? 'Mon' : 'Pzt', 
+    language === 'en' ? 'Tue' : 'Sal',
+    language === 'en' ? 'Wed' : 'Çar',
+    language === 'en' ? 'Thu' : 'Per',
+    language === 'en' ? 'Fri' : 'Cum',
+    language === 'en' ? 'Sat' : 'Cmt'
+  ];
   const [selectedDay, setSelectedDay] = useState(currentDay);
-  const [filter, setFilter] = useState('Tüm');
-  const [exerciseCategories] = useState(['Üst Vücut', 'Alt Vücut', 'Diğer']);
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = bu hafta, -1 = geçen hafta, +1 = gelecek hafta
+  const [filter, setFilter] = useState(t.all_exercises);
+  const [exerciseCategories] = useState([t.upper_body, t.lower_body, t.other]);
   const [exercises, setExercises] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -33,7 +50,7 @@ const ProgramScreen = ({ navigation }) => {
     sets: '',
     reps: '',
     weight: '',
-    category: 'Üst Vücut'
+    category: t.upper_body
   });
   // Her gün için ayrı egzersiz inputları
   const [dayExerciseInputs, setDayExerciseInputs] = useState({});
@@ -46,11 +63,69 @@ const ProgramScreen = ({ navigation }) => {
     dayExercises: {}
   });
 
-  // Verileri yükle
+  // Rewarded Ad hook
+  const { loaded: adLoaded, loading: adLoading, showAd } = useRewardedAd();
+
+  // Haftanın tarihlerini hesapla (Pazartesi'den başlayarak)
+  const getWeekDates = () => {
+    const today = new Date();
+    // Haftanın başını bul (Pazartesi)
+    const dayOfWeek = today.getDay(); // 0=Pazar, 1=Pzt, ...
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Pazar ise -6, diğerleri için 1-dayOfWeek
+    
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday + (weekOffset * 7));
+    
+    const weekDates = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      weekDates.push({
+        date: date.getDate(),
+        month: date.getMonth() + 1,
+        dayIndex: (i + 1) % 7, // Pazartesi=1, Salı=2, ..., Pazar=0
+        // Sadece bu haftadaysa (weekOffset === 0) bugünü vurgula
+        isToday: weekOffset === 0 && date.toDateString() === today.toDateString()
+      });
+    }
+    return weekDates;
+  };
+
+  const weekDates = getWeekDates();
+
+  // Ekran her açıldığında verileri yükle (WorkoutScreen'den dönüşte dahil)
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🔄 ProgramScreen focused - egzersizler yükleniyor');
+      if (!userLoading && (userData?.id || userId)) {
+        loadExercises();
+      }
+      return () => {
+        // Cleanup
+      };
+    }, [userData, userId, userLoading, weekOffset]) // weekOffset ekledik
+  );
+
+  // Navigation parametrelerini dinle - WorkoutScreen'den program eklendiğinde yenile
+  useEffect(() => {
+    if (route?.params?.refresh && !userLoading && (userData?.id || userId)) {
+      console.log('🔄 Refresh parametresi algılandı - egzersizler yükleniyor');
+      loadExercises();
+      // Parametreyi temizle
+      navigation.setParams({ refresh: false });
+    }
+  }, [route?.params?.refresh, route?.params?.timestamp]);
+
+  // weekOffset değiştiğinde egzersizleri yeniden yükle
   useEffect(() => {
     if (!userLoading && (userData?.id || userId)) {
       loadExercises();
-    } else if (!userLoading) {
+    }
+  }, [weekOffset]);
+
+  // İlk yükleme için de useEffect
+  useEffect(() => {
+    if (!userLoading && !userData && !userId) {
       // User loading tamamlandı ama user bulunamadı
       setIsLoading(false);
     }
@@ -74,6 +149,7 @@ const ProgramScreen = ({ navigation }) => {
       console.log('🔄 Egzersizler yükleniyor...');
       console.log('👤 UserData:', userData);
       console.log('📱 UserId:', userId);
+      console.log('📅 Week Offset:', weekOffset);
       
       const currentUserId = userData?.id || userId;
       
@@ -84,9 +160,9 @@ const ProgramScreen = ({ navigation }) => {
         return;
       }
       
-      // Haftalık istatistikleri getir
+      // Haftalık istatistikleri getir (weekOffset ile)
       console.log('📊 Haftalık istatistikler getiriliyor...');
-      const weeklyStats = await programService.getWeeklyStats(currentUserId);
+      const weeklyStats = await programService.getWeeklyStats(currentUserId, weekOffset);
       
       // Egzersizleri gün bazında organize et
       const organizedExercises = {};
@@ -108,7 +184,7 @@ const ProgramScreen = ({ navigation }) => {
 
   const addExercise = async () => {
     if (!newExercise.name || !newExercise.sets || !newExercise.reps || !newExercise.weight) {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
+      Alert.alert(t.error, t.fill_all_fields);
       return;
     }
 
@@ -180,7 +256,7 @@ const ProgramScreen = ({ navigation }) => {
 
   const saveEditedExercise = async () => {
     if (!newExercise.name || !newExercise.sets || !newExercise.reps || !newExercise.weight) {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
+      Alert.alert(t.error, t.fill_all_fields);
       return;
     }
 
@@ -234,12 +310,12 @@ const ProgramScreen = ({ navigation }) => {
 
   const deleteExercise = (exerciseId) => {
     Alert.alert(
-      'Egzersizi Sil',
-      'Bu egzersizi silmek istediğinizden emin misiniz?',
+      t.delete_exercise,
+      t.confirm_delete,
       [
-        { text: 'İptal', style: 'cancel' },
+        { text: t.cancel, style: 'cancel' },
         { 
-          text: 'Sil', 
+          text: t.delete, 
           style: 'destructive',
           onPress: async () => {
             try {
@@ -302,20 +378,181 @@ const ProgramScreen = ({ navigation }) => {
     }
   };
 
-  const applyWeeklyProgram = (program) => {
-    const programData = {
-      name: program.name,
-      days: program.days
-    };
+  const applyWeeklyProgram = async (program) => {
+    try {
+      const currentUserId = userData?.id || userId;
+      
+      if (!currentUserId) {
+        Alert.alert('Hata', 'Kullanıcı bilgisi bulunamadı');
+        return;
+      }
 
-    setWeeklyProgram(programData);
-    Alert.alert('Başarılı', `${program.name} programı uygulandı!`);
-    setShowWeeklyModal(false);
+      console.log('🚀 Hazır program seçildi:', program.name);
+      
+      // Reklam göster - Expo Go kontrolü
+      if (!adLoaded && !adLoading) {
+        Alert.alert(
+          '📱 Development Mod',
+          'AdMob reklamları sadece production build\'de çalışır.\n\nBu butona tıklamaya devam edebilirsin - program direkt eklenecek! 🎁',
+          [
+            { text: t.cancel, style: 'cancel', onPress: () => setShowWeeklyModal(false) },
+            { 
+              text: 'Devam Et', 
+              onPress: async () => {
+                setShowWeeklyModal(false);
+                // Development modu - programı direkt ekle
+                await addSimpleProgram(program);
+              }
+            }
+          ]
+        );
+        return;
+      }
+
+      if (!adLoaded && adLoading) {
+        Alert.alert('Reklam Yükleniyor', 'Reklam henüz hazır değil. Lütfen birkaç saniye bekleyin ve tekrar deneyin! 🎬');
+        return;
+      }
+
+      // Reklam izlet
+      try {
+        console.log('🎬 Ödüllü reklam gösteriliyor...');
+        const reward = await showAd();
+        console.log('🎁 Ödül kazanıldı:', reward);
+
+        setShowWeeklyModal(false);
+        
+        // Reklam tamamlandı - programı ekle
+        await addSimpleProgram(program);
+
+      } catch (error) {
+        console.error('❌ Reklam hatası:', error);
+        
+        if (error.message === 'Reklam tamamlanmadan kapatıldı') {
+          Alert.alert(
+            '❌ Reklam Kapatıldı', 
+            'Program eklemek için reklamı sonuna kadar izlemelisin! 🎬\n\nTekrar denemek ister misin?',
+            [
+              { text: 'Hayır', style: 'cancel' },
+              { text: 'Evet', onPress: () => applyWeeklyProgram(program) }
+            ]
+          );
+        } else {
+          Alert.alert('❌ Hata', 'Reklam gösterilemedi. Lütfen daha sonra tekrar deneyin.');
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Program ekleme hatası:', error);
+      Alert.alert(t.error, t.program_error);
+    }
+  };
+
+  // Basit program ekle (örnek programlar için)
+  const addSimpleProgram = async (program) => {
+    try {
+      const currentUserId = userData?.id || userId;
+      
+      // Örnek egzersizler - gerçek uygulamada Supabase'den gelecek
+      const programExercises = getProgramExercises(program.name);
+      
+      if (programExercises.length === 0) {
+        Alert.alert(
+          `📋 ${t.professional_programs}`,
+          t.professional_programs_info
+        );
+        return;
+      }
+
+      // Programı oluştur
+      const programData = {
+        name: program.name,
+        description: `${program.name} antrenman programı`,
+        dayExercises: programExercises
+      };
+
+      await programService.createWeeklyProgram(currentUserId, programData);
+      
+      // Otomatik yenile
+      await loadExercises();
+
+      Alert.alert(
+        `${t.program_applied_success} 🎉`,
+        `${program.name} ${t.program_applied_message}!`,
+        [{ text: t.great, style: 'default' }]
+      );
+
+    } catch (error) {
+      console.error('❌ Program ekleme hatası:', error);
+      Alert.alert(t.error, t.program_error);
+    }
+  };
+
+  // Program egzersizlerini getir (örnek)
+  const getProgramExercises = (programName) => {
+    // Sabit kategori isimleri kullan (çeviri sorunu çözmek için)
+    const upperBody = language === 'en' ? 'Upper Body' : 'Üst Vücut';
+    const lowerBody = language === 'en' ? 'Lower Body' : 'Alt Vücut';
+    const other = language === 'en' ? 'Other' : 'Diğer';
+    
+    const programExercises = {
+      'Push-Pull-Legs': [
+        { day: 1, exercises: [
+          { name: 'Bench Press', sets: 4, reps: '8-10', weight: '80kg', category: upperBody },
+          { name: 'Incline Dumbbell Press', sets: 3, reps: '10-12', weight: '25kg', category: upperBody }
+        ]},
+        { day: 3, exercises: [
+          { name: 'Deadlift', sets: 4, reps: '5-6', weight: '120kg', category: lowerBody },
+          { name: 'Barbell Row', sets: 4, reps: '8-10', weight: '70kg', category: upperBody }
+        ]},
+        { day: 5, exercises: [
+          { name: 'Squat', sets: 4, reps: '8-10', weight: '100kg', category: lowerBody },
+          { name: 'Leg Press', sets: 3, reps: '12-15', weight: '150kg', category: lowerBody }
+        ]}
+      ],
+      'Full Body': [
+        { day: 1, exercises: [
+          { name: 'Squat', sets: 3, reps: '10-12', weight: '80kg', category: lowerBody },
+          { name: 'Bench Press', sets: 3, reps: '10-12', weight: '60kg', category: upperBody },
+          { name: 'Pull-ups', sets: 3, reps: '8-10', weight: 'Body', category: upperBody }
+        ]},
+        { day: 3, exercises: [
+          { name: 'Deadlift', sets: 3, reps: '8-10', weight: '100kg', category: lowerBody },
+          { name: 'Overhead Press', sets: 3, reps: '10-12', weight: '40kg', category: upperBody },
+          { name: 'Plank', sets: 3, reps: '30-45s', weight: 'Body', category: other }
+        ]},
+        { day: 5, exercises: [
+          { name: 'Lunges', sets: 3, reps: '12-15', weight: '20kg', category: lowerBody },
+          { name: 'Dumbbell Rows', sets: 3, reps: '10-12', weight: '25kg', category: upperBody },
+          { name: 'Push-ups', sets: 3, reps: '12-15', weight: 'Body', category: upperBody }
+        ]}
+      ],
+      'Upper-Lower Split': [
+        { day: 1, exercises: [
+          { name: 'Bench Press', sets: 4, reps: '8-10', weight: '80kg', category: upperBody },
+          { name: 'Pull-ups', sets: 4, reps: '8-10', weight: 'Body', category: upperBody }
+        ]},
+        { day: 2, exercises: [
+          { name: 'Squat', sets: 4, reps: '8-10', weight: '100kg', category: lowerBody },
+          { name: 'Romanian Deadlift', sets: 4, reps: '10-12', weight: '90kg', category: lowerBody }
+        ]},
+        { day: 4, exercises: [
+          { name: 'Overhead Press', sets: 4, reps: '8-10', weight: '50kg', category: upperBody },
+          { name: 'Barbell Rows', sets: 4, reps: '8-10', weight: '70kg', category: upperBody }
+        ]},
+        { day: 5, exercises: [
+          { name: 'Deadlift', sets: 4, reps: '5-6', weight: '120kg', category: lowerBody },
+          { name: 'Bulgarian Split Squats', sets: 3, reps: '12-15', weight: '15kg', category: lowerBody }
+        ]}
+      ]
+    };
+    
+    return programExercises[programName] || [];
   };
 
   const createCustomProgram = async () => {
     if (!customProgram.name || customProgram.selectedDays.length === 0) {
-      Alert.alert('Hata', 'Lütfen program adı girin ve en az bir gün seçin');
+      Alert.alert(t.error, t.fill_program_fields);
       return;
     }
 
@@ -333,8 +570,8 @@ const ProgramScreen = ({ navigation }) => {
       await loadExercises();
 
       Alert.alert(
-        'Program Oluşturuldu! 🎉',
-        `${customProgram.name} programı 1 aylık takvim için oluşturuldu!\n\nSeçili günler: ${customProgram.selectedDays.join(', ')}\nToplam egzersiz: ${Object.values(customProgram.dayExercises).flat().length}`
+        `${t.program_created} 🎉`,
+        `${customProgram.name} ${t.program_created_message}!\n\n${t.selected_days}: ${customProgram.selectedDays.join(', ')}\n${t.total_exercises}: ${Object.values(customProgram.dayExercises).flat().length}`
       );
 
       setCustomProgram({ name: '', description: '', selectedDays: [], dayExercises: {} });
@@ -366,7 +603,7 @@ const ProgramScreen = ({ navigation }) => {
     const dayInput = dayExerciseInputs[day] || {};
     
     if (!dayInput.name || !dayInput.sets || !dayInput.reps || !dayInput.weight) {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
+      Alert.alert(t.error, t.fill_all_fields);
       return;
     }
 
@@ -405,7 +642,7 @@ const ProgramScreen = ({ navigation }) => {
   };
 
   const todayExercises = exercises[selectedDay] || [];
-  const filteredExercises = filter === 'Tüm' 
+  const filteredExercises = filter === t.all_exercises 
     ? todayExercises 
     : todayExercises.filter(ex => ex.category === filter);
   const completedCount = filteredExercises.filter(ex => ex.completed).length;
@@ -442,87 +679,119 @@ const ProgramScreen = ({ navigation }) => {
           {/* Header */}
           <View style={{ marginBottom: spacing.md }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>Antrenman Programı</Text>
-              <TouchableOpacity 
-                onPress={() => setShowWeeklyModal(true)}
-                style={{
-                  backgroundColor: colors.primary,
-                  borderRadius: 20,
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  elevation: 2,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.2,
-                  shadowRadius: 2
-                }}
-              >
-                <Text style={{ color: colors.background, fontSize: 12, fontWeight: '700' }}>📅 Aylık</Text>
-              </TouchableOpacity>
+              <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>{t.program}</Text>
+              <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+                <TouchableOpacity 
+                  onPress={() => setShowWeeklyModal(true)}
+                  style={{
+                    backgroundColor: colors.primary,
+                    borderRadius: 20,
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    elevation: 2,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 2
+                  }}
+                >
+                  <Text style={{ color: colors.background, fontSize: 12, fontWeight: '700' }}>📅 {t.monthly}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
             <Text style={{ color: colors.textMuted, fontSize: 14 }}>
-              {completedCount}/{totalCount} egzersiz tamamlandı
+              {completedCount}/{totalCount} {t.exercises_completed}
             </Text>
           </View>
 
-          {/* Haftalık Takvim */}
+          {/* Haftalık Takvim - Kaydırılabilir */}
           <Card style={{ marginBottom: spacing.lg, backgroundColor: 'rgba(255, 122, 0, 0.05)' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="calendar" size={20} color={colors.primary} style={{ marginRight: 8 }} />
-                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700' }}>
-                  Bu Hafta
+              <TouchableOpacity 
+                onPress={() => setWeekOffset(prev => prev - 1)}
+                style={{
+                  backgroundColor: colors.background,
+                  borderRadius: 8,
+                  padding: 8
+                }}
+              >
+                <Ionicons name="chevron-back" size={20} color={colors.primary} />
+              </TouchableOpacity>
+              
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name="calendar" size={18} color={colors.primary} style={{ marginRight: 6 }} />
+                  <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700' }}>
+                    {weekOffset === 0 ? t.this_week : weekOffset === -1 ? t.previous_week : weekOffset === 1 ? t.next_week : `${weekOffset > 0 ? '+' : ''}${weekOffset} ${t.week}`}
+                  </Text>
+                </View>
+                <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
+                  {weekDates[0].date}-{weekDates[6].date} {new Date().toLocaleDateString('tr-TR', { month: 'short' })}
                 </Text>
               </View>
-              <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-                {new Date().toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}
-              </Text>
+
+              <TouchableOpacity 
+                onPress={() => setWeekOffset(prev => prev + 1)}
+                style={{
+                  backgroundColor: colors.background,
+                  borderRadius: 8,
+                  padding: 8
+                }}
+              >
+                <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+              </TouchableOpacity>
             </View>
+            
+            {/* Pazartesi'den başlayan günler */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              {weekDays.map((day, index) => {
-                const hasExercises = exercises[index] && exercises[index].length > 0;
-                const completedCount = hasExercises ? exercises[index].filter(ex => ex.completed).length : 0;
-                const totalCount = hasExercises ? exercises[index].length : 0;
-                const isToday = index === currentDay;
+              {weekDates.map((dateInfo, index) => {
+                const dayIndex = dateInfo.dayIndex;
+                const hasExercises = exercises[dayIndex] && exercises[dayIndex].length > 0;
+                const completedCount = hasExercises ? exercises[dayIndex].filter(ex => ex.completed).length : 0;
+                const totalCount = hasExercises ? exercises[dayIndex].length : 0;
+                const isToday = dateInfo.isToday;
+                const isSelected = selectedDay === dayIndex;
                 
                 return (
                   <TouchableOpacity
                     key={index}
-                    onPress={() => setSelectedDay(index)}
+                    onPress={() => setSelectedDay(dayIndex)}
                     style={{
-                      backgroundColor: selectedDay === index ? colors.primary : colors.background,
-                      borderRadius: 16,
-                      padding: 10,
+                      backgroundColor: isSelected ? colors.primary : colors.background,
+                      borderRadius: 12,
+                      padding: 8,
                       alignItems: 'center',
-                      minWidth: 44,
-                      elevation: selectedDay === index ? 4 : 0,
+                      minWidth: 40,
+                      flex: 1,
+                      marginHorizontal: 2,
+                      elevation: isSelected ? 4 : 0,
                       shadowColor: colors.primary,
                       shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: selectedDay === index ? 0.3 : 0,
+                      shadowOpacity: isSelected ? 0.3 : 0,
                       shadowRadius: 4,
-                      borderWidth: isToday && selectedDay !== index ? 2 : 0,
+                      borderWidth: isToday && !isSelected ? 2 : 0,
                       borderColor: colors.primary
                     }}
                   >
                     <Text style={{ 
-                      color: selectedDay === index ? colors.background : colors.textMuted,
+                      color: isSelected ? colors.background : colors.textMuted,
                       fontSize: 11,
                       fontWeight: '600',
                       marginBottom: 2
                     }}>
-                      {day}
+                      {weekDays[dayIndex]}
                     </Text>
                     <Text style={{ 
-                      color: selectedDay === index ? colors.background : colors.text,
+                      color: isSelected ? colors.background : colors.text,
                       fontSize: 18,
                       fontWeight: '800',
                       marginBottom: 4
                     }}>
-                      {index + 1}
+                      {dateInfo.date}
                     </Text>
                     {hasExercises && (
                       <View style={{
-                        backgroundColor: selectedDay === index ? colors.background : (completedCount === totalCount ? '#00D084' : 'rgba(255, 122, 0, 0.3)'),
+                        backgroundColor: isSelected ? colors.background : (completedCount === totalCount ? '#00D084' : 'rgba(255, 122, 0, 0.3)'),
                         borderRadius: 10,
                         paddingHorizontal: 6,
                         paddingVertical: 2,
@@ -530,7 +799,7 @@ const ProgramScreen = ({ navigation }) => {
                         alignItems: 'center'
                       }}>
                         <Text style={{
-                          color: selectedDay === index ? colors.primary : (completedCount === totalCount ? colors.background : colors.text),
+                          color: isSelected ? colors.primary : (completedCount === totalCount ? colors.background : colors.text),
                           fontSize: 9,
                           fontWeight: '700'
                         }}>
@@ -549,7 +818,7 @@ const ProgramScreen = ({ navigation }) => {
 
           {/* Filtre Butonları */}
           <View style={{ flexDirection: 'row', marginBottom: spacing.md, gap: spacing.sm }}>
-            {['Tüm', ...exerciseCategories].map((filterOption) => (
+            {[t.all_exercises, ...exerciseCategories].map((filterOption) => (
               <TouchableOpacity
                 key={filterOption}
                 onPress={() => setFilter(filterOption)}
@@ -576,7 +845,7 @@ const ProgramScreen = ({ navigation }) => {
           {/* Egzersizler */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
             <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>
-              💪 Bugünkü Egzersizler
+              💪 {t.today_workout}
             </Text>
             {todayExercises.length > 0 && (
               <View style={{
@@ -654,15 +923,15 @@ const ProgramScreen = ({ navigation }) => {
                           fontSize: 10, 
                           fontWeight: '700' 
                         }}>
-                          {exercise.category === 'Üst Vücut' ? '💪' : 
-                           exercise.category === 'Alt Vücut' ? '🦵' : '🏃'}
+                          {exercise.category === t.upper_body ? '💪' : 
+                           exercise.category === t.lower_body ? '🦵' : '🏃'}
                         </Text>
                       </View>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 36 }}>
                       <Ionicons name="barbell" size={14} color={colors.textMuted} style={{ marginRight: 4 }} />
                       <Text style={{ color: colors.textMuted, fontSize: 14 }}>
-                        {exercise.sets} set • {exercise.reps} tekrar • {exercise.weight}
+                        {exercise.sets} {t.sets} • {exercise.reps} {t.reps} • {exercise.weight}
                       </Text>
                     </View>
                   </View>
@@ -726,10 +995,10 @@ const ProgramScreen = ({ navigation }) => {
                 <Ionicons name="fitness" size={40} color={colors.primary} />
               </View>
               <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: 4 }}>
-                Henüz Egzersiz Yok
+                {t.no_exercises_today}
               </Text>
               <Text style={{ color: colors.textMuted, fontSize: 14, textAlign: 'center' }}>
-                Bugün için egzersiz ekleyerek başlayın!
+                {t.add_first_exercise_today}
               </Text>
             </Card>
           )}
@@ -751,7 +1020,7 @@ const ProgramScreen = ({ navigation }) => {
             }}
           >
             <Text style={{ color: colors.background, fontSize: 16, fontWeight: '700' }}>
-              ➕ Egzersiz Ekle
+              ➕ {t.add_exercise}
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -781,13 +1050,13 @@ const ProgramScreen = ({ navigation }) => {
                 maxHeight: '80%'
               }}>
               <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: spacing.lg }}>
-                Yeni Egzersiz Ekle
+                {t.add_exercise}
               </Text>
 
               <TextInput
                 value={newExercise.name}
                 onChangeText={(text) => setNewExercise({...newExercise, name: text})}
-                placeholder="Egzersiz adı"
+                placeholder={t.exercise_name_placeholder}
                 placeholderTextColor={colors.textMuted}
                 style={{
                   backgroundColor: colors.background,
@@ -803,7 +1072,7 @@ const ProgramScreen = ({ navigation }) => {
 
               {/* Kategori Seçimi */}
               <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginBottom: spacing.sm }}>
-                Kategori
+{t.category}
               </Text>
               <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
                 {exerciseCategories.map((category) => (
@@ -825,8 +1094,8 @@ const ProgramScreen = ({ navigation }) => {
                       fontSize: 14,
                       fontWeight: '600'
                     }}>
-                      {category === 'Üst Vücut' ? '💪 Üst' :
-                       category === 'Alt Vücut' ? '🦵 Alt' : '🏃 Diğer'}
+                      {category === t.upper_body ? t.upper_body_short :
+                       category === t.lower_body ? t.lower_body_short : t.other_short}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -836,7 +1105,7 @@ const ProgramScreen = ({ navigation }) => {
                 <TextInput
                   value={newExercise.sets}
                   onChangeText={(text) => setNewExercise({...newExercise, sets: text})}
-                  placeholder="Set"
+                  placeholder={t.sets}
                   placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                   style={{
@@ -853,7 +1122,7 @@ const ProgramScreen = ({ navigation }) => {
                 <TextInput
                   value={newExercise.reps}
                   onChangeText={(text) => setNewExercise({...newExercise, reps: text})}
-                  placeholder="Tekrar"
+                  placeholder={t.reps}
                   placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                   style={{
@@ -870,7 +1139,7 @@ const ProgramScreen = ({ navigation }) => {
                 <TextInput
                   value={newExercise.weight}
                   onChangeText={(text) => setNewExercise({...newExercise, weight: text})}
-                  placeholder="Ağırlık"
+                  placeholder={t.weight}
                   placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                   style={{
@@ -902,11 +1171,11 @@ const ProgramScreen = ({ navigation }) => {
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
                     <Ionicons name="repeat" size={20} color={colors.primary} style={{ marginRight: 6 }} />
                     <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700' }}>
-                      Her Hafta Tekrarla
+{t.weekly_repeat}
                     </Text>
                   </View>
                   <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-                    Bu program her hafta otomatik tekrarlanacak
+{t.repeat_program_weekly}
                   </Text>
                 </View>
                 <Switch
@@ -935,7 +1204,7 @@ const ProgramScreen = ({ navigation }) => {
                   }}
                 >
                   <Text style={{ color: colors.background, fontSize: 16, fontWeight: '700' }}>
-                    ✅ Ekle
+{t.add_exercise}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -951,7 +1220,7 @@ const ProgramScreen = ({ navigation }) => {
                   }}
                 >
                   <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '700' }}>
-                    ❌ İptal
+{t.cancel}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1007,7 +1276,7 @@ const ProgramScreen = ({ navigation }) => {
 
               {/* Kategori Seçimi */}
               <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginBottom: spacing.sm }}>
-                Kategori
+{t.category}
               </Text>
               <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
                 {exerciseCategories.map((category) => (
@@ -1029,8 +1298,8 @@ const ProgramScreen = ({ navigation }) => {
                       fontSize: 14,
                       fontWeight: '600'
                     }}>
-                      {category === 'Üst Vücut' ? '💪 Üst' :
-                       category === 'Alt Vücut' ? '🦵 Alt' : '🏃 Diğer'}
+                      {category === t.upper_body ? t.upper_body_short :
+                       category === t.lower_body ? t.lower_body_short : t.other_short}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -1040,7 +1309,7 @@ const ProgramScreen = ({ navigation }) => {
                 <TextInput
                   value={newExercise.sets}
                   onChangeText={(text) => setNewExercise({...newExercise, sets: text})}
-                  placeholder="Set"
+                  placeholder={t.sets}
                   placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                   style={{
@@ -1057,7 +1326,7 @@ const ProgramScreen = ({ navigation }) => {
                 <TextInput
                   value={newExercise.reps}
                   onChangeText={(text) => setNewExercise({...newExercise, reps: text})}
-                  placeholder="Tekrar"
+                  placeholder={t.reps}
                   placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                   style={{
@@ -1074,7 +1343,7 @@ const ProgramScreen = ({ navigation }) => {
                 <TextInput
                   value={newExercise.weight}
                   onChangeText={(text) => setNewExercise({...newExercise, weight: text})}
-                  placeholder="Ağırlık"
+                  placeholder={t.weight}
                   placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                   style={{
@@ -1106,7 +1375,7 @@ const ProgramScreen = ({ navigation }) => {
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
                     <Ionicons name="repeat" size={20} color={colors.primary} style={{ marginRight: 6 }} />
                     <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700' }}>
-                      Her Hafta Tekrarla
+{t.weekly_repeat}
                     </Text>
                   </View>
                   <Text style={{ color: colors.textMuted, fontSize: 12 }}>
@@ -1181,10 +1450,10 @@ const ProgramScreen = ({ navigation }) => {
               maxHeight: '80%'
             }}>
               <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700', marginBottom: spacing.sm }}>
-                📅 Aylık Program Ekle
+                📅 {t.weekly_program}
               </Text>
               <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: spacing.lg }}>
-                Hazır programları seçin veya kendi programınızı oluşturun
+{t.select_ready_or_create_custom}
               </Text>
 
               <ScrollView showsVerticalScrollIndicator={false}>
@@ -1276,10 +1545,10 @@ const ProgramScreen = ({ navigation }) => {
                   }}
                 >
                   <Text style={{ color: colors.background, fontSize: 18, fontWeight: '700' }}>
-                    ✨ Özel Program Oluştur
+                    ✨ {t.custom_program}
                   </Text>
                   <Text style={{ color: colors.background, fontSize: 14, opacity: 0.9, marginTop: 4 }}>
-                    Kendi antrenman programınızı tasarlayın
+{t.design_your_program}
                   </Text>
                 </TouchableOpacity>
               </ScrollView>
@@ -1297,7 +1566,7 @@ const ProgramScreen = ({ navigation }) => {
                 }}
               >
                 <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '700' }}>
-                  Kapat
+{t.close}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1331,7 +1600,7 @@ const ProgramScreen = ({ navigation }) => {
               }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
                 <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>
-                  ✨ Özel Program Oluştur
+                  ✨ {t.custom_program}
                 </Text>
                 <TouchableOpacity onPress={() => setShowCustomModal(false)}>
                   <Ionicons name="close" size={24} color={colors.textMuted} />
@@ -1342,12 +1611,12 @@ const ProgramScreen = ({ navigation }) => {
                 {/* Program Adı */}
                 <View style={{ marginBottom: spacing.lg }}>
                   <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: spacing.sm }}>
-                    Program Adı
+                    {t.program_name}
                   </Text>
                   <TextInput
                     value={customProgram.name}
                     onChangeText={(text) => setCustomProgram({...customProgram, name: text})}
-                    placeholder="Örn: Kişisel Antrenman Programı"
+                    placeholder={t.program_name_placeholder}
                     placeholderTextColor={colors.textMuted}
                     style={{
                       backgroundColor: colors.background,
@@ -1363,18 +1632,18 @@ const ProgramScreen = ({ navigation }) => {
 
                 {/* Antrenman Günleri */}
                 <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: spacing.sm }}>
-                  Antrenman Günleri
+                  {t.select_days}
                 </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
-                  {['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'].map((day) => {
+                  {[t.monday_full, t.tuesday_full, t.wednesday_full, t.thursday_full, t.friday_full].map((day) => {
                     const isSelected = customProgram.selectedDays.includes(day);
                     // JavaScript gün standardına göre mapping
                     const dayMapping = {
-                      'Pazartesi': 1,
-                      'Salı': 2,
-                      'Çarşamba': 3,
-                      'Perşembe': 4,
-                      'Cuma': 5
+                      [t.monday_full]: 1,
+                      [t.tuesday_full]: 2,
+                      [t.wednesday_full]: 3,
+                      [t.thursday_full]: 4,
+                      [t.friday_full]: 5
                     };
                     const dayIndex = dayMapping[day];
                     
@@ -1461,15 +1730,15 @@ const ProgramScreen = ({ navigation }) => {
                           {isInlineEditing && (
                             <Card style={{ backgroundColor: 'rgba(255, 122, 0, 0.15)', borderWidth: 2, borderColor: colors.primary, marginBottom: spacing.sm }}>
                               <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: spacing.sm, textAlign: 'center' }}>
-                                💪 {day} - Yeni Egzersiz Ekle
+                                💪 {day} - {t.add_exercise}
                               </Text>
                               
                               <View style={{ marginBottom: spacing.sm }}>
-                                <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: 6, fontWeight: '600' }}>Egzersiz Adı</Text>
+                                <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: 6, fontWeight: '600' }}>{t.exercise_name}</Text>
                                 <TextInput
                                   value={dayInput.name}
                                   onChangeText={(text) => updateDayExerciseInput(day, 'name', text)}
-                                  placeholder="Örn: Dumbbell Bicep"
+                                  placeholder={t.exercise_name_placeholder}
                                   placeholderTextColor={colors.textMuted}
                                   style={{
                                     backgroundColor: colors.background,
@@ -1485,11 +1754,11 @@ const ProgramScreen = ({ navigation }) => {
 
                               <View style={{ flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm }}>
                                 <View style={{ flex: 1 }}>
-                                  <Text style={{ color: colors.textMuted, fontSize: 12, marginBottom: 4, fontWeight: '600' }}>Set</Text>
+                                  <Text style={{ color: colors.textMuted, fontSize: 12, marginBottom: 4, fontWeight: '600' }}>{t.sets}</Text>
                                   <TextInput
                                     value={dayInput.sets}
                                     onChangeText={(text) => updateDayExerciseInput(day, 'sets', text)}
-                                    placeholder="2"
+                                    placeholder={t.sets_placeholder}
                                     placeholderTextColor={colors.textMuted}
                                     keyboardType="numeric"
                                     style={{
@@ -1505,11 +1774,11 @@ const ProgramScreen = ({ navigation }) => {
                                   />
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                  <Text style={{ color: colors.textMuted, fontSize: 12, marginBottom: 4, fontWeight: '600' }}>Tekrar</Text>
+                                  <Text style={{ color: colors.textMuted, fontSize: 12, marginBottom: 4, fontWeight: '600' }}>{t.reps}</Text>
                                   <TextInput
                                     value={dayInput.reps}
                                     onChangeText={(text) => updateDayExerciseInput(day, 'reps', text)}
-                                    placeholder="10-12"
+                                    placeholder={t.reps_placeholder}
                                     placeholderTextColor={colors.textMuted}
                                     keyboardType="numeric"
                                     style={{
@@ -1525,11 +1794,11 @@ const ProgramScreen = ({ navigation }) => {
                                   />
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                  <Text style={{ color: colors.textMuted, fontSize: 12, marginBottom: 4, fontWeight: '600' }}>Ağırlık</Text>
+                                  <Text style={{ color: colors.textMuted, fontSize: 12, marginBottom: 4, fontWeight: '600' }}>{t.weight}</Text>
                                   <TextInput
                                     value={dayInput.weight}
                                     onChangeText={(text) => updateDayExerciseInput(day, 'weight', text)}
-                                    placeholder="15kg"
+                                    placeholder={t.weight_placeholder}
                                     placeholderTextColor={colors.textMuted}
                                     keyboardType="numeric"
                                     style={{
@@ -1558,7 +1827,7 @@ const ProgramScreen = ({ navigation }) => {
                                   }}
                                 >
                                   <Text style={{ color: colors.background, fontSize: 14, fontWeight: '600' }}>
-                                    ✅ Ekle
+                {t.add_exercise}
                                   </Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
@@ -1572,7 +1841,7 @@ const ProgramScreen = ({ navigation }) => {
                                   }}
                                 >
                                   <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>
-                                    ❌ İptal
+                {t.cancel}
                                   </Text>
                                 </TouchableOpacity>
                               </View>

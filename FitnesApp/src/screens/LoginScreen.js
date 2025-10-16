@@ -4,19 +4,25 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
+import { getTranslations } from '../utils/translations';
 import { supabase } from '../config/supabase';
 import { spacing } from '../theme/colors';
+import LanguageSelector from '../components/LanguageSelector';
 
 export default function LoginScreen({ navigation }) {
   const { colors } = useTheme();
+  const { language } = useLanguage();
+  const t = getTranslations(language);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
+      Alert.alert(t.error, t.fill_all_fields);
       return;
     }
 
@@ -31,8 +37,8 @@ export default function LoginScreen({ navigation }) {
 
       if (error) {
         console.error('❌ Giriş hatası:', error);
-        Alert.alert('Giriş Hatası', error.message === 'Invalid login credentials' 
-          ? 'E-posta veya şifre hatalı' 
+        Alert.alert(t.error, error.message === 'Invalid login credentials' 
+          ? t.invalid_credentials 
           : error.message);
         return;
       }
@@ -47,29 +53,15 @@ export default function LoginScreen({ navigation }) {
         .single();
 
       if (userError || !userData) {
-        console.log('⚠️ Kullanıcı profili bulunamadı, yeni profil oluşturuluyor...');
-        // Yeni kullanıcı profili oluştur
-        const { error: createError } = await supabase
-          .from('users')
-          .insert([
-            {
-              id: data.user.id,
-              email: data.user.email,
-              name: data.user.email.split('@')[0],
-              created_at: new Date().toISOString()
-            }
-          ]);
-
-        if (createError) {
-          console.error('❌ Profil oluşturma hatası:', createError);
-        }
+        console.log('⚠️ Kullanıcı profili bulunamadı, profil kurulum ekranına yönlendirilecek...');
+        // Profil yoksa ProfileSetup ekranına yönlendirilecek
       }
 
       // Navigation otomatik olacak çünkü UserContext auth state'ini izliyor
       
     } catch (error) {
       console.error('❌ Beklenmeyen hata:', error);
-      Alert.alert('Hata', 'Bir hata oluştu. Lütfen tekrar deneyin.');
+      Alert.alert(t.error, t.something_went_wrong);
     } finally {
       setLoading(false);
     }
@@ -101,7 +93,13 @@ export default function LoginScreen({ navigation }) {
                 alignItems: 'center',
                 marginBottom: spacing.lg
               }}>
-                <Ionicons name="fitness" size={50} color={colors.background} />
+                <Text style={{
+                  color: colors.background,
+                  fontSize: 36,
+                  fontWeight: '900'
+                }}>
+                  Fitly
+                </Text>
               </View>
               <Text style={{
                 color: colors.text,
@@ -109,14 +107,14 @@ export default function LoginScreen({ navigation }) {
                 fontWeight: '900',
                 marginBottom: spacing.xs
               }}>
-                Hoş Geldin! 💪
+                {t.welcome} 💪
               </Text>
               <Text style={{
                 color: colors.textMuted,
                 fontSize: 16,
                 textAlign: 'center'
               }}>
-                Fitness yolculuğuna devam et
+                {t.complete_profile_message}
               </Text>
             </View>
 
@@ -128,7 +126,7 @@ export default function LoginScreen({ navigation }) {
                 fontWeight: '600',
                 marginBottom: spacing.sm
               }}>
-                E-posta
+                {t.email}
               </Text>
               <View style={{
                 flexDirection: 'row',
@@ -143,8 +141,8 @@ export default function LoginScreen({ navigation }) {
                 <TextInput
                   value={email}
                   onChangeText={setEmail}
-                  placeholder="ornek@email.com"
-                  placeholderTextColor={colors.textMuted}
+                placeholder={t.email}
+                placeholderTextColor={colors.textMuted}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -167,7 +165,7 @@ export default function LoginScreen({ navigation }) {
                 fontWeight: '600',
                 marginBottom: spacing.sm
               }}>
-                Şifre
+                {t.password}
               </Text>
               <View style={{
                 flexDirection: 'row',
@@ -182,7 +180,7 @@ export default function LoginScreen({ navigation }) {
                 <TextInput
                   value={password}
                   onChangeText={setPassword}
-                  placeholder="••••••••"
+                  placeholder={t.password}
                   placeholderTextColor={colors.textMuted}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
@@ -227,7 +225,7 @@ export default function LoginScreen({ navigation }) {
                 fontSize: 18,
                 fontWeight: '700'
               }}>
-                {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
+                {loading ? t.loading : t.login}
               </Text>
             </TouchableOpacity>
 
@@ -241,7 +239,7 @@ export default function LoginScreen({ navigation }) {
                 color: colors.textMuted,
                 fontSize: 14
               }}>
-                Hesabın yok mu?{' '}
+                {t.dont_have_account}{' '}
               </Text>
               <TouchableOpacity onPress={() => navigation.navigate('Register')}>
                 <Text style={{
@@ -249,12 +247,46 @@ export default function LoginScreen({ navigation }) {
                   fontSize: 14,
                   fontWeight: '700'
                 }}>
-                  Kayıt Ol
+                  {t.sign_up_here}
                 </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Language Selector */}
+            <View style={{ marginTop: spacing.lg, alignItems: 'center' }}>
+              <TouchableOpacity
+                onPress={() => setShowLanguageModal(true)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  backgroundColor: colors.card,
+                  borderRadius: 20,
+                  borderWidth: 1,
+                  borderColor: colors.border
+                }}
+              >
+                <Ionicons name="language" size={16} color={colors.textMuted} />
+                <Text style={{
+                  color: colors.textMuted,
+                  fontSize: 14,
+                  marginLeft: 6
+                }}>
+                  {t.language}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color={colors.textMuted} style={{ marginLeft: 4 }} />
               </TouchableOpacity>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
+
+        {/* Language Selection Modal */}
+        <LanguageSelector
+          visible={showLanguageModal}
+          onClose={() => setShowLanguageModal(false)}
+          showInModal={true}
+        />
       </SafeAreaView>
     </LinearGradient>
   );

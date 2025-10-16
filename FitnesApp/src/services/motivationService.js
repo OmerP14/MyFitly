@@ -1,33 +1,66 @@
 import { supabase } from '../config/supabase';
+import { getTranslations } from '../utils/translations';
 
 class MotivationService {
+  // Helper: Başarım çevirisini getir
+  getAchievementText(achievementType, language, exerciseName = '', weeks = 0, currentWeight = 0) {
+    const t = getTranslations(language);
+    const typeKey = achievementType.replace(/-/g, '_');
+    
+    const title = t[`achievement_${typeKey}_title`] || achievementType;
+    let desc = t[`achievement_${typeKey}_desc`] || '';
+    
+    // Egzersiz adı gerektiren başarımlar için
+    if (exerciseName && (
+      achievementType.includes('lift') || 
+      achievementType.includes('reps') || 
+      achievementType.includes('compound') || 
+      achievementType.includes('strength_gain')
+    )) {
+      desc = `${exerciseName} ${desc}`;
+    }
+    
+    // Hafta sayısı gerektiren başarımlar için
+    if (achievementType === 'weekly_consistency' && weeks > 0) {
+      desc = `${weeks} ${desc}`;
+    }
+    
+    // Mevcut kilo gerektiren başarımlar için
+    if (achievementType === 'target_reached' && currentWeight > 0) {
+      desc = t.achievement_target_reached_desc + ` (${currentWeight}kg)`;
+    }
+    
+    if (achievementType === 'close_to_target' && currentWeight > 0) {
+      desc = t.achievement_close_to_target_desc + ` (${currentWeight}kg)`;
+    }
+    
+    return { title, description: desc };
+  }
   // Motivasyon quotes'ları getir
-  async getRandomQuote(category = 'general') {
+  async getRandomQuote(category = 'general', language = 'tr') {
     try {
-      // RPC yerine direkt query kullan
-      const { data, error } = await supabase
-        .from('motivation_quotes')
-        .select('*')
-        .eq('is_active', true)
-        .order('id')
-        .limit(10);
-      
-      if (error) throw error;
-      
-      // Random bir tane seç
-      const randomIndex = Math.floor(Math.random() * (data?.length || 1));
-      const randomQuote = data?.[randomIndex] || null;
-      
-      return {
-        success: true,
-        data: randomQuote
-      };
+      // motivation_quotes tablosu kaldırıldıysa sessizce null döndür
+      // tablo var mı hızlı kontrol: basit bir select dene, hata olursa yakala
+      let randomQuote = null;
+      try {
+        let query = supabase
+          .from('motivation_quotes')
+          .select('*')
+          .eq('is_active', true)
+          .limit(20);
+        try { query = query.eq('language', language); } catch (e) {}
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          const idx = Math.floor(Math.random() * data.length);
+          randomQuote = data[idx];
+        }
+      } catch (e) {
+        // tablo yok -> randomQuote null kalsın
+      }
+
+      return { success: true, data: randomQuote };
     } catch (error) {
-      console.error('Motivasyon quotes getirme hatası:', error);
-      return {
-        success: false,
-        message: error.message
-      };
+      return { success: true, data: null };
     }
   }
 
@@ -82,13 +115,20 @@ class MotivationService {
   }
 
   // Başarı ekle
-  async addAchievement(userId, achievementType, title, description = null, iconName = null, color = '#FF6B35') {
+  async addAchievement(userId, achievementType, title, description = null, iconName = null, color = '#FF6B35', language = 'tr', exerciseName = '', weeks = 0, currentWeight = 0) {
     try {
       if (!userId) {
         return {
           success: false,
           message: 'Kullanıcı ID gerekli'
         };
+      }
+
+      // Eğer title ve description boşsa veya hard-coded ise, translation'dan al
+      if (!title || !description || typeof title === 'string' && title.includes('Gün')) {
+        const translation = this.getAchievementText(achievementType, language, exerciseName, weeks, currentWeight);
+        title = translation.title;
+        description = translation.description;
       }
 
       // RPC yerine direkt insert kullan
@@ -198,110 +238,31 @@ class MotivationService {
     }
   }
 
-  // Favori quotes ekle
+  // Favori quotes ekle (KALDIRILDI)
   async addFavoriteQuote(userId, quoteId) {
-    try {
-      const { data, error } = await supabase
-        .from('user_favorite_quotes')
-        .insert({
-          user_id: userId,
-          quote_id: quoteId
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      return {
-        success: true,
-        data: data
-      };
-    } catch (error) {
-      console.error('Favori quote ekleme hatası:', error);
-      return {
-        success: false,
-        message: error.message
-      };
-    }
+    return { success: false, message: 'favorites_disabled' };
   }
 
-  // Favori quotes'ları getir
+  // Favori quotes'ları getir (KALDIRILDI)
   async getFavoriteQuotes(userId) {
-    try {
-      if (!userId) {
-        return {
-          success: false,
-          message: 'Kullanıcı ID gerekli'
-        };
-      }
-
-      const { data, error } = await supabase
-        .from('user_favorite_quotes')
-        .select(`
-          *,
-          motivation_quotes (
-            id,
-            quote_text,
-            author,
-            category
-          )
-        `)
-        .eq('user_id', userId);
-      
-      if (error) {
-        console.error('Supabase favori quotes hatası:', error);
-        throw error;
-      }
-      
-      return {
-        success: true,
-        data: data || []
-      };
-    } catch (error) {
-      console.error('Favori quotes getirme hatası:', error);
-      return {
-        success: false,
-        message: error.message,
-        data: []
-      };
-    }
+    return { success: true, data: [] };
   }
 
-  // Favori quote'u sil
+  // Favori quote'u sil (KALDIRILDI)
   async removeFavoriteQuote(userId, quoteId) {
-    try {
-      const { error } = await supabase
-        .from('user_favorite_quotes')
-        .delete()
-        .eq('user_id', userId)
-        .eq('quote_id', quoteId);
-      
-      if (error) throw error;
-      
-      return {
-        success: true
-      };
-    } catch (error) {
-      console.error('Favori quote silme hatası:', error);
-      return {
-        success: false,
-        message: error.message
-      };
-    }
+    return { success: false, message: 'favorites_disabled' };
   }
 
   // Motivasyon dashboard'u getir
-  async getMotivationDashboard(userId) {
+  async getMotivationDashboard(userId, language = 'tr') {
     try {
-      // Paralel olarak tüm verileri getir
-      const [quoteResult, achievementsResult, streaksResult, favoritesResult] = await Promise.all([
-        this.getRandomQuote('general'),
+      // Paralel olarak tüm verileri getir (favorites kaldırıldı)
+      const [quoteResult, achievementsResult, streaksResult] = await Promise.all([
+        this.getRandomQuote('general', language),
         this.getUserAchievements(userId),
-        this.getUserStreaks(userId),
-        this.getFavoriteQuotes(userId)
+        this.getUserStreaks(userId)
       ]);
 
-      // Hataları kontrol et ve logla
       if (!quoteResult.success) {
         console.error('Quote getirme hatası:', quoteResult.message);
       }
@@ -311,9 +272,6 @@ class MotivationService {
       if (!streaksResult.success) {
         console.error('Streak\'ler getirme hatası:', streaksResult.message);
       }
-      if (!favoritesResult.success) {
-        console.error('Favori quotes getirme hatası:', favoritesResult.message);
-      }
 
       return {
         success: true,
@@ -321,7 +279,7 @@ class MotivationService {
           currentQuote: quoteResult.success ? quoteResult.data : null,
           achievements: achievementsResult.success ? (achievementsResult.data || []) : [],
           streaks: streaksResult.success ? (streaksResult.data || []) : [],
-          favoriteQuotes: favoritesResult.success ? (favoritesResult.data || []) : []
+          favoriteQuotes: [] // kaldırıldı
         }
       };
     } catch (error) {
@@ -334,11 +292,11 @@ class MotivationService {
   }
 
   // Başarı kontrolü ve otomatik ekleme
-  async checkAndAddAchievements(userId, userStats) {
+  async checkAndAddAchievements(userId, userStats, language = 'tr') {
     const achievements = [];
     
     try {
-      console.log('🎯 checkAndAddAchievements başlıyor:', { userId, userStats });
+      console.log('🎯 checkAndAddAchievements başlıyor:', { userId, userStats, language });
       
       // Mevcut başarımları kontrol et
       const existingAchievementsResult = await this.getUserAchievements(userId);
@@ -358,10 +316,11 @@ class MotivationService {
         const result = await this.addAchievement(
           userId,
           'three_day_streak',
-          '3 Gün Başlangıç',
-          '3 gün üst üste spor yaptın!',
+          null,
+          null,
           'play-circle',
-          '#00D084'
+          '#00D084',
+          language
         );
         if (result.success) achievements.push(result.data);
       }
@@ -371,10 +330,11 @@ class MotivationService {
         const result = await this.addAchievement(
           userId,
           'week_streak',
-          '7 Gün Üst Üste',
-          '7 gün üst üste spor yaptın!',
+          null,
+          null,
           'flame',
-          '#FF6B35'
+          '#FF6B35',
+          language
         );
         if (result.success) achievements.push(result.data);
       }
@@ -384,10 +344,11 @@ class MotivationService {
         const result = await this.addAchievement(
           userId,
           'fifteen_day_streak',
-          '15 Gün Devam',
-          '15 gün üst üste spor yaptın!',
+          null,
+          null,
           'flash',
-          '#9C27B0'
+          '#9C27B0',
+          language
         );
         if (result.success) achievements.push(result.data);
       }
@@ -397,10 +358,11 @@ class MotivationService {
         const result = await this.addAchievement(
           userId,
           'month_streak',
-          '1 Ay',
-          '1 ay boyunca düzenli spor yaptın!',
+          null,
+          null,
           'star',
-          '#FF1493'
+          '#FF1493',
+          language
         );
         if (result.success) achievements.push(result.data);
       }
@@ -410,10 +372,11 @@ class MotivationService {
         const result = await this.addAchievement(
           userId,
           'twenty_five_sets',
-          '25 Set',
-          '25 set tamamladın!',
+          null,
+          null,
           'fitness',
-          '#4CAF50'
+          '#4CAF50',
+          language
         );
         if (result.success) achievements.push(result.data);
       }
@@ -422,10 +385,11 @@ class MotivationService {
         const result = await this.addAchievement(
           userId,
           'fifty_sets',
-          '50 Set',
-          '50 set tamamladın!',
+          null,
+          null,
           'medal',
-          '#C0C0C0'
+          '#C0C0C0',
+          language
         );
         if (result.success) achievements.push(result.data);
       }
@@ -434,10 +398,11 @@ class MotivationService {
         const result = await this.addAchievement(
           userId,
           'hundred_sets',
-          '100 Set',
-          '100 set tamamladın!',
+          null,
+          null,
           'trophy',
-          '#FFD700'
+          '#FFD700',
+          language
         );
         if (result.success) achievements.push(result.data);
       }
@@ -446,10 +411,11 @@ class MotivationService {
         const result = await this.addAchievement(
           userId,
           'two_fifty_sets',
-          '250 Set',
-          '250 set tamamladın!',
+          null,
+          null,
           'diamond',
-          '#E91E63'
+          '#E91E63',
+          language
         );
         if (result.success) achievements.push(result.data);
       }
@@ -553,10 +519,14 @@ class MotivationService {
         const result = await this.addAchievement(
           userId,
           'target_reached',
-          'Hedef Kilo',
-          `Hedef kilona ulaştın! (${userStats.currentWeight}kg)`,
+          null,
+          null,
           'flag',
-          '#4CAF50'
+          '#4CAF50',
+          language,
+          '',
+          0,
+          userStats.currentWeight
         );
         console.log('🏆 Hedef kiloya ulaşma başarımı sonucu:', result);
         if (result.success) achievements.push(result.data);
@@ -570,10 +540,14 @@ class MotivationService {
         const result = await this.addAchievement(
           userId,
           'close_to_target',
-          'Hedefe Yakın',
-          `Hedef kilona çok yakınsın! (${userStats.currentWeight}kg)`,
+          null,
+          null,
           'trending-up',
-          '#FF9800'
+          '#FF9800',
+          language,
+          '',
+          0,
+          userStats.currentWeight
         );
         if (result.success) achievements.push(result.data);
       }
@@ -694,10 +668,13 @@ class MotivationService {
         const result = await this.addAchievement(
           userId,
           'weekly_consistency',
-          `${weeks} Hafta`,
-          `${weeks} hafta boyunca düzenli kayıt tuttun!`,
+          null,
+          null,
           'calendar',
-          '#4CAF50'
+          '#4CAF50',
+          language,
+          '',
+          weeks
         );
         if (result.success) achievements.push(result.data);
       }
@@ -839,10 +816,12 @@ class MotivationService {
           const result = await this.addAchievement(
             userId,
             'compound_exercise',
-            'Temel Egzersiz',
-            `${userStats.exerciseName} ile temel egzersiz yaptın!`,
+            null,
+            null,
             'dumbbell',
-            '#FF9800'
+            '#FF9800',
+            language,
+            userStats.exerciseName
           );
           if (result.success) achievements.push(result.data);
         }

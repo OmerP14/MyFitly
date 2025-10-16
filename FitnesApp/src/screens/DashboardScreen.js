@@ -8,6 +8,8 @@ import ProgressRing from '../components/ProgressRing';
 import { spacing } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
+import { useLanguage } from '../context/LanguageContext';
+import { getTranslations } from '../utils/translations';
 import { supabase } from '../config/supabase';
 import * as programService from '../services/programService';
 
@@ -38,6 +40,8 @@ const adUnitId = TestIds ? TestIds.BANNER : 'ca-app-pub-3940256099942544/6300978
 export default function DashboardScreen({ navigation }) {
   const { colors } = useTheme();
   const { userData } = useUser();
+  const { language } = useLanguage();
+  const t = getTranslations(language);
   
   // State variables
   const [weightData, setWeightData] = useState([]);
@@ -94,9 +98,9 @@ export default function DashboardScreen({ navigation }) {
     }
 
     // İlk kilo girişi = Başlangıç
-    // Son kilo girişi = Mevcut
+    // Profildeki current_weight = Mevcut (gösterim için)
     const startWeight = normalizedWeightData[0].weight;
-    const currentWeight = normalizedWeightData[normalizedWeightData.length - 1].weight;
+    const currentWeight = userData.current_weight; // Profil bilgisinden al
     const targetWeight = userData.target_weight;
 
     // Kilo verme durumu
@@ -209,14 +213,10 @@ export default function DashboardScreen({ navigation }) {
     calculateWeightProgress();
   }, [userData, weightData]);
 
-  // Mevcut kilo bilgisi
+  // Mevcut kilo bilgisi - Profil bilgisinden al
   const getCurrentWeight = () => {
-    const normalizedData = normalizeWeightData(weightData);
-    if (normalizedData && normalizedData.length > 0) {
-      return normalizedData[normalizedData.length - 1].weight;
-    }
-    // Kilo girişi yoksa profildeki hedef kiloyu göster
-    return userData?.target_weight || 0;
+    // Profildeki current_weight bilgisini kullan (weight tracking'den değil)
+    return userData?.current_weight || 0;
   };
 
   const getWeightChange = () => {
@@ -241,14 +241,14 @@ export default function DashboardScreen({ navigation }) {
               fontWeight: '900', 
               marginBottom: spacing.xs 
             }}>
-              Merhaba, {userData?.name || 'Sporcu'}! 👋
+              {language === 'en' ? 'Hi' : 'Merhaba'}, {userData?.name || (language === 'en' ? 'Athlete' : 'Sporcu')}! 👋
             </Text>
             <Text style={{ 
               color: colors.textMuted, 
               fontSize: 16, 
               fontWeight: '500' 
             }}>
-              Bugün harika bir gün! 💪
+              {t.dashboard_subtitle}
             </Text>
           </View>
 
@@ -315,13 +315,13 @@ export default function DashboardScreen({ navigation }) {
                   borderTopColor: colors.border
                 }}>
                   <View style={{ alignItems: 'center' }}>
-                    <Text style={{ color: colors.textMuted, fontSize: 12 }}>Mevcut Kilo</Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 12 }}>{t.current_weight_label}</Text>
                     <Text style={{ color: colors.primary, fontSize: 24, fontWeight: '700' }}>
                       {getCurrentWeight()}kg
                     </Text>
                   </View>
                   <View style={{ alignItems: 'center' }}>
-                    <Text style={{ color: colors.textMuted, fontSize: 12 }}>Hedef Kilo</Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 12 }}>{t.target_weight_label}</Text>
                     <Text style={{ color: colors.success, fontSize: 24, fontWeight: '700' }}>
                       {userData.target_weight}kg
                     </Text>
@@ -330,7 +330,7 @@ export default function DashboardScreen({ navigation }) {
               </View>
             ) : (
               <Text style={{ color: colors.textMuted, textAlign: 'center', paddingHorizontal: spacing.lg }}>
-                Takip ekranından kilo girişi yaparak ilerlemeyi takip et
+                {t.add_weight_entry_from_tracking}
               </Text>
             )}
           </Card>
@@ -348,7 +348,7 @@ export default function DashboardScreen({ navigation }) {
                 fontSize: 20, 
                 fontWeight: '700' 
               }}>
-                🔥 Bugünkü Antrenman
+                🔥 {t.today_workout}
               </Text>
               {todayWorkout.length > 0 && (
                 <View style={{
@@ -362,7 +362,7 @@ export default function DashboardScreen({ navigation }) {
                     fontSize: 12, 
                     fontWeight: '700' 
                   }}>
-                    {todayWorkout.length} egzersiz
+                    {todayWorkout.length} {t.exercises}
                   </Text>
                 </View>
               )}
@@ -411,7 +411,7 @@ export default function DashboardScreen({ navigation }) {
                         color: colors.textMuted, 
                         fontSize: 12 
                       }}>
-                        {exercise.sets} set × {exercise.reps} tekrar
+                        {exercise.sets} {t.set} × {exercise.reps} {t.reps}
                       </Text>
                     </View>
                     <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
@@ -437,7 +437,7 @@ export default function DashboardScreen({ navigation }) {
                     fontWeight: '700',
                     marginLeft: spacing.sm
                   }}>
-                    Antrenmanı Başlat
+                    {t.start_workout}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -450,7 +450,7 @@ export default function DashboardScreen({ navigation }) {
                   marginTop: spacing.md,
                   fontSize: 14
                 }}>
-                  Bugün için antrenman planlanmamış
+                  {t.no_exercises}
                 </Text>
                 <TouchableOpacity
                   onPress={() => navigation.navigate('Program')}
@@ -467,7 +467,7 @@ export default function DashboardScreen({ navigation }) {
                     fontSize: 14, 
                     fontWeight: '600' 
                   }}>
-                    Program Oluştur
+                    {t.create_program}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -499,7 +499,7 @@ export default function DashboardScreen({ navigation }) {
                 fontSize: 12,
                 textAlign: 'center'
               }}>
-                Bu hafta{'\n'}antrenman
+                {t.weekly_progress}
               </Text>
             </Card>
 
@@ -522,7 +522,7 @@ export default function DashboardScreen({ navigation }) {
                 fontSize: 12,
                 textAlign: 'center'
               }}>
-                Bugün{'\n'}toplam set
+                {t.today_total_sets}
               </Text>
             </Card>
           </View>
@@ -544,7 +544,7 @@ export default function DashboardScreen({ navigation }) {
                     fontSize: 14,
                     marginBottom: spacing.xs
                   }}>
-                    Kilo Değişimi
+                    {t.weight_change_label}
                   </Text>
                   <Text style={{ 
                     color: getWeightChange() >= 0 ? colors.success : colors.error, 
@@ -580,7 +580,7 @@ export default function DashboardScreen({ navigation }) {
             gap: spacing.md 
           }}>
             <TouchableOpacity
-              onPress={() => navigation.navigate('Takip')}
+              onPress={() => navigation.navigate('Tracking')}
               style={{
                 flex: 1,
                 backgroundColor: colors.card,
@@ -602,7 +602,7 @@ export default function DashboardScreen({ navigation }) {
                 marginTop: spacing.sm,
                 textAlign: 'center'
               }}>
-                Takip
+                {t.tracking}
               </Text>
             </TouchableOpacity>
 
@@ -629,12 +629,12 @@ export default function DashboardScreen({ navigation }) {
                 marginTop: spacing.sm,
                 textAlign: 'center'
               }}>
-                Program
+                {t.program}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => navigation.navigate('Profil')}
+              onPress={() => navigation.navigate('Profile')}
               style={{
                 flex: 1,
                 backgroundColor: colors.card,
@@ -656,7 +656,7 @@ export default function DashboardScreen({ navigation }) {
                 marginTop: spacing.sm,
                 textAlign: 'center'
               }}>
-                Profil
+                {t.profile}
               </Text>
             </TouchableOpacity>
           </View>
@@ -675,7 +675,7 @@ export default function DashboardScreen({ navigation }) {
               textAlign: 'center',
               lineHeight: 28
             }}>
-              "Disiplin > Motivasyon"
+              "{t.discipline_motivation}"
             </Text>
             <Text style={{ 
               color: colors.background, 
@@ -684,7 +684,7 @@ export default function DashboardScreen({ navigation }) {
               marginTop: spacing.sm,
               opacity: 0.9
             }}>
-              Hedefine odaklan, sürekli ilerle 💪
+              {t.focus_on_goal}
             </Text>
           </Card>
 

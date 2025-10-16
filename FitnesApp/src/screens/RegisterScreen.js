@@ -4,51 +4,52 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
+import { getTranslations } from '../utils/translations';
 import { supabase } from '../config/supabase';
 import { spacing } from '../theme/colors';
+import LanguageSelector from '../components/LanguageSelector';
 
 export default function RegisterScreen({ navigation }) {
   const { colors } = useTheme();
+  const { language } = useLanguage();
+  const t = getTranslations(language);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
 
   const handleRegister = async () => {
     if (!name || !email || !password || !confirmPassword) {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
+      Alert.alert(t.error || 'Error', t.fill_all_fields || 'Please fill all fields.');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Hata', 'Şifreler eşleşmiyor');
+      Alert.alert(t.error || 'Error', t.password_mismatch || 'Passwords do not match.');
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Hata', 'Şifre en az 6 karakter olmalıdır');
+      Alert.alert(t.error || 'Error', t.password_min_length || 'Password must be at least 6 characters.');
       return;
     }
 
     try {
       setLoading(true);
-      console.log('📝 Kayıt olunuyor...', email);
 
-      // Supabase Auth ile kayıt
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password: password,
       });
 
       if (error) {
-        console.error('❌ Kayıt hatası:', error);
-        Alert.alert('Kayıt Hatası', error.message);
+        Alert.alert(t.registration_error_title || 'Registration Error', error.message);
         return;
       }
-
-      console.log('✅ Auth kayıt başarılı:', data.user.id);
 
       // Users tablosuna kullanıcı bilgilerini ekle
       const { error: insertError } = await supabase
@@ -63,27 +64,23 @@ export default function RegisterScreen({ navigation }) {
         ]);
 
       if (insertError) {
-        console.error('❌ Kullanıcı profili oluşturma hatası:', insertError);
-        // Auth'da kayıt oldu ama users tablosuna eklenemedi
-        // Yine de devam edebiliriz, profil doldururken tekrar deneyeceğiz
+        // Devam edilebilir; profil aşamasında tekrar denenir
+        console.warn('profile insert failed', insertError);
       }
 
       Alert.alert(
-        'Kayıt Başarılı! 🎉',
-        'Hesabın oluşturuldu! Şimdi profil bilgilerini tamamla.',
+        (t.registration_success_title || 'Registration Successful') + ' 🎉',
+        t.registration_success_message || 'Your account has been created! Now complete your profile.',
         [
           {
-            text: 'Tamam',
-            onPress: () => {
-              // Navigation otomatik olacak çünkü UserContext auth state'ini izliyor
-            }
+            text: t.ok || 'OK',
+            onPress: () => {}
           }
         ]
       );
 
     } catch (error) {
-      console.error('❌ Beklenmeyen hata:', error);
-      Alert.alert('Hata', 'Bir hata oluştu. Lütfen tekrar deneyin.');
+      Alert.alert(t.error || 'Error', t.unexpected_error || 'An error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -127,7 +124,13 @@ export default function RegisterScreen({ navigation }) {
                 alignItems: 'center',
                 marginBottom: spacing.lg
               }}>
-                <Ionicons name="person-add" size={50} color={colors.background} />
+                <Text style={{
+                  color: colors.background,
+                  fontSize: 36,
+                  fontWeight: '900'
+                }}>
+                  Fitly
+                </Text>
               </View>
               <Text style={{
                 color: colors.text,
@@ -135,14 +138,14 @@ export default function RegisterScreen({ navigation }) {
                 fontWeight: '900',
                 marginBottom: spacing.xs
               }}>
-                Hesap Oluştur 🚀
+                {t.create_account_title || 'Create Account'}
               </Text>
               <Text style={{
                 color: colors.textMuted,
                 fontSize: 16,
                 textAlign: 'center'
               }}>
-                Fitness yolculuğuna bugün başla
+                {t.create_account_subtitle || 'Start your fitness journey today'}
               </Text>
             </View>
 
@@ -154,7 +157,7 @@ export default function RegisterScreen({ navigation }) {
                 fontWeight: '600',
                 marginBottom: spacing.sm
               }}>
-                Adın
+                {t.name_label || 'Full Name'}
               </Text>
               <View style={{
                 flexDirection: 'row',
@@ -169,7 +172,7 @@ export default function RegisterScreen({ navigation }) {
                 <TextInput
                   value={name}
                   onChangeText={setName}
-                  placeholder="Adın Soyadın"
+                  placeholder={t.name_placeholder || 'Full name'}
                   placeholderTextColor={colors.textMuted}
                   autoCapitalize="words"
                   style={{
@@ -191,7 +194,7 @@ export default function RegisterScreen({ navigation }) {
                 fontWeight: '600',
                 marginBottom: spacing.sm
               }}>
-                E-posta
+                {t.email_label || 'Email'}
               </Text>
               <View style={{
                 flexDirection: 'row',
@@ -206,7 +209,7 @@ export default function RegisterScreen({ navigation }) {
                 <TextInput
                   value={email}
                   onChangeText={setEmail}
-                  placeholder="ornek@email.com"
+                  placeholder={t.email_placeholder || 'you@example.com'}
                   placeholderTextColor={colors.textMuted}
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -230,7 +233,7 @@ export default function RegisterScreen({ navigation }) {
                 fontWeight: '600',
                 marginBottom: spacing.sm
               }}>
-                Şifre
+                {t.password_label || 'Password'}
               </Text>
               <View style={{
                 flexDirection: 'row',
@@ -245,7 +248,7 @@ export default function RegisterScreen({ navigation }) {
                 <TextInput
                   value={password}
                   onChangeText={setPassword}
-                  placeholder="En az 6 karakter"
+                  placeholder={t.password_placeholder || 'At least 6 characters'}
                   placeholderTextColor={colors.textMuted}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
@@ -275,7 +278,7 @@ export default function RegisterScreen({ navigation }) {
                 fontWeight: '600',
                 marginBottom: spacing.sm
               }}>
-                Şifre Tekrar
+                {t.confirm_password_label || 'Confirm Password'}
               </Text>
               <View style={{
                 flexDirection: 'row',
@@ -290,7 +293,7 @@ export default function RegisterScreen({ navigation }) {
                 <TextInput
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
-                  placeholder="Şifreni tekrar gir"
+                  placeholder={t.confirm_password_placeholder || 'Re-enter your password'}
                   placeholderTextColor={colors.textMuted}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
@@ -328,7 +331,7 @@ export default function RegisterScreen({ navigation }) {
                 fontSize: 18,
                 fontWeight: '700'
               }}>
-                {loading ? 'Kayıt olunuyor...' : 'Kayıt Ol'}
+                {loading ? (t.registering || 'Registering...') : (t.register || 'Register')}
               </Text>
             </TouchableOpacity>
 
@@ -342,7 +345,7 @@ export default function RegisterScreen({ navigation }) {
                 color: colors.textMuted,
                 fontSize: 14
               }}>
-                Zaten hesabın var mı?{' '}
+                {t.already_have_account || 'Already have an account?'}{' '}
               </Text>
               <TouchableOpacity onPress={() => navigation.goBack()}>
                 <Text style={{
@@ -350,7 +353,7 @@ export default function RegisterScreen({ navigation }) {
                   fontSize: 14,
                   fontWeight: '700'
                 }}>
-                  Giriş Yap
+                  {t.login || 'Login'}
                 </Text>
               </TouchableOpacity>
             </View>

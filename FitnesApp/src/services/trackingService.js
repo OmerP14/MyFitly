@@ -18,15 +18,21 @@ import { supabase } from '../config/supabase';
  */
 export const addWeightEntry = async (userId, weight, measurementDate = null, notes = null) => {
   try {
-    const { data, error } = await supabase.rpc('add_weight_entry', {
-      user_id_param: userId,
-      weight_param: weight,
-      measurement_date_param: measurementDate || new Date().toISOString().split('T')[0],
-      notes_param: notes
-    });
+    const insertPayload = {
+      user_id: userId,
+      weight: parseFloat(weight),
+      measurement_date: (measurementDate || new Date().toISOString().split('T')[0]),
+      notes: notes || null
+    };
+
+    const { data, error } = await supabase
+      .from('weight_tracking')
+      .insert([insertPayload])
+      .select('*')
+      .single();
 
     if (error) throw error;
-    return data;
+    return { success: true, data };
   } catch (error) {
     console.error('Kilo ekleme hatası:', error);
     return {
@@ -84,16 +90,21 @@ export const getWeightData = async (userId, periodType = 'monthly') => {
  */
 export const updateWeightEntry = async (entryId, userId, weight = null, measurementDate = null, notes = null) => {
   try {
-    const { data, error } = await supabase.rpc('update_weight_entry', {
-      entry_id_param: entryId,
-      user_id_param: userId,
-      weight_param: weight,
-      measurement_date_param: measurementDate,
-      notes_param: notes
-    });
+    const updates = {};
+    if (weight !== null && weight !== undefined) updates.weight = parseFloat(weight);
+    if (measurementDate) updates.measurement_date = measurementDate;
+    if (notes !== undefined) updates.notes = notes;
+
+    const { data, error } = await supabase
+      .from('weight_tracking')
+      .update(updates)
+      .eq('id', entryId)
+      .eq('user_id', userId)
+      .select('*')
+      .single();
 
     if (error) throw error;
-    return data;
+    return { success: true, data };
   } catch (error) {
     console.error('Kilo güncelleme hatası:', error);
     return {
@@ -110,13 +121,14 @@ export const updateWeightEntry = async (entryId, userId, weight = null, measurem
  */
 export const deleteWeightEntry = async (entryId, userId) => {
   try {
-    const { data, error } = await supabase.rpc('delete_weight_entry', {
-      entry_id_param: entryId,
-      user_id_param: userId
-    });
+    const { error } = await supabase
+      .from('weight_tracking')
+      .delete()
+      .eq('id', entryId)
+      .eq('user_id', userId);
 
     if (error) throw error;
-    return data;
+    return { success: true };
   } catch (error) {
     console.error('Kilo silme hatası:', error);
     return {
@@ -148,17 +160,23 @@ export const addStrengthEntry = async (
   notes = null
 ) => {
   try {
-    const { data, error } = await supabase.rpc('add_strength_entry', {
-      user_id_param: userId,
-      exercise_name_param: exerciseName,
-      max_weight_param: maxWeight,
-      max_reps_param: maxReps,
-      measurement_date_param: measurementDate || new Date().toISOString().split('T')[0],
-      notes_param: notes
-    });
+    const insertPayload = {
+      user_id: userId,
+      exercise_name: exerciseName,
+      max_weight: parseFloat(maxWeight),
+      max_reps: parseInt(maxReps),
+      measurement_date: (measurementDate || new Date().toISOString().split('T')[0]),
+      notes: notes || null
+    };
+
+    const { data, error } = await supabase
+      .from('strength_tracking')
+      .insert([insertPayload])
+      .select('*')
+      .single();
 
     if (error) throw error;
-    return data;
+    return { success: true, data };
   } catch (error) {
     console.error('Ağırlık ekleme hatası:', error);
     return {
@@ -176,14 +194,31 @@ export const addStrengthEntry = async (
  */
 export const getStrengthData = async (userId, periodType = 'monthly', exerciseName = null) => {
   try {
-    const { data, error } = await supabase.rpc('get_strength_data', {
-      user_id_param: userId,
-      period_type: periodType,
-      exercise_name_param: exerciseName
-    });
+    let query = supabase
+      .from('strength_tracking')
+      .select('*')
+      .eq('user_id', userId)
+      .order('measurement_date', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (exerciseName) {
+      query = query.eq('exercise_name', exerciseName);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
-    return data;
+    
+    console.log('📊 Ağırlık verileri getirildi:', { userId, periodType, exerciseName, count: data?.length || 0 });
+    
+    return {
+      success: true,
+      data: data || [],
+      stats: {
+        totalEntries: data?.length || 0,
+        periodType: periodType
+      }
+    };
   } catch (error) {
     console.error('Ağırlık verileri getirme hatası:', error);
     return {
@@ -201,12 +236,34 @@ export const getStrengthData = async (userId, periodType = 'monthly', exerciseNa
  */
 export const getExerciseMaxWeights = async (userId) => {
   try {
-    const { data, error } = await supabase.rpc('get_exercise_max_weights', {
-      user_id_param: userId
-    });
+    const { data, error } = await supabase
+      .from('strength_tracking')
+      .select('exercise_name, max_weight, measurement_date')
+      .eq('user_id', userId)
+      .order('exercise_name', { ascending: true })
+      .order('max_weight', { ascending: false });
 
     if (error) throw error;
-    return data;
+
+    // Egzersiz bazında grupla ve maksimum değerleri al
+    const groupedData = {};
+    (data || []).forEach(item => {
+      if (!groupedData[item.exercise_name] || item.max_weight > groupedData[item.exercise_name].max_weight) {
+        groupedData[item.exercise_name] = {
+          exercise_name: item.exercise_name,
+          max_weight: item.max_weight,
+          last_measurement_date: item.measurement_date
+        };
+      }
+    });
+
+    const result = Object.values(groupedData);
+    
+    return {
+      success: true,
+      data: result,
+      count: result.length
+    };
   } catch (error) {
     console.error('Max ağırlıklar getirme hatası:', error);
     return {
@@ -237,18 +294,23 @@ export const updateStrengthEntry = async (
   notes = null
 ) => {
   try {
-    const { data, error } = await supabase.rpc('update_strength_entry', {
-      entry_id_param: entryId,
-      user_id_param: userId,
-      exercise_name_param: exerciseName,
-      max_weight_param: maxWeight,
-      max_reps_param: maxReps,
-      measurement_date_param: measurementDate,
-      notes_param: notes
-    });
+    const updates = {};
+    if (exerciseName) updates.exercise_name = exerciseName;
+    if (maxWeight !== null && maxWeight !== undefined) updates.max_weight = parseFloat(maxWeight);
+    if (maxReps !== null && maxReps !== undefined) updates.max_reps = parseInt(maxReps);
+    if (measurementDate) updates.measurement_date = measurementDate;
+    if (notes !== undefined) updates.notes = notes;
+
+    const { data, error } = await supabase
+      .from('strength_tracking')
+      .update(updates)
+      .eq('id', entryId)
+      .eq('user_id', userId)
+      .select('*')
+      .single();
 
     if (error) throw error;
-    return data;
+    return { success: true, data };
   } catch (error) {
     console.error('Ağırlık güncelleme hatası:', error);
     return {
@@ -265,13 +327,14 @@ export const updateStrengthEntry = async (
  */
 export const deleteStrengthEntry = async (entryId, userId) => {
   try {
-    const { data, error } = await supabase.rpc('delete_strength_entry', {
-      entry_id_param: entryId,
-      user_id_param: userId
-    });
+    const { error } = await supabase
+      .from('strength_tracking')
+      .delete()
+      .eq('id', entryId)
+      .eq('user_id', userId);
 
     if (error) throw error;
-    return data;
+    return { success: true };
   } catch (error) {
     console.error('Ağırlık silme hatası:', error);
     return {
@@ -344,13 +407,19 @@ export const getTrackingDashboardStats = async (userId) => {
  */
 export const bulkAddWeightEntries = async (userId, entries) => {
   try {
-    const { data, error } = await supabase.rpc('bulk_add_weight_entries', {
-      user_id_param: userId,
-      entries: JSON.stringify(entries)
-    });
+    const prepared = (entries || []).map(e => ({
+      user_id: userId,
+      weight: parseFloat(e.weight),
+      measurement_date: e.measurement_date || new Date().toISOString().split('T')[0],
+      notes: e.notes || null
+    }));
+
+    const { error } = await supabase
+      .from('weight_tracking')
+      .insert(prepared);
 
     if (error) throw error;
-    return data;
+    return { success: true, added_count: prepared.length };
   } catch (error) {
     console.error('Toplu kilo ekleme hatası:', error);
     return {
@@ -368,13 +437,21 @@ export const bulkAddWeightEntries = async (userId, entries) => {
  */
 export const bulkAddStrengthEntries = async (userId, entries) => {
   try {
-    const { data, error } = await supabase.rpc('bulk_add_strength_entries', {
-      user_id_param: userId,
-      entries: JSON.stringify(entries)
-    });
+    const prepared = (entries || []).map(e => ({
+      user_id: userId,
+      exercise_name: e.exercise_name,
+      max_weight: parseFloat(e.max_weight),
+      max_reps: parseInt(e.max_reps || 1),
+      measurement_date: e.measurement_date || new Date().toISOString().split('T')[0],
+      notes: e.notes || null
+    }));
+
+    const { error } = await supabase
+      .from('strength_tracking')
+      .insert(prepared);
 
     if (error) throw error;
-    return data;
+    return { success: true, added_count: prepared.length };
   } catch (error) {
     console.error('Toplu ağırlık ekleme hatası:', error);
     return {
