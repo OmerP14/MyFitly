@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { getTranslations } from '../utils/translations';
-import { getDemoWeather } from '../services/weatherService';
+import { getCurrentWeather } from '../services/weatherService';
 
 export default function Header({ 
   title, 
@@ -25,14 +25,23 @@ export default function Header({
   const t = getTranslations(language);
   const [weather, setWeather] = useState(null);
 
-  // Hava durumu verilerini al
+  // Hava durumu verilerini al (gerçek konum bazlı)
   useEffect(() => {
     const loadWeather = async () => {
       try {
-        const weatherData = getDemoWeather(language);
-        setWeather(weatherData);
+        const result = await getCurrentWeather(language);
+        if (result.success) {
+          setWeather(result.data);
+          console.log('🌤️ Hava durumu kaynağı:', result.source === 'location' ? 'Gerçek konum' : 'Demo veri');
+          console.log('🌤️ Hava durumu verisi:', result.data);
+        }
       } catch (error) {
         console.error('Hava durumu yüklenemedi:', error);
+        // Hata durumunda demo veri göster
+        const { getDemoWeather } = await import('../services/weatherService');
+        const weatherData = getDemoWeather(language);
+        setWeather(weatherData);
+        console.log('🌤️ Hata nedeniyle demo hava durumu gösteriliyor');
       }
     };
 

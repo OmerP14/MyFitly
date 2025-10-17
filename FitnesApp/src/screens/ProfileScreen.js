@@ -403,7 +403,7 @@ export default function ProfileScreen() {
           {/* Settings */}
           <Card style={{ marginBottom: spacing.md }}>
             <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: spacing.md }}>
-              Ayarlar
+              {t.settings}
             </Text>
             
             {/* Bildirimler */}
@@ -961,11 +961,11 @@ ${t.progress_report_header}
                         height: localUserData.height
                       });
 
-                      Alert.alert('Başarılı', 'Profil başarıyla güncellendi!');
+                      Alert.alert(t.successful, t.profile_updated_success);
                       setShowEditModal(false);
                     } catch (error) {
                       console.error('Profil güncelleme hatası:', error);
-                      Alert.alert('Hata', 'Profil güncellenirken bir hata oluştu. Lütfen tekrar deneyin.');
+                      Alert.alert(t.error, t.profile_update_error);
                     }
                   }}
                   style={{

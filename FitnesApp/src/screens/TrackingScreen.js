@@ -893,12 +893,11 @@ export default function TrackingScreen() {
     
     try {
       // Kullanıcının hedef bilgilerini güncelle
-      let updateData = {
-        updated_at: new Date().toISOString()
-      };
+      let updateData = { updated_at: new Date().toISOString() };
 
       if (selectedTracking === 'weight') {
-        updateData.target_weight = parseFloat(weightGoal);
+        // 1) UserContext üzerinden güncelle ki UI hemen güncellensin
+        await updateUserData({ target_weight: parseFloat(weightGoal) });
       } else {
         // Ağırlık takibi için egzersiz bazlı hedef kaydetme
         // target_strength kaldırıldı, egzersiz bazında hedefler kullanılıyor
@@ -915,14 +914,20 @@ export default function TrackingScreen() {
         }
       }
 
-      const { data, error } = await supabase
-        .from('users')
-        .update(updateData)
-        .eq('id', userUUID)
-        .select()
-        .single();
-
-      if (error) throw error;
+      // Eğer kilo hedefi güncellendiyse progress baseline'ı sıfırla (mevcut kilodan başla)
+      if (selectedTracking === 'weight') {
+        try {
+          const baselineWeight = userData?.current_weight != null ? Number(userData.current_weight) : Number(weightGoal);
+          const now = new Date().toISOString();
+          await AsyncStorage.multiSet([
+            ['weight_goal_baseline_weight', String(baselineWeight)],
+            ['weight_goal_baseline_date', now]
+          ]);
+          setGoalBaseline({ weight: baselineWeight, date: now });
+          // Progress'i yeni baseline ile yeniden hesapla
+          calculateWeightProgress();
+        } catch (e) {}
+      }
 
       Alert.alert(t.success || 'Başarılı', `${t.target || 'Hedef'} ${selectedTracking === 'weight' ? (t.weight || 'kilo') : (t.strength || 'ağırlık')} ${t.saved || 'kaydedildi'}!`);
       setShowGoalModal(false);
@@ -930,13 +935,11 @@ export default function TrackingScreen() {
       setStrengthGoal('');
       setSelectedExerciseForGoal('');
       
-      // Verileri yeniden yükle
-      setTimeout(() => {
-        loadData();
-      }, 500);
-      
+      // Verileri yenile
+      loadData();
     } catch (error) {
-      Alert.alert(t.error || 'Hata', error.message || t.target_save_failed || 'Hedef kaydedilemedi');
+      console.error('Hedef kaydetme hatası:', error);
+      Alert.alert(t.error || 'Hata', error.message || t.something_went_wrong || 'Bir hata oluştu');
     } finally {
       setSaving(false);
     }

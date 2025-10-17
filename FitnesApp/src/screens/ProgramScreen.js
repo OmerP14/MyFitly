@@ -37,7 +37,7 @@ const ProgramScreen = ({ navigation, route }) => {
   const [selectedDay, setSelectedDay] = useState(currentDay);
   const [weekOffset, setWeekOffset] = useState(0); // 0 = bu hafta, -1 = geçen hafta, +1 = gelecek hafta
   const [filter, setFilter] = useState(t.all_exercises);
-  const [exerciseCategories] = useState([t.upper_body, t.lower_body, t.other]);
+  const [exerciseCategories, setExerciseCategories] = useState([t.upper_body, t.lower_body, t.other]);
   const [exercises, setExercises] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -144,6 +144,11 @@ const ProgramScreen = ({ navigation, route }) => {
     return () => clearTimeout(timeout);
   }, [isLoading]);
 
+  // Dil değişikliğinde exerciseCategories'i güncelle
+  useEffect(() => {
+    setExerciseCategories([t.upper_body, t.lower_body, t.other]);
+  }, [language, t.upper_body, t.lower_body, t.other]);
+
   const loadExercises = async () => {
     try {
       setIsLoading(true);
@@ -219,7 +224,7 @@ const ProgramScreen = ({ navigation, route }) => {
       };
       setExercises(updatedExercises);
 
-      setNewExercise({ name: '', sets: '', reps: '', weight: '', category: 'Üst Vücut' });
+      setNewExercise({ name: '', sets: '', reps: '', weight: '', category: t.upper_body });
       setShowAddModal(false);
       
       // Bildirimleri güncelle (eğer açıksa)
@@ -289,7 +294,7 @@ const ProgramScreen = ({ navigation, route }) => {
         )
       }));
 
-      setNewExercise({ name: '', sets: '', reps: '', weight: '', category: 'Üst Vücut' });
+      setNewExercise({ name: '', sets: '', reps: '', weight: '', category: t.upper_body });
       setEditingExercise(null);
       setShowEditModal(false);
       
@@ -491,10 +496,10 @@ const ProgramScreen = ({ navigation, route }) => {
 
   // Program egzersizlerini getir (örnek)
   const getProgramExercises = (programName) => {
-    // Sabit kategori isimleri kullan (çeviri sorunu çözmek için)
-    const upperBody = language === 'en' ? 'Upper Body' : 'Üst Vücut';
-    const lowerBody = language === 'en' ? 'Lower Body' : 'Alt Vücut';
-    const other = language === 'en' ? 'Other' : 'Diğer';
+    // Çeviri anahtarlarını kullan (filtre uyumluluğu için)
+    const upperBody = t.upper_body;
+    const lowerBody = t.lower_body;
+    const other = t.other;
     
     const programExercises = {
       'Push-Pull-Legs': [
@@ -675,7 +680,7 @@ const ProgramScreen = ({ navigation, route }) => {
 
   const rightComponent = (
     <TouchableOpacity 
-      onPress={() => setShowWeeklyModal(true)}
+      onPress={() => setShowCustomModal(true)}
       style={{
         backgroundColor: colors.primary,
         borderRadius: 20,
@@ -794,12 +799,14 @@ const ProgramScreen = ({ navigation, route }) => {
                         paddingHorizontal: 6,
                         paddingVertical: 2,
                         minWidth: 20,
-                        alignItems: 'center'
+                        alignItems: 'center',
+                        justifyContent: 'center'
                       }}>
                         <Text style={{
                           color: isSelected ? colors.primary : (completedCount === totalCount ? colors.background : colors.text),
                           fontSize: 9,
-                          fontWeight: '700'
+                          fontWeight: '700',
+                          textAlign: 'center'
                         }}>
                           {completedCount}/{totalCount}
                         </Text>
@@ -908,16 +915,16 @@ const ProgramScreen = ({ navigation, route }) => {
                         {exercise.name}
                       </Text>
                       <View style={{
-                        backgroundColor: exercise.category === 'Üst Vücut' ? 'rgba(255, 122, 0, 0.2)' : 
-                                        exercise.category === 'Alt Vücut' ? 'rgba(0, 208, 132, 0.2)' : 'rgba(123, 104, 238, 0.2)',
+                        backgroundColor: exercise.category === t.upper_body ? 'rgba(255, 122, 0, 0.2)' : 
+                                        exercise.category === t.lower_body ? 'rgba(0, 208, 132, 0.2)' : 'rgba(123, 104, 238, 0.2)',
                         borderRadius: 8,
                         paddingHorizontal: 8,
                         paddingVertical: 3,
                         marginLeft: 8
                       }}>
                         <Text style={{ 
-                          color: exercise.category === 'Üst Vücut' ? '#FF7A00' : 
-                                 exercise.category === 'Alt Vücut' ? '#00D084' : '#7B68EE', 
+                          color: exercise.category === t.upper_body ? '#FF7A00' : 
+                                 exercise.category === t.lower_body ? '#00D084' : '#7B68EE', 
                           fontSize: 10, 
                           fontWeight: '700' 
                         }}>
@@ -1866,26 +1873,44 @@ const ProgramScreen = ({ navigation, route }) => {
                   </Card>
                 )}
 
-                {/* Kaydet Butonu */}
-                <TouchableOpacity
-                  onPress={createCustomProgram}
-                  style={{
-                    backgroundColor: colors.primary,
-                    borderRadius: 16,
-                    padding: spacing.lg,
-                    alignItems: 'center',
-                    marginTop: spacing.lg,
-                    elevation: 4,
-                    shadowColor: colors.primary,
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 8
-                  }}
-                >
-                  <Text style={{ color: colors.background, fontSize: 18, fontWeight: '700' }}>
-                    💾 Programı Kaydet
-                  </Text>
-                </TouchableOpacity>
+                {/* Kaydet ve İptal Butonları */}
+                <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
+                  <TouchableOpacity
+                    onPress={createCustomProgram}
+                    style={{
+                      flex: 1,
+                      backgroundColor: colors.primary,
+                      borderRadius: 12,
+                      padding: spacing.md,
+                      alignItems: 'center',
+                      elevation: 2,
+                      shadowColor: colors.primary,
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.2,
+                      shadowRadius: 4
+                    }}
+                  >
+                    <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600' }}>
+                      {t.save_program}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setShowCustomModal(false)}
+                    style={{
+                      flex: 1,
+                      backgroundColor: colors.background,
+                      borderRadius: 12,
+                      padding: spacing.md,
+                      alignItems: 'center',
+                      borderWidth: 1,
+                      borderColor: colors.primary
+                    }}
+                  >
+                    <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>
+                      {t.cancel}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </ScrollView>
               </View>
             </View>

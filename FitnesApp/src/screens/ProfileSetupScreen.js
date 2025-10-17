@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Text, View, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { Text, View, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -105,14 +105,15 @@ export default function ProfileSetupScreen() {
   return (
     <LinearGradient colors={[colors.background, colors.backgroundAlt]} style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
-        <ScrollView 
-          contentContainerStyle={{ 
-            padding: spacing.xl,
-            paddingBottom: spacing.xl * 3
-          }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}>
+          <ScrollView 
+            contentContainerStyle={{ 
+              padding: spacing.xl,
+              paddingBottom: spacing.xl * 4
+            }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
           {/* Header */}
           <View style={{ alignItems: 'center', marginBottom: spacing.xl, marginTop: spacing.xl }}>
             <View style={{
@@ -373,6 +374,7 @@ export default function ProfileSetupScreen() {
             Bu bilgileri istediğin zaman profil ayarlarından değiştirebilirsin
           </Text>
         </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </LinearGradient>
   );

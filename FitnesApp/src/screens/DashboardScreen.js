@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Text, View, ScrollView, TouchableOpacity, Dimensions, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -47,6 +48,7 @@ export default function DashboardScreen({ navigation }) {
   // State variables
   const [weightData, setWeightData] = useState([]);
   const [weightProgress, setWeightProgress] = useState(0);
+  const [goalBaseline, setGoalBaseline] = useState({ weight: null, date: null });
   const [todayWorkout, setTodayWorkout] = useState([]);
   const [weeklyStats, setWeeklyStats] = useState({ workoutDays: 0, totalSets: 0 });
 
@@ -98,9 +100,10 @@ export default function DashboardScreen({ navigation }) {
       return;
     }
 
-    // İlk kilo girişi = Başlangıç
-    // Profildeki current_weight = Mevcut (gösterim için)
-    const startWeight = normalizedWeightData[0].weight;
+    // Başlangıç: baseline varsa onu kullan, yoksa ilk kayıt
+    const startWeight = goalBaseline.weight != null
+      ? goalBaseline.weight
+      : normalizedWeightData[0].weight;
     const currentWeight = userData.current_weight; // Profil bilgisinden al
     const targetWeight = userData.target_weight;
 
@@ -198,6 +201,37 @@ export default function DashboardScreen({ navigation }) {
     }
   }, [userData?.id, userData?.target_weight, userData?.current_weight]);
 
+  // Load baseline saved by TrackingScreen so dashboard matches
+  useEffect(() => {
+    const loadBaseline = async () => {
+      try {
+        const [w, d] = await Promise.all([
+          AsyncStorage.getItem('weight_goal_baseline_weight'),
+          AsyncStorage.getItem('weight_goal_baseline_date')
+        ]);
+        setGoalBaseline({ weight: w ? parseFloat(w) : null, date: d || null });
+      } catch {}
+    };
+    loadBaseline();
+  }, [userData?.id, userData?.target_weight]);
+
+  // When target changes, reset baseline to current weight immediately
+  useEffect(() => {
+    const resetBaselineOnTargetChange = async () => {
+      if (userData?.current_weight != null && userData?.target_weight != null) {
+        const now = new Date().toISOString();
+        await AsyncStorage.multiSet([
+          ['weight_goal_baseline_weight', String(userData.current_weight)],
+          ['weight_goal_baseline_date', now]
+        ]);
+        setGoalBaseline({ weight: Number(userData.current_weight), date: now });
+        setWeightProgress(0);
+      }
+    };
+    // Trigger only when target_weight changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userData?.target_weight]);
+
   // Ekran her açıldığında verileri yenile
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -212,7 +246,7 @@ export default function DashboardScreen({ navigation }) {
 
   useEffect(() => {
     calculateWeightProgress();
-  }, [userData, weightData]);
+  }, [userData, weightData, goalBaseline]);
 
   // Mevcut kilo bilgisi - Profil bilgisinden al
   const getCurrentWeight = () => {
@@ -253,7 +287,7 @@ export default function DashboardScreen({ navigation }) {
               fontWeight: '700',
               marginBottom: spacing.lg
             }}>
-              🎯 Hedef İlerlemen
+              🎯 {t.goal_progress || 'Goal Progress'}
             </Text>
             
             <View style={{ 
@@ -286,13 +320,15 @@ export default function DashboardScreen({ navigation }) {
 
             {userData?.current_weight && userData?.target_weight ? (
               <View style={{ alignItems: 'center', width: '100%' }}>
-                <Text style={{ 
-                  color: colors.textMuted, 
-                  fontSize: 14,
-                  marginBottom: spacing.md
-                }}>
-                  Hedefe ulaştın
-                </Text>
+                {Math.round(weightProgress) >= 100 ? (
+                  <Text style={{ 
+                    color: colors.textMuted, 
+                    fontSize: 14,
+                    marginBottom: spacing.md
+                  }}>
+                    {t.reached_goal || 'Reached goal'}
+                  </Text>
+                ) : null}
 
                 <View style={{ 
                   flexDirection: 'row', 
