@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import Card from '../components/Card';
 import SectionHeader from '../components/SectionHeader';
-import Header from '../components/Header';
 import { spacing } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
@@ -15,6 +14,7 @@ import { getTranslations, translateExerciseName } from '../utils/translations';
 import * as programService from '../services/programService';
 import * as notificationService from '../services/notificationService';
 import useRewardedAd from '../hooks/useRewardedAd';
+import WorkoutScreen from './WorkoutScreen';
 
 const currentDay = new Date().getDay(); // JavaScript standardı: 0=Pazar, 1=Pazartesi...
 
@@ -37,6 +37,7 @@ const ProgramScreen = ({ navigation, route }) => {
   const [selectedDay, setSelectedDay] = useState(currentDay);
   const [weekOffset, setWeekOffset] = useState(0); // 0 = bu hafta, -1 = geçen hafta, +1 = gelecek hafta
   const [filter, setFilter] = useState(t.all_exercises);
+  // Tab sistemi kaldırıldı - sadece takvim görünümü var
   const [exerciseCategories] = useState([t.upper_body, t.lower_body, t.other]);
   const [exercises, setExercises] = useState({});
   const [isLoading, setIsLoading] = useState(true);
@@ -46,6 +47,7 @@ const ProgramScreen = ({ navigation, route }) => {
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [showInlineExerciseForm, setShowInlineExerciseForm] = useState({});
   const [editingExercise, setEditingExercise] = useState(null);
+  const [isNavigating, setIsNavigating] = useState(false);
   const [newExercise, setNewExercise] = useState({
     name: '',
     sets: '',
@@ -415,21 +417,29 @@ const ProgramScreen = ({ navigation, route }) => {
         return;
       }
 
-      // Reklam izlet
+      // Reklam izlet (sadece gerçekten yüklüyse)
       try {
-        console.log('🎬 Ödüllü reklam gösteriliyor...');
-        const reward = await showAd();
-        console.log('🎁 Ödül kazanıldı:', reward);
+        if (adLoaded) {
+          console.log('🎬 Ödüllü reklam gösteriliyor...');
+          const reward = await showAd();
+          console.log('🎁 Ödül kazanıldı:', reward);
+        } else {
+          // Güvenli fallback: development veya reklam hazır değilken direkt uygula
+          console.log('⚠️ Reklam yüklü değil, fallback ile devam ediliyor');
+          Alert.alert(
+            '📱 Development Mod',
+            'Reklam şu an yüklü değil. Program direkt eklenecek. 🎁'
+          );
+        }
 
         setShowWeeklyModal(false);
-        
-        // Reklam tamamlandı - programı ekle
+        // Reklam tamamlandı veya fallback: programı ekle
         await addSimpleProgram(program);
 
       } catch (error) {
         console.error('❌ Reklam hatası:', error);
         
-        if (error.message === 'Reklam tamamlanmadan kapatıldı') {
+        if (error?.message === 'Reklam tamamlanmadan kapatıldı') {
           Alert.alert(
             '❌ Reklam Kapatıldı', 
             'Program eklemek için reklamı sonuna kadar izlemelisin! 🎬\n\nTekrar denemek ister misin?',
@@ -439,7 +449,10 @@ const ProgramScreen = ({ navigation, route }) => {
             ]
           );
         } else {
-          Alert.alert('❌ Hata', 'Reklam gösterilemedi. Lütfen daha sonra tekrar deneyin.');
+          // Son çare: fallback ile yine programı uygula ki kullanıcı bloklanmasın
+          Alert.alert('⏳', 'Reklam gösterilemedi, program yine de eklenecek.');
+          setShowWeeklyModal(false);
+          await addSimpleProgram(program);
         }
       }
       
@@ -673,67 +686,175 @@ const ProgramScreen = ({ navigation, route }) => {
     );
   }
 
-  const rightComponent = (
-    <TouchableOpacity 
-      onPress={() => setShowWeeklyModal(true)}
-      style={{
-        backgroundColor: colors.primary,
-        borderRadius: 20,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2
-      }}
-    >
-      <Text style={{ color: colors.background, fontSize: 12, fontWeight: '700' }}>📅 {t.monthly}</Text>
-    </TouchableOpacity>
-  );
-
   return (
     <LinearGradient colors={[colors.background, colors.backgroundAlt]} style={{ flex: 1 }}>
-      <Header 
-        title={t.program}
-        subtitle={`${completedCount}/${totalCount} ${t.exercises_completed}`}
-        rightComponent={rightComponent}
-      />
-      <SafeAreaView style={{ flex: 1 }} edges={["left", "right"]}>
+      <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+        {/* Header */}
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: spacing.lg,
+          paddingVertical: spacing.md,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border
+        }}>
+          <View style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: colors.primary,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: spacing.sm
+          }}>
+            <Ionicons name="fitness" size={24} color={colors.background} />
+          </View>
+          <Text style={{ 
+            color: colors.text, 
+            fontSize: 20, 
+            fontWeight: '700',
+            flex: 1
+          }}>
+            {language === 'en' ? 'Calendar' : 'Takvim'}
+          </Text>
+        </View>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.md, paddingBottom: 100 }}>
+          {/* Header */}
+          <View style={{ marginBottom: spacing.md }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>{t.program}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ color: colors.textMuted, fontSize: 14 }}>
+                {completedCount}/{totalCount} {t.exercises_completed}
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  if (isNavigating) return; // Çoklu tıklamayı engelle
+                  
+                  setIsNavigating(true);
+                  console.log('🚀 Antrenmanı Başlat butonuna tıklandı');
+                  
+                  try {
+                    // Hazır programlar sekmesine yönlendir
+                    navigation.getParent()?.navigate('Workout', { 
+                      screen: 'WorkoutScreen',
+                      params: { initialTab: 'templates' }
+                    });
+                  } catch (error) {
+                    console.error('❌ Navigasyon hatası:', error);
+                  } finally {
+                    // 1 saniye sonra tekrar tıklanabilir hale getir
+                    setTimeout(() => setIsNavigating(false), 1000);
+                  }
+                }}
+                style={{
+                  backgroundColor: isNavigating ? colors.textMuted : colors.success,
+                  borderRadius: 12,
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: spacing.sm,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  opacity: isNavigating ? 0.7 : 1
+                }}
+                disabled={isNavigating}
+              >
+                <Ionicons name="play" size={16} color={colors.background} />
+                <Text style={{ color: colors.background, fontSize: 14, fontWeight: '600', marginLeft: spacing.xs }}>
+                  {isNavigating ? (language === 'en' ? 'Loading...' : 'Yükleniyor...') : t.start_workout}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
-          {/* Haftalık Takvim - Kaydırılabilir */}
-          <Card style={{ marginBottom: spacing.lg, backgroundColor: 'rgba(255, 122, 0, 0.05)' }}>
+          {/* Programlar Butonu */}
+          <TouchableOpacity
+            onPress={() => {
+              if (isNavigating) return;
+              
+              setIsNavigating(true);
+              console.log('🏋️ Programlar butonuna tıklandı');
+              
+              try {
+                navigation.getParent()?.navigate('Workout', { 
+                  screen: 'WorkoutScreen',
+                  params: { initialTab: 'templates' }
+                });
+              } catch (error) {
+                console.error('❌ Navigasyon hatası:', error);
+              } finally {
+                setTimeout(() => setIsNavigating(false), 1000);
+              }
+            }}
+            disabled={isNavigating}
+            style={{
+              backgroundColor: isNavigating ? colors.textMuted : colors.info,
+              borderRadius: 12,
+              paddingVertical: spacing.md,
+              paddingHorizontal: spacing.lg,
+              marginBottom: spacing.lg,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: isNavigating ? 0.7 : 1,
+              elevation: 3,
+              shadowColor: colors.info,
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.2,
+              shadowRadius: 4
+            }}
+          >
+            <Ionicons name="fitness" size={20} color={colors.background} style={{ marginRight: spacing.sm }} />
+            <Text style={{ 
+              color: colors.background, 
+              fontSize: 16, 
+              fontWeight: '700' 
+            }}>
+              {isNavigating ? (language === 'en' ? 'Loading...' : 'Yükleniyor...') : '🏋️ ' + (language === 'en' ? 'Browse Programs' : 'Programları Görüntüle')}
+            </Text>
+            <Ionicons name="arrow-forward" size={16} color={colors.background} style={{ marginLeft: spacing.sm }} />
+          </TouchableOpacity>
+
+          {/* Takvim İçeriği */}
+          {/* Takvim İçeriği */}
+            <>
+              {/* Haftalık Takvim - Kaydırılabilir */}
+              <Card style={{ marginBottom: spacing.lg, backgroundColor: 'rgba(255, 122, 0, 0.05)' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
               <TouchableOpacity 
                 onPress={() => setWeekOffset(prev => prev - 1)}
                 style={{
                   backgroundColor: colors.background,
-                  borderRadius: 8,
-                  padding: 8
+                  borderRadius: 12,
+                  padding: spacing.sm,
+                  elevation: 2,
+                  shadowColor: colors.primary,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4
                 }}
               >
                 <Ionicons name="chevron-back" size={20} color={colors.primary} />
               </TouchableOpacity>
               
-              <View style={{ flex: 1, alignItems: 'center' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Ionicons name="calendar" size={18} color={colors.primary} style={{ marginRight: 6 }} />
                   <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700' }}>
                     {weekOffset === 0 ? t.this_week : weekOffset === -1 ? t.previous_week : weekOffset === 1 ? t.next_week : `${weekOffset > 0 ? '+' : ''}${weekOffset} ${t.week}`}
                   </Text>
                 </View>
-                <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
-                  {weekDates[0].date}-{weekDates[6].date} {new Date().toLocaleDateString('tr-TR', { month: 'short' })}
-                </Text>
-              </View>
 
               <TouchableOpacity 
                 onPress={() => setWeekOffset(prev => prev + 1)}
                 style={{
                   backgroundColor: colors.background,
-                  borderRadius: 8,
-                  padding: 8
+                  borderRadius: 12,
+                  padding: spacing.sm,
+                  elevation: 2,
+                  shadowColor: colors.primary,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4
                 }}
               >
                 <Ionicons name="chevron-forward" size={20} color={colors.primary} />
@@ -755,58 +876,49 @@ const ProgramScreen = ({ navigation, route }) => {
                     key={index}
                     onPress={() => setSelectedDay(dayIndex)}
                     style={{
-                      backgroundColor: isSelected ? colors.primary : colors.background,
-                      borderRadius: 12,
-                      padding: 8,
-                      alignItems: 'center',
-                      minWidth: 40,
                       flex: 1,
+                      alignItems: 'center',
+                      paddingVertical: spacing.sm,
                       marginHorizontal: 2,
-                      elevation: isSelected ? 4 : 0,
-                      shadowColor: colors.primary,
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: isSelected ? 0.3 : 0,
-                      shadowRadius: 4,
-                      borderWidth: isToday && !isSelected ? 2 : 0,
-                      borderColor: colors.primary
+                      borderRadius: 12,
+                      backgroundColor: isSelected ? colors.primary + '20' : 'transparent',
+                      borderWidth: isToday ? 2 : 0,
+                      borderColor: isToday ? colors.primary : 'transparent'
                     }}
                   >
                     <Text style={{ 
-                      color: isSelected ? colors.background : colors.textMuted,
-                      fontSize: 11,
+                      color: isToday ? colors.primary : colors.textMuted, 
+                      fontSize: 12, 
                       fontWeight: '600',
-                      marginBottom: 2
-                    }}>
-                      {weekDays[dayIndex]}
-                    </Text>
-                    <Text style={{ 
-                      color: isSelected ? colors.background : colors.text,
-                      fontSize: 18,
-                      fontWeight: '800',
                       marginBottom: 4
                     }}>
-                      {dateInfo.date}
+                      {['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'][dayIndex]}
+                    </Text>
+                    <Text style={{ 
+                      color: isToday ? colors.primary : colors.text, 
+                      fontSize: 16, 
+                      fontWeight: isToday ? '700' : '600',
+                      marginBottom: 4
+                    }}>
+                      {dateInfo.day}
                     </Text>
                     {hasExercises && (
                       <View style={{
-                        backgroundColor: isSelected ? colors.background : (completedCount === totalCount ? '#00D084' : 'rgba(255, 122, 0, 0.3)'),
-                        borderRadius: 10,
+                        backgroundColor: completedCount === totalCount ? colors.success : colors.warning,
+                        borderRadius: 8,
                         paddingHorizontal: 6,
                         paddingVertical: 2,
-                        minWidth: 20,
+                        minWidth: 24,
                         alignItems: 'center'
                       }}>
-                        <Text style={{
-                          color: isSelected ? colors.primary : (completedCount === totalCount ? colors.background : colors.text),
-                          fontSize: 9,
-                          fontWeight: '700'
+                        <Text style={{ 
+                          color: colors.background, 
+                          fontSize: 10, 
+                          fontWeight: '700' 
                         }}>
                           {completedCount}/{totalCount}
                         </Text>
                       </View>
-                    )}
-                    {!hasExercises && (
-                      <View style={{ height: 14 }} />
                     )}
                   </TouchableOpacity>
                 );
@@ -814,213 +926,103 @@ const ProgramScreen = ({ navigation, route }) => {
             </View>
           </Card>
 
-          {/* Filtre Butonları */}
-          <View style={{ flexDirection: 'row', marginBottom: spacing.md, gap: spacing.sm }}>
-            {[t.all_exercises, ...exerciseCategories].map((filterOption) => (
-              <TouchableOpacity
-                key={filterOption}
-                onPress={() => setFilter(filterOption)}
-                style={{
-                  backgroundColor: filter === filterOption ? colors.primary : colors.background,
-                  borderRadius: 20,
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                  borderWidth: 1,
-                  borderColor: colors.primary
-                }}
-              >
-                <Text style={{
-                  color: filter === filterOption ? colors.background : colors.primary,
-                  fontSize: 14,
-                  fontWeight: '600'
-                }}>
-                  {filterOption}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Egzersizler */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-            <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>
-              💪 {t.today_workout}
-            </Text>
-            {todayExercises.length > 0 && (
-              <View style={{
-                backgroundColor: weeklyRepeatEnabled ? 'rgba(0, 208, 132, 0.2)' : 'rgba(255, 122, 0, 0.2)',
+          {/* Seçilen Günün Egzersizleri */}
+          <Card style={{ marginBottom: spacing.lg }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
+              <Ionicons name="fitness" size={24} color={colors.primary} style={{ marginRight: spacing.sm }} />
+              <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>
+                {selectedDay === 0 ? t.sunday : 
+                 selectedDay === 1 ? t.monday : 
+                 selectedDay === 2 ? t.tuesday : 
+                 selectedDay === 3 ? t.wednesday : 
+                 selectedDay === 4 ? t.thursday : 
+                 selectedDay === 5 ? t.friday : t.saturday}
+              </Text>
+              <View style={{ 
+                backgroundColor: colors.primary + '20', 
+                paddingHorizontal: spacing.sm, 
+                paddingVertical: 4, 
                 borderRadius: 12,
-                paddingHorizontal: 10,
-                paddingVertical: 4,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 4
+                marginLeft: 'auto'
               }}>
-                <Ionicons 
-                  name={weeklyRepeatEnabled ? "repeat" : "calendar"} 
-                  size={14} 
-                  color={weeklyRepeatEnabled ? '#00D084' : colors.primary} 
-                />
-                <Text style={{ 
-                  color: weeklyRepeatEnabled ? '#00D084' : colors.primary, 
-                  fontSize: 12, 
-                  fontWeight: '600' 
-                }}>
-                  {weeklyRepeatEnabled ? 'Haftalık' : 'Tek Seferlik'}
+                <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>
+                  {exercises[selectedDay]?.length || 0} {t.exercises}
                 </Text>
               </View>
-            )}
-          </View>
-          {filteredExercises.length > 0 ? (
-            filteredExercises.map((exercise, index) => (
-              <Card key={exercise.id} style={{ 
-                marginBottom: spacing.sm,
-                backgroundColor: exercise.completed ? 'rgba(0, 208, 132, 0.05)' : colors.card,
-                borderLeftWidth: 4,
-                borderLeftColor: exercise.completed ? '#00D084' : colors.primary
-              }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                      <View style={{
-                        backgroundColor: exercise.completed ? 'rgba(0, 208, 132, 0.2)' : 'rgba(255, 122, 0, 0.2)',
-                        borderRadius: 20,
-                        width: 28,
-                        height: 28,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginRight: 8
-                      }}>
-                        <Text style={{ 
-                          color: exercise.completed ? '#00D084' : colors.primary, 
-                          fontSize: 12, 
-                          fontWeight: '700' 
-                        }}>
-                          {index + 1}
-                        </Text>
-                      </View>
-                      <Text style={{ 
-                        color: exercise.completed ? colors.textMuted : colors.text, 
-                        fontSize: 16, 
-                        fontWeight: '700',
-                        textDecorationLine: exercise.completed ? 'line-through' : 'none',
-                        flex: 1
-                      }}>
-                        {exercise.name}
-                      </Text>
-                      <View style={{
-                        backgroundColor: exercise.category === 'Üst Vücut' ? 'rgba(255, 122, 0, 0.2)' : 
-                                        exercise.category === 'Alt Vücut' ? 'rgba(0, 208, 132, 0.2)' : 'rgba(123, 104, 238, 0.2)',
-                        borderRadius: 8,
-                        paddingHorizontal: 8,
-                        paddingVertical: 3,
-                        marginLeft: 8
-                      }}>
-                        <Text style={{ 
-                          color: exercise.category === 'Üst Vücut' ? '#FF7A00' : 
-                                 exercise.category === 'Alt Vücut' ? '#00D084' : '#7B68EE', 
-                          fontSize: 10, 
-                          fontWeight: '700' 
-                        }}>
-                          {exercise.category === t.upper_body ? '💪' : 
-                           exercise.category === t.lower_body ? '🦵' : '🏃'}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 36 }}>
-                      <Ionicons name="barbell" size={14} color={colors.textMuted} style={{ marginRight: 4 }} />
-                      <Text style={{ color: colors.textMuted, fontSize: 14 }}>
-                        {exercise.sets} {t.sets} • {exercise.reps} {t.reps} • {exercise.weight}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 8 }}>
-                    <TouchableOpacity 
-                      onPress={() => editExercise(exercise)}
-                      style={{
-                        backgroundColor: 'rgba(255, 122, 0, 0.1)',
-                        borderRadius: 8,
-                        padding: 8
-                      }}
-                    >
-                      <Ionicons name="pencil" size={18} color={colors.primary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      onPress={() => deleteExercise(exercise.id)}
-                      style={{
-                        backgroundColor: 'rgba(255, 71, 87, 0.1)',
-                        borderRadius: 8,
-                        padding: 8
-                      }}
-                    >
-                      <Ionicons name="trash" size={18} color="#FF4757" />
-                    </TouchableOpacity>
+            </View>
+
+            {/* Egzersiz Listesi */}
+            {exercises[selectedDay] && exercises[selectedDay].length > 0 ? (
+              <View>
+                {exercises[selectedDay].map((exercise, index) => (
+                  <View key={exercise.id || index} style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingVertical: spacing.sm,
+                    borderBottomWidth: index < exercises[selectedDay].length - 1 ? 1 : 0,
+                    borderBottomColor: colors.border
+                  }}>
                     <TouchableOpacity
                       onPress={() => toggleExercise(exercise.id)}
                       style={{
-                        backgroundColor: exercise.completed ? '#00D084' : colors.background,
+                        width: 24,
+                        height: 24,
                         borderRadius: 12,
-                        padding: 10,
                         borderWidth: 2,
-                        borderColor: exercise.completed ? '#00D084' : colors.primary,
-                        elevation: exercise.completed ? 2 : 0,
-                        shadowColor: '#00D084',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: exercise.completed ? 0.3 : 0,
-                        shadowRadius: 4
+                        borderColor: exercise.completed ? colors.success : colors.border,
+                        backgroundColor: exercise.completed ? colors.success : 'transparent',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: spacing.sm
                       }}
                     >
-                      <Ionicons 
-                        name={exercise.completed ? "checkmark-circle" : "play-circle"} 
-                        size={22} 
-                        color={exercise.completed ? colors.background : colors.primary} 
-                      />
+                      {exercise.completed && (
+                        <Ionicons name="checkmark" size={16} color={colors.background} />
+                      )}
+                    </TouchableOpacity>
+                    
+                    <View style={{ flex: 1 }}>
+                      <Text style={{
+                        color: exercise.completed ? colors.textMuted : colors.text,
+                        fontSize: 16,
+                        fontWeight: '600',
+                        textDecorationLine: exercise.completed ? 'line-through' : 'none'
+                      }}>
+                        {exercise.name}
+                      </Text>
+                      {exercise.sets && (
+                        <Text style={{ color: colors.textMuted, fontSize: 14, marginTop: 2 }}>
+                          {exercise.sets} {t.sets} • {exercise.reps} {t.reps}
+                        </Text>
+                      )}
+                    </View>
+                    
+                    <TouchableOpacity
+                      onPress={() => deleteExercise(exercise.id)}
+                      style={{
+                        padding: spacing.xs,
+                        borderRadius: 8,
+                        backgroundColor: colors.error + '20'
+                      }}
+                    >
+                      <Ionicons name="trash" size={16} color={colors.error} />
                     </TouchableOpacity>
                   </View>
-                </View>
-              </Card>
-            ))
-          ) : (
-            <Card style={{ alignItems: 'center', padding: spacing.xl, backgroundColor: 'rgba(255, 122, 0, 0.05)' }}>
-              <View style={{
-                backgroundColor: 'rgba(255, 122, 0, 0.1)',
-                borderRadius: 40,
-                width: 80,
-                height: 80,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: spacing.md
-              }}>
-                <Ionicons name="fitness" size={40} color={colors.primary} />
+                ))}
               </View>
-              <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: 4 }}>
-                {t.no_exercises_today}
-              </Text>
-              <Text style={{ color: colors.textMuted, fontSize: 14, textAlign: 'center' }}>
-                {t.add_first_exercise_today}
-              </Text>
-            </Card>
-          )}
-
-          {/* Egzersiz Ekle Butonu */}
-          <TouchableOpacity
-            onPress={() => setShowAddModal(true)}
-            style={{
-              backgroundColor: colors.primary,
-              borderRadius: 16,
-              padding: spacing.md,
-              alignItems: 'center',
-              marginTop: spacing.md,
-              elevation: 4,
-              shadowColor: colors.primary,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8
-            }}
-          >
-            <Text style={{ color: colors.background, fontSize: 16, fontWeight: '700' }}>
-              ➕ {t.add_exercise}
-            </Text>
-          </TouchableOpacity>
+            ) : (
+              <View style={{ alignItems: 'center', paddingVertical: spacing.xl }}>
+                <Ionicons name="fitness-outline" size={48} color={colors.textMuted} />
+                <Text style={{ color: colors.textMuted, fontSize: 16, marginTop: spacing.sm }}>
+                  {t.no_exercises_today}
+                </Text>
+                <Text style={{ color: colors.textMuted, fontSize: 14, textAlign: 'center', marginTop: spacing.xs }}>
+                  {t.add_exercise_to_start}
+                </Text>
+              </View>
+            )}
+          </Card>
+            </>
         </ScrollView>
 
         {/* Egzersiz Ekleme Modal */}
@@ -1045,38 +1047,40 @@ const ProgramScreen = ({ navigation, route }) => {
                 borderTopLeftRadius: 20,
                 borderTopRightRadius: 20,
                 padding: spacing.lg,
-                maxHeight: '80%'
+                maxHeight: '90%'
               }}>
-              <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: spacing.lg }}>
-                {t.add_exercise}
-              </Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
+                  <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>
+                    ➕ {t.add_exercise}
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowAddModal(false)}>
+                    <Ionicons name="close" size={28} color={colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
 
-              <TextInput
-                value={newExercise.name}
-                onChangeText={(text) => setNewExercise({...newExercise, name: text})}
-                placeholder={t.exercise_name_placeholder}
-                placeholderTextColor={colors.textMuted}
-                style={{
-                  backgroundColor: colors.background,
-                  borderRadius: 12,
-                  padding: 16,
-                  color: colors.text,
-                  fontSize: 16,
-                  marginBottom: spacing.md,
-                  borderWidth: 1,
-                  borderColor: colors.border
-                }}
-              />
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <TextInput
+                    placeholder={t.exercise_name}
+                    placeholderTextColor={colors.textMuted}
+                    value={newExercise.name}
+                    onChangeText={(text) => setNewExercise({...newExercise, name: text})}
+                    style={{
+                      backgroundColor: colors.background,
+                      color: colors.text,
+                      borderRadius: 12,
+                      padding: spacing.md,
+                      marginBottom: spacing.md,
+                      fontSize: 16,
+                      borderWidth: 1,
+                      borderColor: colors.border
+                    }}
+                  />
 
-              {/* Kategori Seçimi */}
-              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginBottom: spacing.sm }}>
-{t.category}
-              </Text>
-              <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
-                {exerciseCategories.map((category) => (
-                  <TouchableOpacity
-                    key={category}
-                    onPress={() => setNewExercise({...newExercise, category})}
+                  <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
+                    {[t.upper_body, t.lower_body, t.other].map((category) => (
+                      <TouchableOpacity
+                        key={category}
+                        onPress={() => setNewExercise({...newExercise, category})}
                     style={{
                       flex: 1,
                       backgroundColor: newExercise.category === category ? colors.primary : colors.background,
@@ -1221,7 +1225,6 @@ const ProgramScreen = ({ navigation, route }) => {
 {t.cancel}
                   </Text>
                 </TouchableOpacity>
-              </View>
               </View>
             </View>
           </KeyboardAvoidingView>
@@ -1426,7 +1429,7 @@ const ProgramScreen = ({ navigation, route }) => {
           </KeyboardAvoidingView>
         </Modal>
 
-        {/* Aylık Program Modal */}
+        {/* Hazır Programlar Modal */}
         <Modal
           visible={showWeeklyModal}
           transparent={true}
@@ -1436,91 +1439,66 @@ const ProgramScreen = ({ navigation, route }) => {
           <View style={{
             flex: 1,
             backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: spacing.md
+            justifyContent: 'flex-end'
           }}>
             <View style={{
               backgroundColor: colors.card,
-              borderRadius: 20,
-              padding: spacing.lg,
-              width: '90%',
-              maxHeight: '80%'
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              maxHeight: '90%',
+              padding: spacing.lg
             }}>
-              <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700', marginBottom: spacing.sm }}>
-                📅 {t.weekly_program}
-              </Text>
-              <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: spacing.lg }}>
-{t.select_ready_or_create_custom}
-              </Text>
-
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {/* Push-Pull-Legs Program */}
-                <TouchableOpacity
-                  onPress={() => applyWeeklyProgram({
-                    name: 'Push-Pull-Legs',
-                    days: ['Pazartesi', 'Çarşamba', 'Cuma']
-                  })}
-                  style={{
-                    backgroundColor: 'rgba(255, 122, 0, 0.1)',
-                    borderRadius: 12,
-                    padding: spacing.md,
-                    marginBottom: spacing.md,
-                    borderWidth: 1,
-                    borderColor: colors.primary
-                  }}
-                >
-                  <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 4 }}>
-                    💪 Push-Pull-Legs
-                  </Text>
-                  <Text style={{ color: colors.textMuted, fontSize: 14 }}>
-                    Pazartesi, Çarşamba, Cuma
-                  </Text>
+              <View style={{ 
+                flexDirection: 'row', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                marginBottom: spacing.lg,
+                borderBottomWidth: 1,
+                borderBottomColor: colors.border,
+                paddingBottom: spacing.md
+              }}>
+                <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>
+                  📋 {t.ready_programs}
+                </Text>
+                <TouchableOpacity onPress={() => setShowWeeklyModal(false)}>
+                  <Ionicons name="close" size={28} color={colors.textMuted} />
                 </TouchableOpacity>
+              </View>
 
-                {/* Upper-Lower Split */}
+              <ScrollView showsVerticalScrollIndicator={false} style={{ marginBottom: spacing.lg }}>
+                <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: spacing.md }}>
+                  {language === 'en' ? 'Select a ready program from the database' : 'Veritabanından hazır bir program seçin'}
+                </Text>
+
+                {/* Hazır Programlar - WorkoutScreen'e yönlendir */}
                 <TouchableOpacity
-                  onPress={() => applyWeeklyProgram({
-                    name: 'Upper-Lower Split',
-                    days: ['Pazartesi', 'Salı', 'Perşembe', 'Cuma']
-                  })}
+                  onPress={() => {
+                    setShowWeeklyModal(false);
+                    setTimeout(() => {
+                      navigation.getParent()?.navigate('Workout', { 
+                        screen: 'WorkoutScreen',
+                        params: { initialTab: 'templates' }
+                      });
+                    }, 100);
+                  }}
                   style={{
-                    backgroundColor: 'rgba(0, 208, 132, 0.1)',
-                    borderRadius: 12,
-                    padding: spacing.md,
-                    marginBottom: spacing.md,
-                    borderWidth: 1,
-                    borderColor: '#00D084'
+                    backgroundColor: colors.primary,
+                    borderRadius: 16,
+                    padding: spacing.lg,
+                    alignItems: 'center',
+                    elevation: 4,
+                    shadowColor: colors.primary,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                    marginBottom: spacing.md
                   }}
                 >
-                  <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 4 }}>
-                    🏋️ Upper-Lower Split
+                  <Text style={{ color: colors.background, fontSize: 18, fontWeight: '700' }}>
+                    🏋️ {language === 'en' ? 'View Ready Programs' : 'Hazır Programları Görüntüle'}
                   </Text>
-                  <Text style={{ color: colors.textMuted, fontSize: 14 }}>
-                    Pazartesi, Salı, Perşembe, Cuma
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Full Body */}
-                <TouchableOpacity
-                  onPress={() => applyWeeklyProgram({
-                    name: 'Full Body',
-                    days: ['Pazartesi', 'Çarşamba', 'Cuma']
-                  })}
-                  style={{
-                    backgroundColor: 'rgba(138, 43, 226, 0.1)',
-                    borderRadius: 12,
-                    padding: spacing.md,
-                    marginBottom: spacing.lg,
-                    borderWidth: 1,
-                    borderColor: '#8A2BE2'
-                  }}
-                >
-                  <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 4 }}>
-                    🔥 Full Body
-                  </Text>
-                  <Text style={{ color: colors.textMuted, fontSize: 14 }}>
-                    Pazartesi, Çarşamba, Cuma
+                  <Text style={{ color: colors.background, fontSize: 14, opacity: 0.9, marginTop: 4 }}>
+                    {language === 'en' ? '10 professional programs from database' : 'Veritabanından 10 profesyonel program'}
                   </Text>
                 </TouchableOpacity>
 
@@ -1531,12 +1509,12 @@ const ProgramScreen = ({ navigation, route }) => {
                     setTimeout(() => setShowCustomModal(true), 100);
                   }}
                   style={{
-                    backgroundColor: colors.primary,
+                    backgroundColor: colors.info,
                     borderRadius: 16,
                     padding: spacing.lg,
                     alignItems: 'center',
                     elevation: 4,
-                    shadowColor: colors.primary,
+                    shadowColor: colors.info,
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.3,
                     shadowRadius: 8
@@ -1550,23 +1528,6 @@ const ProgramScreen = ({ navigation, route }) => {
                   </Text>
                 </TouchableOpacity>
               </ScrollView>
-
-              <TouchableOpacity
-                onPress={() => setShowWeeklyModal(false)}
-                style={{
-                  backgroundColor: colors.background,
-                  borderRadius: 12,
-                  padding: 16,
-                  alignItems: 'center',
-                  marginTop: spacing.md,
-                  borderWidth: 1,
-                  borderColor: colors.primary
-                }}
-              >
-                <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '700' }}>
-{t.close}
-                </Text>
-              </TouchableOpacity>
             </View>
           </View>
         </Modal>

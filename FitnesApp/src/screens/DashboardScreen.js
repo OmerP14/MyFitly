@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Card from '../components/Card';
 import ProgressRing from '../components/ProgressRing';
+import Header from '../components/Header';
 import { spacing } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
@@ -231,26 +232,14 @@ export default function DashboardScreen({ navigation }) {
 
   return (
     <LinearGradient colors={[colors.background, colors.backgroundAlt]} style={{ flex: 1 }}>
-      <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+      <Header 
+        isDashboard={true}
+        userName={userData?.name}
+        showProfile={true}
+        onProfilePress={() => navigation.navigate('Profile')}
+      />
+      <SafeAreaView style={{ flex: 1 }} edges={["left", "right"]}>
         <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 32 }}>
-          {/* Header */}
-          <View style={{ marginBottom: spacing.xl }}>
-            <Text style={{ 
-              color: colors.text, 
-              fontSize: 32, 
-              fontWeight: '900', 
-              marginBottom: spacing.xs 
-            }}>
-              {language === 'en' ? 'Hi' : 'Merhaba'}, {userData?.name || (language === 'en' ? 'Athlete' : 'Sporcu')}! 👋
-            </Text>
-            <Text style={{ 
-              color: colors.textMuted, 
-              fontSize: 16, 
-              fontWeight: '500' 
-            }}>
-              {t.dashboard_subtitle}
-            </Text>
-          </View>
 
           {/* Hedef Kilo İlerlemesi - Büyük Kart */}
           <Card style={{ 
@@ -278,7 +267,7 @@ export default function DashboardScreen({ navigation }) {
                 size={160} 
                 stroke={16} 
                 progress={weightProgress / 100} 
-                color={weightProgress > 0 ? colors.success : colors.primary}
+                color={colors.success}
               />
               <View style={{
                 position: 'absolute',

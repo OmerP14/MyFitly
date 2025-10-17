@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import Card from '../components/Card';
 import SectionHeader from '../components/SectionHeader';
+import Header from '../components/Header';
 import { spacing } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
@@ -1011,25 +1012,26 @@ export default function TrackingScreen() {
     );
   }
 
+  const rightComponent = (
+    <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+      <TouchableOpacity onPress={() => setShowGoalModal(true)}>
+        <Ionicons name="flag" size={24} color={colors.warning} />
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => setShowAddModal(true)}>
+        <Ionicons name="add-circle" size={24} color={colors.primary} />
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
     <LinearGradient colors={[colors.background, colors.backgroundAlt]} style={{ flex: 1 }}>
-      <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+      <Header 
+        title={t.tracking_analysis || "Takip ve Analiz"}
+        subtitle={t.track_progress_with_charts || "İlerlemenizi grafiklerle takip edin"}
+        rightComponent={rightComponent}
+      />
+      <SafeAreaView style={{ flex: 1 }} edges={["left", "right"]}>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.md, paddingBottom: 100 }}>
-          {/* Header */}
-          <SectionHeader 
-            title={t.tracking_analysis || "Takip ve Analiz"} 
-            subtitle={t.track_progress_with_charts || "İlerlemenizi grafiklerle takip edin"}
-            right={
-              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                <TouchableOpacity onPress={() => setShowGoalModal(true)}>
-                  <Ionicons name="flag" size={24} color={colors.warning} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setShowAddModal(true)}>
-                  <Ionicons name="add-circle" size={24} color={colors.primary} />
-                </TouchableOpacity>
-              </View>
-            }
-          />
 
           {/* Takip Türü Seçimi */}
           <View style={{ marginBottom: spacing.lg }}>

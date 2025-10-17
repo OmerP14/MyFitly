@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import Card from '../components/Card';
 import SectionHeader from '../components/SectionHeader';
-import Header from '../components/Header';
 import { spacing } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
@@ -15,6 +14,7 @@ import { getTranslations, translateExerciseName } from '../utils/translations';
 import * as programService from '../services/programService';
 import * as notificationService from '../services/notificationService';
 import useRewardedAd from '../hooks/useRewardedAd';
+import WorkoutScreen from './WorkoutScreen';
 
 const currentDay = new Date().getDay(); // JavaScript standardı: 0=Pazar, 1=Pazartesi...
 
@@ -37,6 +37,7 @@ const ProgramScreen = ({ navigation, route }) => {
   const [selectedDay, setSelectedDay] = useState(currentDay);
   const [weekOffset, setWeekOffset] = useState(0); // 0 = bu hafta, -1 = geçen hafta, +1 = gelecek hafta
   const [filter, setFilter] = useState(t.all_exercises);
+  // Tab sistemi kaldırıldı - sadece takvim görünümü var
   const [exerciseCategories] = useState([t.upper_body, t.lower_body, t.other]);
   const [exercises, setExercises] = useState({});
   const [isLoading, setIsLoading] = useState(true);
@@ -46,6 +47,7 @@ const ProgramScreen = ({ navigation, route }) => {
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [showInlineExerciseForm, setShowInlineExerciseForm] = useState({});
   const [editingExercise, setEditingExercise] = useState(null);
+  const [isNavigating, setIsNavigating] = useState(false);
   const [newExercise, setNewExercise] = useState({
     name: '',
     sets: '',
@@ -415,21 +417,29 @@ const ProgramScreen = ({ navigation, route }) => {
         return;
       }
 
-      // Reklam izlet
+      // Reklam izlet (sadece gerçekten yüklüyse)
       try {
-        console.log('🎬 Ödüllü reklam gösteriliyor...');
-        const reward = await showAd();
-        console.log('🎁 Ödül kazanıldı:', reward);
+        if (adLoaded) {
+          console.log('🎬 Ödüllü reklam gösteriliyor...');
+          const reward = await showAd();
+          console.log('🎁 Ödül kazanıldı:', reward);
+        } else {
+          // Güvenli fallback: development veya reklam hazır değilken direkt uygula
+          console.log('⚠️ Reklam yüklü değil, fallback ile devam ediliyor');
+          Alert.alert(
+            '📱 Development Mod',
+            'Reklam şu an yüklü değil. Program direkt eklenecek. 🎁'
+          );
+        }
 
         setShowWeeklyModal(false);
-        
-        // Reklam tamamlandı - programı ekle
+        // Reklam tamamlandı veya fallback: programı ekle
         await addSimpleProgram(program);
 
       } catch (error) {
         console.error('❌ Reklam hatası:', error);
         
-        if (error.message === 'Reklam tamamlanmadan kapatıldı') {
+        if (error?.message === 'Reklam tamamlanmadan kapatıldı') {
           Alert.alert(
             '❌ Reklam Kapatıldı', 
             'Program eklemek için reklamı sonuna kadar izlemelisin! 🎬\n\nTekrar denemek ister misin?',
@@ -439,7 +449,10 @@ const ProgramScreen = ({ navigation, route }) => {
             ]
           );
         } else {
-          Alert.alert('❌ Hata', 'Reklam gösterilemedi. Lütfen daha sonra tekrar deneyin.');
+          // Son çare: fallback ile yine programı uygula ki kullanıcı bloklanmasın
+          Alert.alert('⏳', 'Reklam gösterilemedi, program yine de eklenecek.');
+          setShowWeeklyModal(false);
+          await addSimpleProgram(program);
         }
       }
       
@@ -673,37 +686,139 @@ const ProgramScreen = ({ navigation, route }) => {
     );
   }
 
-  const rightComponent = (
-    <TouchableOpacity 
-      onPress={() => setShowWeeklyModal(true)}
-      style={{
-        backgroundColor: colors.primary,
-        borderRadius: 20,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2
-      }}
-    >
-      <Text style={{ color: colors.background, fontSize: 12, fontWeight: '700' }}>📅 {t.monthly}</Text>
-    </TouchableOpacity>
-  );
-
   return (
     <LinearGradient colors={[colors.background, colors.backgroundAlt]} style={{ flex: 1 }}>
-      <Header 
-        title={t.program}
-        subtitle={`${completedCount}/${totalCount} ${t.exercises_completed}`}
-        rightComponent={rightComponent}
-      />
-      <SafeAreaView style={{ flex: 1 }} edges={["left", "right"]}>
+      <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+        {/* Header */}
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: spacing.lg,
+          paddingVertical: spacing.md,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border
+        }}>
+          <View style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: colors.primary,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: spacing.sm
+          }}>
+            <Ionicons name="fitness" size={24} color={colors.background} />
+          </View>
+          <Text style={{ 
+            color: colors.text, 
+            fontSize: 20, 
+            fontWeight: '700',
+            flex: 1
+          }}>
+            {language === 'en' ? 'Calendar' : 'Takvim'}
+          </Text>
+        </View>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.md, paddingBottom: 100 }}>
+          {/* Header */}
+          <View style={{ marginBottom: spacing.md }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>{t.program}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ color: colors.textMuted, fontSize: 14 }}>
+                {completedCount}/{totalCount} {t.exercises_completed}
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  if (isNavigating) return; // Çoklu tıklamayı engelle
+                  
+                  setIsNavigating(true);
+                  console.log('🚀 Antrenmanı Başlat butonuna tıklandı');
+                  
+                  try {
+                    // Hazır programlar sekmesine yönlendir
+                    navigation.getParent()?.navigate('Workout', { 
+                      screen: 'WorkoutScreen',
+                      params: { initialTab: 'templates' }
+                    });
+                  } catch (error) {
+                    console.error('❌ Navigasyon hatası:', error);
+                  } finally {
+                    // 1 saniye sonra tekrar tıklanabilir hale getir
+                    setTimeout(() => setIsNavigating(false), 1000);
+                  }
+                }}
+                style={{
+                  backgroundColor: isNavigating ? colors.textMuted : colors.success,
+                  borderRadius: 12,
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: spacing.sm,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  opacity: isNavigating ? 0.7 : 1
+                }}
+                disabled={isNavigating}
+              >
+                <Ionicons name="play" size={16} color={colors.background} />
+                <Text style={{ color: colors.background, fontSize: 14, fontWeight: '600', marginLeft: spacing.xs }}>
+                  {isNavigating ? (language === 'en' ? 'Loading...' : 'Yükleniyor...') : t.start_workout}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
-          {/* Haftalık Takvim - Kaydırılabilir */}
-          <Card style={{ marginBottom: spacing.lg, backgroundColor: 'rgba(255, 122, 0, 0.05)' }}>
+          {/* Programlar Butonu */}
+          <TouchableOpacity
+            onPress={() => {
+              if (isNavigating) return;
+              
+              setIsNavigating(true);
+              console.log('🏋️ Programlar butonuna tıklandı');
+              
+              try {
+                navigation.getParent()?.navigate('Workout', { 
+                  screen: 'WorkoutScreen',
+                  params: { initialTab: 'templates' }
+                });
+              } catch (error) {
+                console.error('❌ Navigasyon hatası:', error);
+              } finally {
+                setTimeout(() => setIsNavigating(false), 1000);
+              }
+            }}
+            disabled={isNavigating}
+            style={{
+              backgroundColor: isNavigating ? colors.textMuted : colors.info,
+              borderRadius: 12,
+              paddingVertical: spacing.md,
+              paddingHorizontal: spacing.lg,
+              marginBottom: spacing.lg,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: isNavigating ? 0.7 : 1,
+              elevation: 3,
+              shadowColor: colors.info,
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.2,
+              shadowRadius: 4
+            }}
+          >
+            <Ionicons name="fitness" size={20} color={colors.background} style={{ marginRight: spacing.sm }} />
+            <Text style={{ 
+              color: colors.background, 
+              fontSize: 16, 
+              fontWeight: '700' 
+            }}>
+              {isNavigating ? (language === 'en' ? 'Loading...' : 'Yükleniyor...') : '🏋️ ' + (language === 'en' ? 'Browse Programs' : 'Programları Görüntüle')}
+            </Text>
+            <Ionicons name="arrow-forward" size={16} color={colors.background} style={{ marginLeft: spacing.sm }} />
+          </TouchableOpacity>
+
+          {/* Takvim İçeriği */}
+            <>
+              {/* Haftalık Takvim - Kaydırılabilir */}
+              <Card style={{ marginBottom: spacing.lg, backgroundColor: 'rgba(255, 122, 0, 0.05)' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
               <TouchableOpacity 
                 onPress={() => setWeekOffset(prev => prev - 1)}
@@ -1021,6 +1136,866 @@ const ProgramScreen = ({ navigation, route }) => {
               ➕ {t.add_exercise}
             </Text>
           </TouchableOpacity>
+            <View style={{ marginBottom: spacing.lg }}>
+              <Text style={{ 
+                color: colors.text, 
+                fontSize: 20, 
+                fontWeight: '700',
+                marginBottom: spacing.sm,
+                textAlign: 'center'
+              }}>
+                🏋️ {t.ready_programs}
+              </Text>
+              
+              <Text style={{ 
+                color: colors.textMuted, 
+                fontSize: 14,
+                marginBottom: spacing.lg,
+                textAlign: 'center'
+              }}>
+                {t.professional_trainer_programs}
+              </Text>
+
+              {/* Full Body - Başlangıç */}
+              <Card style={{ 
+                marginBottom: spacing.md,
+                borderLeftWidth: 6,
+                borderLeftColor: colors.success,
+                padding: spacing.lg
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
+                  <View style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 12,
+                    backgroundColor: colors.success + '20',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: spacing.md
+                  }}>
+                    <Text style={{ fontSize: 24 }}>🔥</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: 4 }}>
+                      Full Body - Başlangıç
+                    </Text>
+                    <View style={{
+                      backgroundColor: colors.success + '20',
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: 12,
+                      alignSelf: 'flex-start'
+                    }}>
+                      <Text style={{ color: colors.success, fontSize: 12, fontWeight: '600' }}>
+                        Başlangıç
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                
+                <Text style={{ 
+                  color: colors.textMuted, 
+                  fontSize: 14, 
+                  lineHeight: 20,
+                  marginBottom: spacing.md
+                }}>
+                  Haftada 3 gün tüm vücut antrenmanı başlangıç seviyesi program. Yeni başlayanlar için ideal.
+                </Text>
+
+                <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
+                  <View style={{
+                    backgroundColor: colors.primary + '20',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons name="calendar" size={12} color={colors.primary} />
+                    <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '500', marginLeft: 4 }}>
+                      3 gün/hafta
+                    </Text>
+                  </View>
+                  <View style={{
+                    backgroundColor: colors.error + '20',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons name="flame" size={12} color={colors.error} />
+                    <Text style={{ color: colors.error, fontSize: 12, fontWeight: '500', marginLeft: 4 }}>
+                      ~300 kcal
+                    </Text>
+                  </View>
+                  <View style={{
+                    backgroundColor: colors.success + '20',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons name="time" size={12} color={colors.success} />
+                    <Text style={{ color: colors.success, fontSize: 12, fontWeight: '500', marginLeft: 4 }}>
+                      6 hafta
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => applyWeeklyProgram({
+                    name: 'Full Body - Başlangıç',
+                    days: ['Pazartesi', 'Çarşamba', 'Cuma'],
+                    exercises: {
+                      'Pazartesi': [
+                        { name: 'Squats', sets: 3, reps: '12-15' },
+                        { name: 'Push-ups', sets: 3, reps: '8-12' },
+                        { name: 'Plank', sets: 3, reps: '30-60 sn' },
+                        { name: 'Lunges', sets: 3, reps: '12-15' }
+                      ],
+                      'Çarşamba': [
+                        { name: 'Deadlifts', sets: 3, reps: '8-10' },
+                        { name: 'Bench Press', sets: 3, reps: '8-10' },
+                        { name: 'Rows', sets: 3, reps: '10-12' },
+                        { name: 'Mountain Climbers', sets: 3, reps: '30 sn' }
+                      ],
+                      'Cuma': [
+                        { name: 'Overhead Press', sets: 3, reps: '8-10' },
+                        { name: 'Pull-ups', sets: 3, reps: '6-10' },
+                        { name: 'Russian Twists', sets: 3, reps: '20-30' },
+                        { name: 'Burpees', sets: 3, reps: '8-12' }
+                      ]
+                    }
+                  })}
+                  style={{
+                    backgroundColor: colors.success,
+                    borderRadius: 12,
+                    padding: spacing.md,
+                    alignItems: 'center',
+                    flexDirection: 'row',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600', marginRight: spacing.xs }}>
+                    Programı Uygula
+                  </Text>
+                  <Ionicons name="arrow-forward" size={20} color={colors.background} />
+                </TouchableOpacity>
+              </Card>
+
+              {/* Core & Cardio - Başlangıç */}
+              <Card style={{ 
+                marginBottom: spacing.md,
+                borderLeftWidth: 6,
+                borderLeftColor: colors.success,
+                padding: spacing.lg
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
+                  <View style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 12,
+                    backgroundColor: colors.success + '20',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: spacing.md
+                  }}>
+                    <Text style={{ fontSize: 24 }}>💪</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: 4 }}>
+                      Core & Cardio - Başlangıç
+                    </Text>
+                    <View style={{
+                      backgroundColor: colors.success + '20',
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: 12,
+                      alignSelf: 'flex-start'
+                    }}>
+                      <Text style={{ color: colors.success, fontSize: 12, fontWeight: '600' }}>
+                        Başlangıç
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                
+                <Text style={{ 
+                  color: colors.textMuted, 
+                  fontSize: 14, 
+                  lineHeight: 20,
+                  marginBottom: spacing.md
+                }}>
+                  Haftada 3 gün kardiyovasküler sağlık ve core güçlendirme programı. Yeni başlayanlar için ideal.
+                </Text>
+
+                <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
+                  <View style={{
+                    backgroundColor: colors.primary + '20',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons name="calendar" size={12} color={colors.primary} />
+                    <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '500', marginLeft: 4 }}>
+                      3 gün/hafta
+                    </Text>
+                  </View>
+                  <View style={{
+                    backgroundColor: colors.error + '20',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons name="flame" size={12} color={colors.error} />
+                    <Text style={{ color: colors.error, fontSize: 12, fontWeight: '500', marginLeft: 4 }}>
+                      ~250 kcal
+                    </Text>
+                  </View>
+                  <View style={{
+                    backgroundColor: colors.success + '20',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons name="time" size={12} color={colors.success} />
+                    <Text style={{ color: colors.success, fontSize: 12, fontWeight: '500', marginLeft: 4 }}>
+                      4 hafta
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => applyWeeklyProgram({
+                    name: 'Core & Cardio - Başlangıç',
+                    days: ['Pazartesi', 'Çarşamba', 'Cuma'],
+                    exercises: {
+                      'Pazartesi': [
+                        { name: 'Jumping Jacks', sets: 3, reps: '30 sn' },
+                        { name: 'Mountain Climbers', sets: 3, reps: '30 sn' },
+                        { name: 'Plank', sets: 3, reps: '30-45 sn' },
+                        { name: 'High Knees', sets: 3, reps: '30 sn' }
+                      ],
+                      'Çarşamba': [
+                        { name: 'Burpees', sets: 3, reps: '8-12' },
+                        { name: 'Russian Twists', sets: 3, reps: '20-30' },
+                        { name: 'Bicycle Crunches', sets: 3, reps: '15-20' },
+                        { name: 'Leg Raises', sets: 3, reps: '12-15' }
+                      ],
+                      'Cuma': [
+                        { name: 'Jump Squats', sets: 3, reps: '12-15' },
+                        { name: 'Side Plank', sets: 3, reps: '20-30 sn' },
+                        { name: 'Dead Bug', sets: 3, reps: '10-12' },
+                        { name: 'Bird Dog', sets: 3, reps: '10-12' }
+                      ]
+                    }
+                  })}
+                  style={{
+                    backgroundColor: colors.success,
+                    borderRadius: 12,
+                    padding: spacing.md,
+                    alignItems: 'center',
+                    flexDirection: 'row',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600', marginRight: spacing.xs }}>
+                    Programı Uygula
+                  </Text>
+                  <Ionicons name="arrow-forward" size={20} color={colors.background} />
+                </TouchableOpacity>
+              </Card>
+
+              {/* Upper Body - Başlangıç */}
+              <Card style={{ 
+                marginBottom: spacing.md,
+                borderLeftWidth: 6,
+                borderLeftColor: colors.success,
+                padding: spacing.lg
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
+                  <View style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 12,
+                    backgroundColor: colors.success + '20',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: spacing.md
+                  }}>
+                    <Text style={{ fontSize: 24 }}>💪</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: 4 }}>
+                      Upper Body - Başlangıç
+                    </Text>
+                    <View style={{
+                      backgroundColor: colors.success + '20',
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: 12,
+                      alignSelf: 'flex-start'
+                    }}>
+                      <Text style={{ color: colors.success, fontSize: 12, fontWeight: '600' }}>
+                        Başlangıç
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                
+                <Text style={{ 
+                  color: colors.textMuted, 
+                  fontSize: 14, 
+                  lineHeight: 20,
+                  marginBottom: spacing.md
+                }}>
+                  Haftada 2 gün upper body focused program. Ideal for shoulders, chest, back and arms.
+                </Text>
+
+                <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
+                  <View style={{
+                    backgroundColor: colors.primary + '20',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons name="calendar" size={12} color={colors.primary} />
+                    <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '500', marginLeft: 4 }}>
+                      2 gün/hafta
+                    </Text>
+                  </View>
+                  <View style={{
+                    backgroundColor: colors.error + '20',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons name="flame" size={12} color={colors.error} />
+                    <Text style={{ color: colors.error, fontSize: 12, fontWeight: '500', marginLeft: 4 }}>
+                      ~270 kcal
+                    </Text>
+                  </View>
+                  <View style={{
+                    backgroundColor: colors.success + '20',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons name="time" size={12} color={colors.success} />
+                    <Text style={{ color: colors.success, fontSize: 12, fontWeight: '500', marginLeft: 4 }}>
+                      6 hafta
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => applyWeeklyProgram({
+                    name: 'Upper Body - Başlangıç',
+                    days: ['Pazartesi', 'Perşembe'],
+                    exercises: {
+                      'Pazartesi': [
+                        { name: 'Bench Press', sets: 3, reps: '10-12' },
+                        { name: 'Incline Press', sets: 3, reps: '10-12' },
+                        { name: 'Rows', sets: 3, reps: '10-12' },
+                        { name: 'Lateral Raises', sets: 3, reps: '12-15' }
+                      ],
+                      'Perşembe': [
+                        { name: 'Overhead Press', sets: 3, reps: '10-12' },
+                        { name: 'Pull-ups', sets: 3, reps: '6-10' },
+                        { name: 'Bicep Curls', sets: 3, reps: '12-15' },
+                        { name: 'Tricep Dips', sets: 3, reps: '10-12' }
+                      ]
+                    }
+                  })}
+                  style={{
+                    backgroundColor: colors.success,
+                    borderRadius: 12,
+                    padding: spacing.md,
+                    alignItems: 'center',
+                    flexDirection: 'row',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600', marginRight: spacing.xs }}>
+                    Programı Uygula
+                  </Text>
+                  <Ionicons name="arrow-forward" size={20} color={colors.background} />
+                </TouchableOpacity>
+              </Card>
+
+              {/* Orta Seviye */}
+              <Text style={{ 
+                color: colors.text, 
+                fontSize: 18, 
+                fontWeight: '700',
+                marginBottom: spacing.sm,
+                marginTop: spacing.lg,
+                textAlign: 'center'
+              }}>
+                🔥 Orta Seviye
+              </Text>
+
+              {/* Push-Pull-Legs - Orta */}
+              <Card style={{ 
+                marginBottom: spacing.md,
+                borderLeftWidth: 6,
+                borderLeftColor: colors.warning,
+                padding: spacing.lg
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
+                  <View style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 12,
+                    backgroundColor: colors.warning + '20',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: spacing.md
+                  }}>
+                    <Text style={{ fontSize: 24 }}>💥</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: 4 }}>
+                      Push-Pull-Legs - Orta
+                    </Text>
+                    <View style={{
+                      backgroundColor: colors.warning + '20',
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: 12,
+                      alignSelf: 'flex-start'
+                    }}>
+                      <Text style={{ color: colors.warning, fontSize: 12, fontWeight: '600' }}>
+                        Orta Seviye
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                
+                <Text style={{ 
+                  color: colors.textMuted, 
+                  fontSize: 14, 
+                  lineHeight: 20,
+                  marginBottom: spacing.md
+                }}>
+                  6 gün/hafta split antrenman programı. Orta seviye sporcular için ideal.
+                </Text>
+
+                <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
+                  <View style={{
+                    backgroundColor: colors.primary + '20',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons name="calendar" size={12} color={colors.primary} />
+                    <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '500', marginLeft: 4 }}>
+                      6 gün/hafta
+                    </Text>
+                  </View>
+                  <View style={{
+                    backgroundColor: colors.error + '20',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons name="flame" size={12} color={colors.error} />
+                    <Text style={{ color: colors.error, fontSize: 12, fontWeight: '500', marginLeft: 4 }}>
+                      ~400 kcal
+                    </Text>
+                  </View>
+                  <View style={{
+                    backgroundColor: colors.success + '20',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons name="time" size={12} color={colors.success} />
+                    <Text style={{ color: colors.success, fontSize: 12, fontWeight: '500', marginLeft: 4 }}>
+                      12 hafta
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => applyWeeklyProgram({
+                    name: 'Push-Pull-Legs - Orta',
+                    days: ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'],
+                    exercises: {
+                      'Pazartesi': [
+                        { name: 'Bench Press', sets: 4, reps: '8-10' },
+                        { name: 'Incline Press', sets: 3, reps: '10-12' },
+                        { name: 'Shoulder Press', sets: 3, reps: '10-12' },
+                        { name: 'Tricep Dips', sets: 3, reps: '12-15' }
+                      ],
+                      'Salı': [
+                        { name: 'Pull-ups', sets: 4, reps: '6-10' },
+                        { name: 'Barbell Rows', sets: 4, reps: '8-10' },
+                        { name: 'Lat Pulldowns', sets: 3, reps: '10-12' },
+                        { name: 'Bicep Curls', sets: 3, reps: '12-15' }
+                      ],
+                      'Çarşamba': [
+                        { name: 'Squats', sets: 4, reps: '8-10' },
+                        { name: 'Romanian Deadlifts', sets: 3, reps: '10-12' },
+                        { name: 'Lunges', sets: 3, reps: '12-15' },
+                        { name: 'Calf Raises', sets: 4, reps: '15-20' }
+                      ],
+                      'Perşembe': [
+                        { name: 'Overhead Press', sets: 4, reps: '8-10' },
+                        { name: 'Lateral Raises', sets: 3, reps: '12-15' },
+                        { name: 'Close Grip Bench', sets: 3, reps: '10-12' },
+                        { name: 'Face Pulls', sets: 3, reps: '15-20' }
+                      ],
+                      'Cuma': [
+                        { name: 'Deadlifts', sets: 4, reps: '5-8' },
+                        { name: 'T-Bar Rows', sets: 3, reps: '10-12' },
+                        { name: 'Hammer Curls', sets: 3, reps: '12-15' },
+                        { name: 'Reverse Flyes', sets: 3, reps: '15-20' }
+                      ],
+                      'Cumartesi': [
+                        { name: 'Front Squats', sets: 4, reps: '8-10' },
+                        { name: 'Bulgarian Split Squats', sets: 3, reps: '10-12' },
+                        { name: 'Leg Curls', sets: 3, reps: '12-15' },
+                        { name: 'Standing Calf Raises', sets: 4, reps: '15-20' }
+                      ]
+                    }
+                  })}
+                  style={{
+                    backgroundColor: colors.warning,
+                    borderRadius: 12,
+                    padding: spacing.md,
+                    alignItems: 'center',
+                    flexDirection: 'row',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600', marginRight: spacing.xs }}>
+                    Programı Uygula
+                  </Text>
+                  <Ionicons name="arrow-forward" size={20} color={colors.background} />
+                </TouchableOpacity>
+              </Card>
+
+              {/* 5/3/1 Strength - Orta */}
+              <Card style={{ 
+                marginBottom: spacing.md,
+                borderLeftWidth: 6,
+                borderLeftColor: colors.warning,
+                padding: spacing.lg
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
+                  <View style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 12,
+                    backgroundColor: colors.warning + '20',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: spacing.md
+                  }}>
+                    <Text style={{ fontSize: 24 }}>💀</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: 4 }}>
+                      5/3/1 Strength - Orta
+                    </Text>
+                    <View style={{
+                      backgroundColor: colors.warning + '20',
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: 12,
+                      alignSelf: 'flex-start'
+                    }}>
+                      <Text style={{ color: colors.warning, fontSize: 12, fontWeight: '600' }}>
+                        Orta Seviye
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                
+                <Text style={{ 
+                  color: colors.textMuted, 
+                  fontSize: 14, 
+                  lineHeight: 20,
+                  marginBottom: spacing.md
+                }}>
+                  4 gün/hafta güç odaklı program. Deadlift, Squat, Bench Press ve Overhead Press temel hareketleri.
+                </Text>
+
+                <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
+                  <View style={{
+                    backgroundColor: colors.primary + '20',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons name="calendar" size={12} color={colors.primary} />
+                    <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '500', marginLeft: 4 }}>
+                      4 gün/hafta
+                    </Text>
+                  </View>
+                  <View style={{
+                    backgroundColor: colors.error + '20',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons name="flame" size={12} color={colors.error} />
+                    <Text style={{ color: colors.error, fontSize: 12, fontWeight: '500', marginLeft: 4 }}>
+                      ~350 kcal
+                    </Text>
+                  </View>
+                  <View style={{
+                    backgroundColor: colors.success + '20',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons name="time" size={12} color={colors.success} />
+                    <Text style={{ color: colors.success, fontSize: 12, fontWeight: '500', marginLeft: 4 }}>
+                      16 hafta
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => applyWeeklyProgram({
+                    name: '5/3/1 Strength - Orta',
+                    days: ['Pazartesi', 'Çarşamba', 'Cuma', 'Cumartesi'],
+                    exercises: {
+                      'Pazartesi': [
+                        { name: 'Squats (5/3/1)', sets: 3, reps: '5/3/1' },
+                        { name: 'Leg Press', sets: 5, reps: '10-15' },
+                        { name: 'Leg Curls', sets: 3, reps: '12-15' },
+                        { name: 'Calf Raises', sets: 5, reps: '15-20' }
+                      ],
+                      'Çarşamba': [
+                        { name: 'Bench Press (5/3/1)', sets: 3, reps: '5/3/1' },
+                        { name: 'Incline Press', sets: 5, reps: '10-15' },
+                        { name: 'Dips', sets: 3, reps: '8-12' },
+                        { name: 'Tricep Extensions', sets: 3, reps: '12-15' }
+                      ],
+                      'Cuma': [
+                        { name: 'Deadlifts (5/3/1)', sets: 3, reps: '5/3/1' },
+                        { name: 'Barbell Rows', sets: 5, reps: '10-15' },
+                        { name: 'Pull-ups', sets: 3, reps: '6-10' },
+                        { name: 'Bicep Curls', sets: 3, reps: '12-15' }
+                      ],
+                      'Cumartesi': [
+                        { name: 'Overhead Press (5/3/1)', sets: 3, reps: '5/3/1' },
+                        { name: 'Lateral Raises', sets: 5, reps: '12-15' },
+                        { name: 'Face Pulls', sets: 3, reps: '15-20' },
+                        { name: 'Plank', sets: 3, reps: '60-90 sn' }
+                      ]
+                    }
+                  })}
+                  style={{
+                    backgroundColor: colors.warning,
+                    borderRadius: 12,
+                    padding: spacing.md,
+                    alignItems: 'center',
+                    flexDirection: 'row',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600', marginRight: spacing.xs }}>
+                    Programı Uygula
+                  </Text>
+                  <Ionicons name="arrow-forward" size={20} color={colors.background} />
+                </TouchableOpacity>
+              </Card>
+
+              {/* İleri Seviye */}
+              <Text style={{ 
+                color: colors.text, 
+                fontSize: 18, 
+                fontWeight: '700',
+                marginBottom: spacing.sm,
+                marginTop: spacing.lg,
+                textAlign: 'center'
+              }}>
+                🚀 İleri Seviye
+              </Text>
+
+              {/* Arnold Split - İleri */}
+              <Card style={{ 
+                marginBottom: spacing.md,
+                borderLeftWidth: 6,
+                borderLeftColor: colors.purple,
+                padding: spacing.lg
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
+                  <View style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 12,
+                    backgroundColor: colors.purple + '20',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: spacing.md
+                  }}>
+                    <Text style={{ fontSize: 24 }}>👑</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: 4 }}>
+                      Arnold Split - İleri
+                    </Text>
+                    <View style={{
+                      backgroundColor: colors.purple + '20',
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: 12,
+                      alignSelf: 'flex-start'
+                    }}>
+                      <Text style={{ color: colors.purple, fontSize: 12, fontWeight: '600' }}>
+                        İleri Seviye
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                
+                <Text style={{ 
+                  color: colors.textMuted, 
+                  fontSize: 14, 
+                  lineHeight: 20,
+                  marginBottom: spacing.md
+                }}>
+                  6 gün/hafta Arnold Schwarzenegger tarzı split program. İleri seviye sporcular için.
+                </Text>
+
+                <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
+                  <View style={{
+                    backgroundColor: colors.primary + '20',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons name="calendar" size={12} color={colors.primary} />
+                    <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '500', marginLeft: 4 }}>
+                      6 gün/hafta
+                    </Text>
+                  </View>
+                  <View style={{
+                    backgroundColor: colors.error + '20',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons name="flame" size={12} color={colors.error} />
+                    <Text style={{ color: colors.error, fontSize: 12, fontWeight: '500', marginLeft: 4 }}>
+                      ~500 kcal
+                    </Text>
+                  </View>
+                  <View style={{
+                    backgroundColor: colors.success + '20',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons name="time" size={12} color={colors.success} />
+                    <Text style={{ color: colors.success, fontSize: 12, fontWeight: '500', marginLeft: 4 }}>
+                      16 hafta
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => applyWeeklyProgram({
+                    name: 'Arnold Split - İleri',
+                    days: ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'],
+                    exercises: {
+                      'Pazartesi': [
+                        { name: 'Bench Press', sets: 4, reps: '6-8' },
+                        { name: 'Incline Press', sets: 4, reps: '8-10' },
+                        { name: 'Dumbbell Flyes', sets: 3, reps: '10-12' },
+                        { name: 'Dips', sets: 3, reps: '8-12' },
+                        { name: 'Tricep Extensions', sets: 4, reps: '10-12' }
+                      ],
+                      'Salı': [
+                        { name: 'Squats', sets: 5, reps: '6-8' },
+                        { name: 'Leg Press', sets: 4, reps: '10-12' },
+                        { name: 'Romanian Deadlifts', sets: 4, reps: '8-10' },
+                        { name: 'Lunges', sets: 3, reps: '10-12' },
+                        { name: 'Calf Raises', sets: 5, reps: '15-20' }
+                      ],
+                      'Çarşamba': [
+                        { name: 'Pull-ups', sets: 4, reps: '6-10' },
+                        { name: 'Barbell Rows', sets: 4, reps: '8-10' },
+                        { name: 'Lat Pulldowns', sets: 4, reps: '10-12' },
+                        { name: 'Seated Rows', sets: 3, reps: '10-12' },
+                        { name: 'Bicep Curls', sets: 4, reps: '10-12' }
+                      ],
+                      'Perşembe': [
+                        { name: 'Overhead Press', sets: 4, reps: '6-8' },
+                        { name: 'Lateral Raises', sets: 4, reps: '10-12' },
+                        { name: 'Rear Delt Flyes', sets: 3, reps: '12-15' },
+                        { name: 'Face Pulls', sets: 3, reps: '15-20' },
+                        { name: 'Tricep Dips', sets: 3, reps: '8-12' }
+                      ],
+                      'Cuma': [
+                        { name: 'Deadlifts', sets: 5, reps: '5-8' },
+                        { name: 'T-Bar Rows', sets: 4, reps: '8-10' },
+                        { name: 'Hammer Curls', sets: 4, reps: '10-12' },
+                        { name: 'Reverse Flyes', sets: 3, reps: '12-15' },
+                        { name: 'Preacher Curls', sets: 3, reps: '10-12' }
+                      ],
+                      'Cumartesi': [
+                        { name: 'Front Squats', sets: 4, reps: '8-10' },
+                        { name: 'Bulgarian Split Squats', sets: 4, reps: '10-12' },
+                        { name: 'Leg Curls', sets: 4, reps: '10-12' },
+                        { name: 'Hip Thrusts', sets: 3, reps: '12-15' },
+                        { name: 'Standing Calf Raises', sets: 5, reps: '15-20' }
+                      ]
+                    }
+                  })}
+                  style={{
+                    backgroundColor: colors.purple,
+                    borderRadius: 12,
+                    padding: spacing.md,
+                    alignItems: 'center',
+                    flexDirection: 'row',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600', marginRight: spacing.xs }}>
+                    Programı Uygula
+                  </Text>
+                  <Ionicons name="arrow-forward" size={20} color={colors.background} />
+                </TouchableOpacity>
+              </Card>
+            </View>
         </ScrollView>
 
         {/* Egzersiz Ekleme Modal */}
@@ -1426,7 +2401,7 @@ const ProgramScreen = ({ navigation, route }) => {
           </KeyboardAvoidingView>
         </Modal>
 
-        {/* Aylık Program Modal */}
+        {/* Hazır Programlar Modal */}
         <Modal
           visible={showWeeklyModal}
           transparent={true}
@@ -1436,91 +2411,66 @@ const ProgramScreen = ({ navigation, route }) => {
           <View style={{
             flex: 1,
             backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: spacing.md
+            justifyContent: 'flex-end'
           }}>
             <View style={{
               backgroundColor: colors.card,
-              borderRadius: 20,
-              padding: spacing.lg,
-              width: '90%',
-              maxHeight: '80%'
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              maxHeight: '90%',
+              padding: spacing.lg
             }}>
-              <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700', marginBottom: spacing.sm }}>
-                📅 {t.weekly_program}
-              </Text>
-              <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: spacing.lg }}>
-{t.select_ready_or_create_custom}
-              </Text>
-
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {/* Push-Pull-Legs Program */}
-                <TouchableOpacity
-                  onPress={() => applyWeeklyProgram({
-                    name: 'Push-Pull-Legs',
-                    days: ['Pazartesi', 'Çarşamba', 'Cuma']
-                  })}
-                  style={{
-                    backgroundColor: 'rgba(255, 122, 0, 0.1)',
-                    borderRadius: 12,
-                    padding: spacing.md,
-                    marginBottom: spacing.md,
-                    borderWidth: 1,
-                    borderColor: colors.primary
-                  }}
-                >
-                  <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 4 }}>
-                    💪 Push-Pull-Legs
-                  </Text>
-                  <Text style={{ color: colors.textMuted, fontSize: 14 }}>
-                    Pazartesi, Çarşamba, Cuma
-                  </Text>
+              <View style={{ 
+                flexDirection: 'row', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                marginBottom: spacing.lg,
+                borderBottomWidth: 1,
+                borderBottomColor: colors.border,
+                paddingBottom: spacing.md
+              }}>
+                <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>
+                  📋 {t.ready_programs}
+                </Text>
+                <TouchableOpacity onPress={() => setShowWeeklyModal(false)}>
+                  <Ionicons name="close" size={28} color={colors.textMuted} />
                 </TouchableOpacity>
+              </View>
 
-                {/* Upper-Lower Split */}
+              <ScrollView showsVerticalScrollIndicator={false} style={{ marginBottom: spacing.lg }}>
+                <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: spacing.md }}>
+                  {language === 'en' ? 'Select a ready program from the database' : 'Veritabanından hazır bir program seçin'}
+                </Text>
+
+                {/* Hazır Programlar - WorkoutScreen'e yönlendir */}
                 <TouchableOpacity
-                  onPress={() => applyWeeklyProgram({
-                    name: 'Upper-Lower Split',
-                    days: ['Pazartesi', 'Salı', 'Perşembe', 'Cuma']
-                  })}
+                  onPress={() => {
+                    setShowWeeklyModal(false);
+                    setTimeout(() => {
+                      navigation.getParent()?.navigate('Workout', { 
+                        screen: 'WorkoutScreen',
+                        params: { initialTab: 'templates' }
+                      });
+                    }, 100);
+                  }}
                   style={{
-                    backgroundColor: 'rgba(0, 208, 132, 0.1)',
-                    borderRadius: 12,
-                    padding: spacing.md,
-                    marginBottom: spacing.md,
-                    borderWidth: 1,
-                    borderColor: '#00D084'
+                    backgroundColor: colors.primary,
+                    borderRadius: 16,
+                    padding: spacing.lg,
+                    alignItems: 'center',
+                    elevation: 4,
+                    shadowColor: colors.primary,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                    marginBottom: spacing.md
                   }}
                 >
-                  <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 4 }}>
-                    🏋️ Upper-Lower Split
+                  <Text style={{ color: colors.background, fontSize: 18, fontWeight: '700' }}>
+                    🏋️ {language === 'en' ? 'View Ready Programs' : 'Hazır Programları Görüntüle'}
                   </Text>
-                  <Text style={{ color: colors.textMuted, fontSize: 14 }}>
-                    Pazartesi, Salı, Perşembe, Cuma
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Full Body */}
-                <TouchableOpacity
-                  onPress={() => applyWeeklyProgram({
-                    name: 'Full Body',
-                    days: ['Pazartesi', 'Çarşamba', 'Cuma']
-                  })}
-                  style={{
-                    backgroundColor: 'rgba(138, 43, 226, 0.1)',
-                    borderRadius: 12,
-                    padding: spacing.md,
-                    marginBottom: spacing.lg,
-                    borderWidth: 1,
-                    borderColor: '#8A2BE2'
-                  }}
-                >
-                  <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 4 }}>
-                    🔥 Full Body
-                  </Text>
-                  <Text style={{ color: colors.textMuted, fontSize: 14 }}>
-                    Pazartesi, Çarşamba, Cuma
+                  <Text style={{ color: colors.background, fontSize: 14, opacity: 0.9, marginTop: 4 }}>
+                    {language === 'en' ? '10 professional programs from database' : 'Veritabanından 10 profesyonel program'}
                   </Text>
                 </TouchableOpacity>
 
@@ -1531,12 +2481,12 @@ const ProgramScreen = ({ navigation, route }) => {
                     setTimeout(() => setShowCustomModal(true), 100);
                   }}
                   style={{
-                    backgroundColor: colors.primary,
+                    backgroundColor: colors.info,
                     borderRadius: 16,
                     padding: spacing.lg,
                     alignItems: 'center',
                     elevation: 4,
-                    shadowColor: colors.primary,
+                    shadowColor: colors.info,
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.3,
                     shadowRadius: 8
@@ -1550,23 +2500,6 @@ const ProgramScreen = ({ navigation, route }) => {
                   </Text>
                 </TouchableOpacity>
               </ScrollView>
-
-              <TouchableOpacity
-                onPress={() => setShowWeeklyModal(false)}
-                style={{
-                  backgroundColor: colors.background,
-                  borderRadius: 12,
-                  padding: 16,
-                  alignItems: 'center',
-                  marginTop: spacing.md,
-                  borderWidth: 1,
-                  borderColor: colors.primary
-                }}
-              >
-                <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '700' }}>
-{t.close}
-                </Text>
-              </TouchableOpacity>
             </View>
           </View>
         </Modal>

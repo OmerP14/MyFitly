@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import Card from '../components/Card';
 import SectionHeader from '../components/SectionHeader';
+import Header from '../components/Header';
 import { spacing } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
@@ -290,13 +291,12 @@ export default function ProfileScreen() {
 
   return (
     <LinearGradient colors={[colors.background, colors.backgroundAlt]} style={{ flex: 1 }}>
-      <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+      <Header 
+        title={t.profile}
+        subtitle={t.account_settings}
+      />
+      <SafeAreaView style={{ flex: 1 }} edges={["left", "right"]}>
         <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 32 }}>
-          {/* Header */}
-          <SectionHeader 
-            title={t.profile} 
-            subtitle={t.account_settings}
-          />
 
           {/* Profile Card */}
           <Card style={{ marginBottom: spacing.md, alignItems: 'center', paddingVertical: spacing.xl }}>

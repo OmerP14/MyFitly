@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { View, StyleSheet, Platform } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { getTranslations } from '../utils/translations';
@@ -21,25 +22,62 @@ export function Tabs() {
   const { language } = useLanguage();
   const t = getTranslations(language);
   
+  const CustomTabIcon = ({ route, color, size, focused }) => {
+    let iconName = 'home-outline';
+    if (route.name === 'Dashboard') iconName = focused ? 'home' : 'home-outline';
+    if (route.name === 'Program') iconName = focused ? 'barbell' : 'barbell-outline';
+    if (route.name === 'Workout') iconName = focused ? 'fitness' : 'fitness-outline';
+    if (route.name === 'Tracking') iconName = focused ? 'analytics' : 'analytics-outline';
+    if (route.name === 'Motivation') iconName = focused ? 'flame' : 'flame-outline';
+    if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
+    
+    return (
+      <View style={[
+        styles.tabIconContainer,
+        focused && styles.activeTabIconContainer,
+        { backgroundColor: focused ? colors.primary : 'transparent' }
+      ]}>
+        <Ionicons 
+          name={iconName} 
+          color={focused ? '#FFFFFF' : color} 
+          size={focused ? 22 : size} 
+        />
+      </View>
+    );
+  };
+  
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: { backgroundColor: colors.background, borderTopColor: colors.border },
+        tabBarStyle: {
+          backgroundColor: colors.tabBarBackground,
+          borderTopColor: colors.tabBarBorder,
+          borderTopWidth: 1,
+          height: Platform.OS === 'ios' ? 85 : 65,
+          paddingBottom: Platform.OS === 'ios' ? 20 : 8,
+          paddingTop: 8,
+          borderRadius: 0,
+          elevation: 0,
+          shadowOpacity: 0,
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+        },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarIcon: ({ color, size, focused }) => {
-          let iconName = 'home-outline';
-          if (route.name === 'Dashboard') iconName = focused ? 'home' : 'home-outline';
-          if (route.name === 'Program') iconName = focused ? 'barbell' : 'barbell-outline';
-          if (route.name === 'Workout') iconName = focused ? 'fitness' : 'fitness-outline';
-          if (route.name === 'Tracking') iconName = focused ? 'analytics' : 'analytics-outline';
-          if (route.name === 'Motivation') iconName = focused ? 'flame' : 'flame-outline';
-          if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
-          return <Ionicons name={iconName} color={color} size={size} />;
+        tabBarIcon: ({ color, size, focused }) => (
+          <CustomTabIcon route={route} color={color} size={size} focused={focused} />
+        ),
+        tabBarLabelStyle: { 
+          fontSize: 11, 
+          fontWeight: '500',
+          marginTop: 4,
+          marginBottom: 2
         },
-        tabBarLabelStyle: { fontSize: 12, marginBottom: 4 },
-        tabBarItemStyle: { paddingTop: 6 }
+        tabBarItemStyle: { 
+          paddingTop: 4,
+          paddingBottom: 2
+        }
       })}
     >
       <Tab.Screen 
@@ -75,4 +113,25 @@ export function Tabs() {
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  tabIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  activeTabIconContainer: {
+    shadowColor: '#FF6B35',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+});
 
