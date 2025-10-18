@@ -5,11 +5,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
+import { useLanguage } from '../context/LanguageContext';
 import { spacing } from '../theme/colors';
+import { getTranslations } from '../utils/translations';
 
 export default function ProfileSetupScreen() {
   const { colors } = useTheme();
-  const { userData, updateUserData, session, refreshUser } = useUser();
+  const { userData, updateUserData, session, refreshUser, logout } = useUser();
+  const { language } = useLanguage();
+  const t = getTranslations(language);
   
   const [name, setName] = useState(userData?.name || session?.user?.email?.split('@')[0] || '');
   const [age, setAge] = useState(userData?.age?.toString() || '');
@@ -18,29 +22,51 @@ export default function ProfileSetupScreen() {
   const [targetWeight, setTargetWeight] = useState(userData?.target_weight?.toString() || '');
   const [loading, setLoading] = useState(false);
 
+  const handleLogout = async () => {
+    Alert.alert(
+      'Çıkış Yap',
+      'Profil oluşturmadan çıkmak istediğinizden emin misiniz?',
+      [
+        { text: 'İptal', style: 'cancel' },
+        { 
+          text: 'Çıkış Yap', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout();
+            } catch (error) {
+              console.error('Çıkış hatası:', error);
+              Alert.alert('Hata', 'Çıkış yapılırken bir hata oluştu');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleComplete = async () => {
     if (!name || !age || !height || !currentWeight || !targetWeight) {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
+      Alert.alert(t.error, t.fill_all_fields);
       return;
     }
 
     if (parseInt(age) < 10 || parseInt(age) > 100) {
-      Alert.alert('Hata', 'Lütfen geçerli bir yaş girin (10-100)');
+      Alert.alert(t.error, t.valid_age);
       return;
     }
 
     if (parseInt(height) < 100 || parseInt(height) > 250) {
-      Alert.alert('Hata', 'Lütfen geçerli bir boy girin (100-250 cm)');
+      Alert.alert(t.error, t.valid_height);
       return;
     }
 
     if (parseFloat(currentWeight) < 30 || parseFloat(currentWeight) > 300) {
-      Alert.alert('Hata', 'Lütfen geçerli bir kilo girin (30-300 kg)');
+      Alert.alert(t.error, t.valid_weight);
       return;
     }
 
     if (parseFloat(targetWeight) < 30 || parseFloat(targetWeight) > 300) {
-      Alert.alert('Hata', 'Lütfen geçerli bir hedef kilo girin (30-300 kg)');
+      Alert.alert(t.error, t.valid_target_weight);
       return;
     }
 
@@ -48,43 +74,80 @@ export default function ProfileSetupScreen() {
       setLoading(true);
       console.log('📝 Profil tamamlanıyor...');
 
-      // Eğer userData yoksa (yeni kullanıcı), önce profil oluştur/güncelle
-      if (!userData && session?.user) {
+      // Eğer userData yoksa veya eksikse, profil oluştur/güncelle
+      if ((!userData || !userData.age || !userData.height || !userData.current_weight || !userData.target_weight) && session?.user) {
         const { supabase } = require('../config/supabase');
         
-        // UPSERT kullan - eğer kullanıcı varsa güncelle, yoksa oluştur
-        const { error: upsertError } = await supabase
-          .from('users')
-          .upsert([
-            {
-              id: session.user.id,
-              email: session.user.email,
-              name: name.trim(),
-              age: parseInt(age),
-              height: parseInt(height),
-              current_weight: parseFloat(currentWeight),
-              target_weight: parseFloat(targetWeight),
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }
-          ], { 
-            onConflict: 'id' // ID çakışması durumunda güncelle
-          });
-
-        if (upsertError) {
-          console.error('❌ Profil oluşturma/güncelleme hatası:', upsertError);
-          Alert.alert('Hata', 'Profil oluşturulurken bir hata oluştu');
+        console.log('🔄 Profil oluşturuluyor, userId:', session.user.id);
+        
+        // Önce auth.users tablosunda kullanıcının varlığını kontrol et
+        const { data: authUser, error: authError } = await supabase.auth.getUser();
+        
+        if (authError || !authUser?.user) {
+          console.error('❌ Auth kullanıcısı bulunamadı:', authError);
+          Alert.alert('Hata', 'Kullanıcı kimlik doğrulaması başarısız. Lütfen tekrar giriş yapın.');
           return;
+        }
+        
+        // INSERT kullan (UPSERT yerine) - daha güvenli
+        console.log('🔄 Profil INSERT ediliyor...');
+        const { data: insertData, error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: session.user.id,
+            email: session.user.email,
+            name: name.trim(),
+            display_name: name.trim(),
+            age: parseInt(age),
+            height: parseInt(height),
+            current_weight: parseFloat(currentWeight),
+            target_weight: parseFloat(targetWeight),
+            preferred_language: language
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('❌ Profil oluşturma hatası:', insertError);
+          
+          // Eğer kullanıcı zaten varsa UPDATE dene
+          if (insertError.code === '23505') { // Unique constraint violation
+            console.log('🔄 Kullanıcı zaten mevcut, UPDATE deneniyor...');
+            const { error: updateError } = await supabase
+              .from('users')
+              .update({
+                name: name.trim(),
+                display_name: name.trim(),
+                age: parseInt(age),
+                height: parseInt(height),
+                current_weight: parseFloat(currentWeight),
+                target_weight: parseFloat(targetWeight),
+                preferred_language: language,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', session.user.id);
+              
+            if (updateError) {
+              console.error('❌ Profil güncelleme hatası:', updateError);
+              Alert.alert('Hata', 'Profil güncellenirken bir hata oluştu');
+              return;
+            }
+          } else {
+            Alert.alert('Hata', 'Profil oluşturulurken bir hata oluştu');
+            return;
+          }
         }
         console.log('✅ Profil başarıyla oluşturuldu/güncellendi');
       } else {
         // Mevcut profili güncelle
         await updateUserData({
           name: name.trim(),
+          display_name: name.trim(),
           age: parseInt(age),
           height: parseInt(height),
           current_weight: parseFloat(currentWeight),
-          target_weight: parseFloat(targetWeight)
+          target_weight: parseFloat(targetWeight),
+          preferred_language: language
         });
       }
 
@@ -92,11 +155,11 @@ export default function ProfileSetupScreen() {
       await refreshUser();
 
       console.log('✅ Profil tamamlandı!');
-      Alert.alert('Tebrikler! 🎉', 'Profilin tamamlandı! Artık fitness yolculuğuna başlayabilirsin.');
+      Alert.alert(`${t.congratulations} 🎉`, t.profile_completed);
 
     } catch (error) {
       console.error('❌ Profil tamamlama hatası:', error);
-      Alert.alert('Hata', 'Profil tamamlanırken bir hata oluştu');
+      Alert.alert(t.error, t.profile_completion_error);
     } finally {
       setLoading(false);
     }
@@ -116,6 +179,22 @@ export default function ProfileSetupScreen() {
           >
           {/* Header */}
           <View style={{ alignItems: 'center', marginBottom: spacing.xl, marginTop: spacing.xl }}>
+            {/* Çıkış butonu */}
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={{
+                alignSelf: 'flex-end',
+                padding: spacing.sm,
+                marginBottom: spacing.md,
+                borderRadius: 8,
+                backgroundColor: colors.card,
+                borderWidth: 1,
+                borderColor: colors.border
+              }}
+            >
+              <Ionicons name="log-out-outline" size={20} color={colors.textMuted} />
+            </TouchableOpacity>
+            
             <View style={{
               width: 100,
               height: 100,
@@ -134,7 +213,7 @@ export default function ProfileSetupScreen() {
               marginBottom: spacing.xs,
               textAlign: 'center'
             }}>
-              Profilini Tamamla 📝
+              {t.complete_profile} 📝
             </Text>
             <Text style={{
               color: colors.textMuted,
@@ -142,8 +221,22 @@ export default function ProfileSetupScreen() {
               textAlign: 'center',
               paddingHorizontal: spacing.lg
             }}>
-              Sana özel bir deneyim için birkaç bilgiye ihtiyacımız var
+              {t.profile_setup_subtitle}
             </Text>
+            
+            {/* Debug bilgisi */}
+            {!userData && (
+              <Text style={{
+                color: colors.textMuted,
+                fontSize: 12,
+                textAlign: 'center',
+                paddingHorizontal: spacing.lg,
+                marginTop: spacing.sm,
+                fontStyle: 'italic'
+              }}>
+                Profil oluşturuluyor... Eğer takılırsa sağ üstteki çıkış butonunu kullanın.
+              </Text>
+            )}
           </View>
 
           {/* Form */}
@@ -156,7 +249,7 @@ export default function ProfileSetupScreen() {
                 fontWeight: '600',
                 marginBottom: spacing.sm
               }}>
-                Adın Soyadın
+                {t.your_name}
               </Text>
               <View style={{
                 flexDirection: 'row',
@@ -171,7 +264,7 @@ export default function ProfileSetupScreen() {
                 <TextInput
                   value={name}
                   onChangeText={setName}
-                  placeholder="Örn: Ahmet Yılmaz"
+                  placeholder={t.name_placeholder}
                   placeholderTextColor={colors.textMuted}
                   style={{
                     flex: 1,
@@ -192,7 +285,7 @@ export default function ProfileSetupScreen() {
                 fontWeight: '600',
                 marginBottom: spacing.sm
               }}>
-                Yaşın
+                {t.your_age}
               </Text>
               <View style={{
                 flexDirection: 'row',
@@ -207,7 +300,7 @@ export default function ProfileSetupScreen() {
                 <TextInput
                   value={age}
                   onChangeText={setAge}
-                  placeholder="Örn: 25"
+                  placeholder={t.age_placeholder}
                   placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                   style={{
@@ -218,7 +311,7 @@ export default function ProfileSetupScreen() {
                     paddingHorizontal: spacing.sm
                   }}
                 />
-                <Text style={{ color: colors.textMuted }}>yaş</Text>
+                <Text style={{ color: colors.textMuted }}>{t.years_old}</Text>
               </View>
             </View>
 
@@ -230,7 +323,7 @@ export default function ProfileSetupScreen() {
                 fontWeight: '600',
                 marginBottom: spacing.sm
               }}>
-                Boyun
+                {t.your_height}
               </Text>
               <View style={{
                 flexDirection: 'row',
@@ -245,7 +338,7 @@ export default function ProfileSetupScreen() {
                 <TextInput
                   value={height}
                   onChangeText={setHeight}
-                  placeholder="Örn: 175"
+                  placeholder={t.height_placeholder}
                   placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                   style={{
@@ -256,7 +349,7 @@ export default function ProfileSetupScreen() {
                     paddingHorizontal: spacing.sm
                   }}
                 />
-                <Text style={{ color: colors.textMuted }}>cm</Text>
+                <Text style={{ color: colors.textMuted }}>{t.cm_unit}</Text>
               </View>
             </View>
 
@@ -268,7 +361,7 @@ export default function ProfileSetupScreen() {
                 fontWeight: '600',
                 marginBottom: spacing.sm
               }}>
-                Mevcut Kilom
+                {t.your_current_weight}
               </Text>
               <View style={{
                 flexDirection: 'row',
@@ -283,7 +376,7 @@ export default function ProfileSetupScreen() {
                 <TextInput
                   value={currentWeight}
                   onChangeText={setCurrentWeight}
-                  placeholder="Örn: 75"
+                  placeholder={t.weight_placeholder}
                   placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                   style={{
@@ -294,7 +387,7 @@ export default function ProfileSetupScreen() {
                     paddingHorizontal: spacing.sm
                   }}
                 />
-                <Text style={{ color: colors.textMuted }}>kg</Text>
+                <Text style={{ color: colors.textMuted }}>{t.kg_unit}</Text>
               </View>
             </View>
 
@@ -306,7 +399,7 @@ export default function ProfileSetupScreen() {
                 fontWeight: '600',
                 marginBottom: spacing.sm
               }}>
-                Hedef Kilom
+                {t.your_target_weight}
               </Text>
               <View style={{
                 flexDirection: 'row',
@@ -321,7 +414,7 @@ export default function ProfileSetupScreen() {
                 <TextInput
                   value={targetWeight}
                   onChangeText={setTargetWeight}
-                  placeholder="Örn: 70"
+                  placeholder={t.target_weight_placeholder}
                   placeholderTextColor={colors.textMuted}
                   keyboardType="numeric"
                   style={{
@@ -332,7 +425,7 @@ export default function ProfileSetupScreen() {
                     paddingHorizontal: spacing.sm
                   }}
                 />
-                <Text style={{ color: colors.textMuted }}>kg</Text>
+                <Text style={{ color: colors.textMuted }}>{t.kg_unit}</Text>
               </View>
             </View>
           </View>
@@ -361,7 +454,7 @@ export default function ProfileSetupScreen() {
               fontSize: 18,
               fontWeight: '700'
             }}>
-              {loading ? 'Kaydediliyor...' : 'Başlayalım! 🚀'}
+              {loading ? t.loading : `${t.lets_start} 🚀`}
             </Text>
           </TouchableOpacity>
 

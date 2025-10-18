@@ -8,7 +8,6 @@ import { Tabs, RootStack } from './src/navigation/Tabs';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { UserProvider, useUser } from './src/context/UserContext';
 import { LanguageProvider } from './src/context/LanguageContext';
-import WorkoutScreen from './src/screens/WorkoutScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import ProfileSetupScreen from './src/screens/ProfileSetupScreen';
@@ -17,7 +16,7 @@ import * as Notifications from 'expo-notifications';
 
 const AuthStack = createNativeStackNavigator();
 
-// Loading Screen Component
+// Loading Screen Component (optimize edilmiş)
 function LoadingScreen() {
   return (
     <View style={{ 
@@ -32,7 +31,16 @@ function LoadingScreen() {
         marginTop: 16, 
         fontSize: 16 
       }}>
-        Uygulama başlatılıyor...
+        Yükleniyor...
+      </Text>
+      <Text style={{ 
+        color: colors.textMuted, 
+        marginTop: 8, 
+        fontSize: 12,
+        textAlign: 'center',
+        paddingHorizontal: 32
+      }}>
+        Bu işlem genellikle 2-3 saniye sürer
       </Text>
     </View>
   );
@@ -100,7 +108,6 @@ function AppContent() {
         // Kullanıcı giriş yapmış ve profili tamamlamış - Ana uygulama
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
           <RootStack.Screen name="Root" component={Tabs} />
-          <RootStack.Screen name="Workout" component={WorkoutScreen} />
         </RootStack.Navigator>
       )}
       <StatusBar style={isDarkMode ? "light" : "dark"} />

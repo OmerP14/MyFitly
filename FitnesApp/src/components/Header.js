@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +18,7 @@ export default function Header({
   onProfilePress,
   style,
   userName,
+  profilePhoto,
   isDashboard = false
 }) {
   const { colors, isDarkMode } = useTheme();
@@ -87,12 +88,6 @@ export default function Header({
               </View>
               <View style={styles.dateContainer}>
                 <Text style={[
-                  styles.dateLabel,
-                  { color: colors.textMuted }
-                ]}>
-                  {language === 'en' ? 'Today' : 'Bugün'}
-                </Text>
-                <Text style={[
                   styles.dateText,
                   { color: colors.text }
                 ]}>
@@ -141,11 +136,19 @@ export default function Header({
                   ]}
                   onPress={onProfilePress}
                 >
-                  <Ionicons 
-                    name="person" 
-                    size={20} 
-                    color={isDarkMode ? '#000000' : colors.background} 
-                  />
+                  {profilePhoto ? (
+                    <Image 
+                      source={{ uri: profilePhoto }} 
+                      style={styles.profileImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Ionicons 
+                      name="person" 
+                      size={20} 
+                      color={isDarkMode ? '#000000' : colors.background} 
+                    />
+                  )}
                 </TouchableOpacity>
               )}
             </View>
@@ -258,6 +261,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  profileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   title: {
     fontSize: 20,

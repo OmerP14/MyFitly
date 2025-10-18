@@ -141,11 +141,14 @@ export default function LoginScreen({ navigation }) {
                 <TextInput
                   value={email}
                   onChangeText={setEmail}
-                placeholder={t.email}
-                placeholderTextColor={colors.textMuted}
+                  placeholder={t.email}
+                  placeholderTextColor={colors.textMuted}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  autoComplete="off"
+                  textContentType="none"
+                  importantForAutofill="no"
                   style={{
                     flex: 1,
                     color: colors.text,
@@ -184,6 +187,20 @@ export default function LoginScreen({ navigation }) {
                   placeholderTextColor={colors.textMuted}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
+                  autoComplete="off"
+                  autoCorrect={false}
+                  textContentType="none"
+                  passwordRules=""
+                  keyboardType="default"
+                  importantForAutofill="no"
+                  clearButtonMode="never"
+                  spellCheck={false}
+                  dataDetectorTypes="none"
+                  multiline={false}
+                  blurOnSubmit={false}
+                  returnKeyType="done"
+                  editable={true}
+                  selectTextOnFocus={false}
                   style={{
                     flex: 1,
                     color: colors.text,

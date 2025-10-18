@@ -23,10 +23,24 @@ export const getExercises = async (userId, dayOfWeek = null) => {
       completed: ex.is_completed
     }));
     
-    return exercisesWithCompleted;
+    // Eğer dayOfWeek belirtilmişse array, değilse obje döndür
+    if (dayOfWeek !== null) {
+      return exercisesWithCompleted;
+    } else {
+      // Tüm egzersizleri günlere göre grupla
+      const exercisesByDay = {};
+      exercisesWithCompleted.forEach(ex => {
+        const day = ex.day_of_week;
+        if (!exercisesByDay[day]) {
+          exercisesByDay[day] = [];
+        }
+        exercisesByDay[day].push(ex);
+      });
+      return exercisesByDay;
+    }
   } catch (error) {
     console.error('Egzersizleri getirme hatası:', error);
-    return [];
+    return dayOfWeek !== null ? [] : {};
   }
 };
 
@@ -34,6 +48,12 @@ export const getExercises = async (userId, dayOfWeek = null) => {
 export const addExercise = async (userId, exerciseData) => {
   try {
     console.log('➕ Egzersiz ekleniyor:', exerciseData);
+    
+    // dayOfWeek kontrolü
+    if (exerciseData.dayOfWeek === null || exerciseData.dayOfWeek === undefined) {
+      console.error('❌ dayOfWeek değeri eksik:', exerciseData.dayOfWeek);
+      throw new Error('dayOfWeek değeri gerekli');
+    }
     
     const exercisePayload = {
       user_id: userId,
@@ -144,6 +164,23 @@ export const toggleExerciseCompletion = async (exerciseId, completed) => {
   try {
     console.log('🔄 Egzersiz durumu değiştiriliyor:', exerciseId, completed);
     
+    // Önce egzersizin var olup olmadığını kontrol et
+    const { data: existingExercise, error: checkError } = await supabase
+      .from('exercises')
+      .select('id, is_completed')
+      .eq('id', exerciseId)
+      .maybeSingle(); // maybeSingle() kullan - hata vermez, null döner
+
+    if (checkError) {
+      console.error('❌ Egzersiz kontrol hatası:', checkError);
+      return { id: exerciseId, is_completed: completed, completed: completed };
+    }
+
+    if (!existingExercise) {
+      console.warn('⚠️ Egzersiz bulunamadı, sadece local state güncelleniyor:', exerciseId);
+      return { id: exerciseId, is_completed: completed, completed: completed };
+    }
+    
     // is_completed kolonu kullan
     const updatePayload = {
       is_completed: completed,
@@ -158,17 +195,21 @@ export const toggleExerciseCompletion = async (exerciseId, completed) => {
       .from('exercises')
       .update(updatePayload)
       .eq('id', exerciseId)
-      .select()
-      .single();
+      .select();
 
     if (error) {
       console.error('❌ Supabase durum güncelleme hatası:', error);
       // Hata olsa bile local state için veri döndür
       return { id: exerciseId, is_completed: completed, completed: completed };
     }
+
+    if (!data || data.length === 0) {
+      console.warn('⚠️ Güncelleme başarısız, local state güncelleniyor:', exerciseId);
+      return { id: exerciseId, is_completed: completed, completed: completed };
+    }
     
-    console.log('✅ Egzersiz durumu başarıyla güncellendi:', data);
-    return { ...data, completed: data.is_completed };
+    console.log('✅ Egzersiz durumu başarıyla güncellendi:', data[0]);
+    return { ...data[0], completed: data[0].is_completed };
   } catch (error) {
     console.error('❌ Egzersiz durumu güncelleme hatası:', error);
     
@@ -235,6 +276,8 @@ export const createWeeklyProgram = async (userId, programData) => {
 // Kullanıcının programlarını getir
 export const getUserPrograms = async (userId) => {
   try {
+    console.log('👤 Kullanıcı programları getiriliyor, userId:', userId);
+    
     const { data, error } = await supabase
       .from('workout_programs')
       .select('*')
@@ -243,7 +286,30 @@ export const getUserPrograms = async (userId) => {
 
     if (error) throw error;
     
-    return data || [];
+    console.log('📊 Kullanıcının ham program verisi:', data);
+    console.log('📊 Program sayısı:', data ? data.length : 0);
+    
+    // Çoğaltılmış programları temizle (aynı isimde olanları birleştir)
+    const uniquePrograms = [];
+    const seenNames = new Set();
+    
+    (data || []).forEach(program => {
+      const normalizedName = program.name.toLowerCase().trim();
+      if (!seenNames.has(normalizedName)) {
+        seenNames.add(normalizedName);
+        uniquePrograms.push(program);
+      } else {
+        console.log('⚠️ Kullanıcıda çoğaltılmış program tespit edildi:', program.name);
+      }
+    });
+    
+    console.log('🧹 Kullanıcı programları temizlendi:', {
+      önce: data ? data.length : 0,
+      sonra: uniquePrograms.length,
+      temizlenen: (data ? data.length : 0) - uniquePrograms.length
+    });
+    
+    return uniquePrograms;
   } catch (error) {
     console.error('Programları getirme hatası:', error);
     return [];
@@ -425,15 +491,75 @@ export const getTemplatePrograms = async () => {
   try {
     console.log('📋 Hazır programlar getiriliyor...');
     
+    // Önce tabloyu kontrol et
+    const { data: tableCheck, error: tableError } = await supabase
+      .from('template_programs')
+      .select('id')
+      .limit(1);
+    
+    if (tableError) {
+      console.error('❌ template_programs tablosu bulunamadı:', tableError);
+      console.log('💡 SQL dosyalarını çalıştırmanız gerekiyor: 01.sql, 02.sql, 03.sql, 04.sql, 07_detailed_programs.sql');
+      return [];
+    }
+    
+    console.log('✅ template_programs tablosu mevcut');
+    
     const { data, error } = await supabase
       .from('template_programs')
-      .select('*')
+      .select(`
+        *,
+        template_program_days (
+          id,
+          day_name,
+          day_number,
+          template_exercises (id)
+        )
+      `)
       .eq('is_active', true);
 
     if (error) {
-      console.error('Hazır programlar hatası:', error);
+      console.error('❌ Hazır programlar hatası:', error);
       throw error;
     }
+    
+    console.log('📊 Veritabanından gelen ham veri:', data);
+    console.log('📊 Veri sayısı:', data ? data.length : 0);
+    
+    // Çoğaltılmış programları temizle (aynı isimde olanları birleştir)
+    const uniquePrograms = [];
+    const seenNames = new Set();
+    
+    (data || []).forEach(program => {
+      const normalizedName = program.name.toLowerCase().trim();
+      if (!seenNames.has(normalizedName)) {
+        seenNames.add(normalizedName);
+        uniquePrograms.push(program);
+      } else {
+        console.log('⚠️ Çoğaltılmış program tespit edildi:', program.name);
+      }
+    });
+    
+    console.log('🧹 Çoğaltılmış programlar temizlendi:', {
+      önce: data ? data.length : 0,
+      sonra: uniquePrograms.length,
+      temizlenen: (data ? data.length : 0) - uniquePrograms.length
+    });
+    
+    // Her program için günlük egzersiz sayılarını hesapla
+    const programsWithDayInfo = uniquePrograms.map(program => {
+      const dayInfo = program.template_program_days?.map(day => ({
+        day_name: day.day_name,
+        day_number: day.day_number,
+        exercise_count: day.template_exercises?.length || 0
+      })) || [];
+      
+      return {
+        ...program,
+        day_info: dayInfo,
+        total_exercises: dayInfo.reduce((sum, day) => sum + day.exercise_count, 0)
+      };
+    });
     
     // Seviyeleri doğru sırayla sırala: Başlangıç -> Orta -> İleri
     const levelOrder = {
@@ -445,13 +571,14 @@ export const getTemplatePrograms = async () => {
       'Advanced': 3
     };
     
-    const sortedData = (data || []).sort((a, b) => {
+    const sortedData = programsWithDayInfo.sort((a, b) => {
       const orderA = levelOrder[a.level] || 999;
       const orderB = levelOrder[b.level] || 999;
       return orderA - orderB;
     });
     
     console.log('✅ Hazır programlar getirildi ve sıralandı:', sortedData);
+    console.log('✅ Sıralanmış veri sayısı:', sortedData.length);
     return sortedData;
   } catch (error) {
     console.error('❌ Hazır programlar getirme hatası:', error);
@@ -525,6 +652,63 @@ export const copyTemplateProgramToUser = async (userId, templateProgramId) => {
       .single();
 
     if (programError) throw programError;
+
+    // Aynı template program zaten eklenmiş mi kontrol et (çok daha kapsamlı)
+    console.log('🔍 Program kontrolü yapılıyor:', templateProgram.name);
+    
+    const { data: existingPrograms, error: checkError } = await supabase
+      .from('workout_programs')
+      .select('id, name, created_at')
+      .eq('user_id', userId)
+      .eq('is_custom', false)
+      .order('created_at', { ascending: false });
+
+    if (checkError) {
+      console.warn('⚠️ Mevcut program kontrol hatası:', checkError);
+    } else if (existingPrograms && existingPrograms.length > 0) {
+      console.log('📋 Mevcut programlar:', existingPrograms.map(p => p.name));
+      
+      // Tam isim eşleşmesi var mı kontrol et
+      const exactMatch = existingPrograms.find(p => 
+        p.name.toLowerCase().trim() === templateProgram.name.toLowerCase().trim()
+      );
+      
+      if (exactMatch) {
+        console.log('⚠️ Bu program zaten eklenmiş:', exactMatch.name);
+        throw new Error('Bu program zaten listenizde mevcut!');
+      }
+      
+      // Çok benzer isimli programlar var mı kontrol et
+      const similarPrograms = existingPrograms.filter(p => {
+        const existingName = p.name.toLowerCase().trim();
+        const newName = templateProgram.name.toLowerCase().trim();
+        
+        // Tam eşleşme
+        if (existingName === newName) return true;
+        
+        // Kısmi eşleşme (anahtar kelimeler)
+        const existingWords = existingName.split(/[\s\-_]+/);
+        const newWords = newName.split(/[\s\-_]+/);
+        
+        // Anahtar kelimelerin %70'i eşleşiyorsa benzer say
+        const commonWords = existingWords.filter(word => 
+          newWords.some(newWord => 
+            word.includes(newWord) || newWord.includes(word) || 
+            word === newWord
+          )
+        );
+        
+        const similarity = commonWords.length / Math.max(existingWords.length, newWords.length);
+        return similarity > 0.7;
+      });
+      
+      if (similarPrograms.length > 0) {
+        console.log('⚠️ Benzer program zaten mevcut:', similarPrograms[0].name);
+        throw new Error(`Benzer bir program zaten listenizde mevcut: "${similarPrograms[0].name}"`);
+      }
+      
+      console.log('✅ Program benzersiz, eklenebilir');
+    }
 
     // Kullanıcının eski aktif programlarını pasif yap
     await supabase
@@ -632,4 +816,10 @@ export const copyTemplateProgramToUser = async (userId, templateProgramId) => {
     console.error('❌ Hazır program kopyalama hatası:', error);
     throw error;
   }
+};
+
+// Hazır programı kullanıcıya ekle (alias fonksiyon)
+export const addTemplateProgramToUser = async (userId, templateProgramId) => {
+  console.log('📋 addTemplateProgramToUser çağrıldı - copyTemplateProgramToUser\'a yönlendiriliyor...');
+  return await copyTemplateProgramToUser(userId, templateProgramId);
 };

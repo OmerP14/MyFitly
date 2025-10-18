@@ -9,6 +9,7 @@ import { getTranslations } from '../utils/translations';
 
 import DashboardScreen from '../screens/DashboardScreen';
 import ProgramScreen from '../screens/ProgramScreen';
+import TrainingScreen from '../screens/TrainingScreen';
 import TrackingScreen from '../screens/TrackingScreen';
 import MotivationScreen from '../screens/MotivationScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -25,8 +26,8 @@ export function Tabs() {
   const CustomTabIcon = ({ route, color, size, focused }) => {
     let iconName = 'home-outline';
     if (route.name === 'Dashboard') iconName = focused ? 'home' : 'home-outline';
+    if (route.name === 'Training') iconName = focused ? 'flash' : 'flash-outline';
     if (route.name === 'Program') iconName = focused ? 'barbell' : 'barbell-outline';
-    if (route.name === 'Workout') iconName = focused ? 'fitness' : 'fitness-outline';
     if (route.name === 'Tracking') iconName = focused ? 'analytics' : 'analytics-outline';
     if (route.name === 'Motivation') iconName = focused ? 'flame' : 'flame-outline';
     if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
@@ -86,14 +87,9 @@ export function Tabs() {
         options={{ title: t.dashboard_tab }}
       />
       <Tab.Screen 
-        name="Program" 
-        component={ProgramScreen} 
-        options={{ title: t.program_tab }}
-      />
-      <Tab.Screen 
-        name="Workout" 
-        component={WorkoutScreen} 
-        options={{ title: t.workout_tab }}
+        name="Training" 
+        component={TrainingScreen} 
+        options={{ title: t.training_tab || 'Training' }}
       />
       <Tab.Screen 
         name="Tracking" 

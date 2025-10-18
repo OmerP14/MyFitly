@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Card from '../components/Card';
+import Header from '../components/Header';
 import { spacing } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
@@ -306,7 +307,7 @@ export default function WorkoutScreen({ route, navigation }) {
       [
         {
           text: t.ok,
-          onPress: () => navigation.navigate('Dashboard')
+          onPress: () => navigation.navigate('Root', { screen: 'Training' })
         }
       ]
     );
@@ -681,7 +682,50 @@ export default function WorkoutScreen({ route, navigation }) {
 {program.duration_weeks} {t.weeks}
                     </Text>
                   </View>
+                  <View style={{
+                    backgroundColor: 'rgba(156, 39, 176, 0.1)',
+                    borderRadius: 10,
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4
+                  }}>
+                    <Ionicons name="fitness-outline" size={12} color="#9C27B0" />
+                    <Text style={{ color: colors.text, fontSize: 11, fontWeight: '600' }}>
+{program.total_exercises || 0} {t.exercises}
+                    </Text>
+                  </View>
                 </View>
+                
+                {/* Günlük Egzersiz Sayıları */}
+                {program.day_info && program.day_info.length > 0 && (
+                  <View style={{ marginTop: spacing.sm }}>
+                    <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '600', marginBottom: spacing.xs }}>
+                      {language === 'en' ? 'Daily Exercises:' : 'Günlük Egzersizler:'}
+                    </Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
+                      {program.day_info.map((day, index) => (
+                        <View key={index} style={{
+                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                          borderRadius: 8,
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 4
+                        }}>
+                          <Text style={{ color: colors.text, fontSize: 10, fontWeight: '600' }}>
+                            {translateDayName(day.day_name, language)}
+                          </Text>
+                          <Text style={{ color: colors.textMuted, fontSize: 10 }}>
+                            {day.exercise_count}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
               </Card>
             </TouchableOpacity>
           ))
@@ -702,31 +746,19 @@ export default function WorkoutScreen({ route, navigation }) {
 
   return (
     <LinearGradient colors={[colors.background, colors.backgroundAlt]} style={{ flex: 1 }}>
-      <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
-        {/* Header */}
-        <View style={{ 
-          flexDirection: 'row', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          padding: spacing.md,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border
-        }}>
-          <TouchableOpacity onPress={() => navigation.navigate('Dashboard')}>
-            <Ionicons name="home" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={{ color: colors.text, fontSize: 18, fontWeight: '700' }}>
-{activeTab === 'active' ? (workoutData.name || t.today_workout) : t.ready_programs}
-          </Text>
-          {activeTab === 'active' && workoutData.exercises.length > 0 && isRunning && (
+      <Header 
+        title={activeTab === 'active' ? (workoutData.name || t.today_workout) : t.ready_programs}
+        showBackButton={true}
+        onBackPress={() => navigation.navigate('Root', { screen: 'Training' })}
+        rightComponent={
+          activeTab === 'active' && workoutData.exercises.length > 0 && isRunning ? (
             <TouchableOpacity onPress={() => setIsRunning(false)}>
               <Ionicons name="pause" size={24} color={colors.primary} />
             </TouchableOpacity>
-          )}
-          {activeTab === 'templates' && (
-            <View style={{ width: 24 }} />
-          )}
-        </View>
+          ) : null
+        }
+      />
+      <SafeAreaView style={{ flex: 1 }} edges={["left", "right"]}>
 
         {/* Tab Bar */}
         <View style={{ 
@@ -926,8 +958,8 @@ export default function WorkoutScreen({ route, navigation }) {
                                 {translateExerciseName(exercise.name, language)}
                               </Text>
                               <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-{exercise.sets} {t.set} × {exercise.reps.includes('sn') ? exercise.reps.replace('sn', t.seconds) : exercise.reps} {t.reps}
-                                {exercise.weight && ` • ${exercise.weight === 'Vücut Ağırlığı' ? t.body_weight : exercise.weight}`}
+                                {exercise.sets}×{exercise.reps.includes('sn') ? exercise.reps.replace('sn', 'sn') : exercise.reps}
+                                {exercise.weight && ` • ${exercise.weight === 'Vücut Ağırlığı' || exercise.weight === 'bodyweight' ? (language === 'en' ? 'bodyweight' : 'vücut ağırlığı') : exercise.weight}`}
                               </Text>
                             </View>
                           </View>

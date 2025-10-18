@@ -702,6 +702,8 @@ const ProgramScreen = ({ navigation, route }) => {
       <Header 
         title={t.program}
         subtitle={`${completedCount}/${totalCount} ${t.exercises_completed}`}
+        showBackButton={true}
+        onBackPress={() => navigation.navigate('Root', { screen: 'Training' })}
         rightComponent={rightComponent}
       />
       <SafeAreaView style={{ flex: 1 }} edges={["left", "right"]}>

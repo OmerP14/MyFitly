@@ -279,3 +279,5 @@ SELECT id, 'Seated Calf Raises', 4, '15-20', '30kg', 'Alt Vücut', 5 FROM day;
 
 
 
+
+

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useUser } from '../context/UserContext';
 import { useLanguage } from '../context/LanguageContext';
 import { getTranslations } from '../utils/translations';
 import { supabase } from '../config/supabase';
@@ -12,6 +13,7 @@ import LanguageSelector from '../components/LanguageSelector';
 
 export default function RegisterScreen({ navigation }) {
   const { colors } = useTheme();
+  const { refreshUser } = useUser();
   const { language } = useLanguage();
   const t = getTranslations(language);
   const [name, setName] = useState('');
@@ -59,6 +61,8 @@ export default function RegisterScreen({ navigation }) {
             id: data.user.id,
             email: email.trim(),
             name: name.trim(),
+            display_name: name.trim(),
+            preferred_language: language,
             created_at: new Date().toISOString()
           }
         ]);
@@ -68,13 +72,23 @@ export default function RegisterScreen({ navigation }) {
         console.warn('profile insert failed', insertError);
       }
 
+      console.log('✅ Kayıt başarılı!');
+      
+      // UserContext'i yenile ki needsProfileCompletion true olsun
+      console.log('🔄 UserContext yenileniyor...');
+      await refreshUser();
+      
+      // Profil tamamlama ekranına yönlendir
+      console.log('🔄 Profil tamamlama ekranına yönlendiriliyor...');
       Alert.alert(
         (t.registration_success_title || 'Registration Successful') + ' 🎉',
         t.registration_success_message || 'Your account has been created! Now complete your profile.',
         [
           {
             text: t.ok || 'OK',
-            onPress: () => {}
+            onPress: () => {
+              console.log('✅ Alert kapatıldı, profil tamamlama ekranına yönlendiriliyor...');
+            }
           }
         ]
       );
@@ -214,6 +228,9 @@ export default function RegisterScreen({ navigation }) {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  autoComplete="off"
+                  textContentType="none"
+                  importantForAutofill="no"
                   style={{
                     flex: 1,
                     color: colors.text,
@@ -252,6 +269,20 @@ export default function RegisterScreen({ navigation }) {
                   placeholderTextColor={colors.textMuted}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
+                  autoComplete="off"
+                  autoCorrect={false}
+                  textContentType="none"
+                  passwordRules=""
+                  keyboardType="default"
+                  importantForAutofill="no"
+                  clearButtonMode="never"
+                  spellCheck={false}
+                  dataDetectorTypes="none"
+                  multiline={false}
+                  blurOnSubmit={false}
+                  returnKeyType="done"
+                  editable={true}
+                  selectTextOnFocus={false}
                   style={{
                     flex: 1,
                     color: colors.text,
@@ -297,6 +328,20 @@ export default function RegisterScreen({ navigation }) {
                   placeholderTextColor={colors.textMuted}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
+                  autoComplete="off"
+                  autoCorrect={false}
+                  textContentType="none"
+                  passwordRules=""
+                  keyboardType="default"
+                  importantForAutofill="no"
+                  clearButtonMode="never"
+                  spellCheck={false}
+                  dataDetectorTypes="none"
+                  multiline={false}
+                  blurOnSubmit={false}
+                  returnKeyType="done"
+                  editable={true}
+                  selectTextOnFocus={false}
                   style={{
                     flex: 1,
                     color: colors.text,

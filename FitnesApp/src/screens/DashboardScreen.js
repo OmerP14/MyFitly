@@ -103,7 +103,7 @@ export default function DashboardScreen({ navigation }) {
     // Başlangıç: baseline varsa onu kullan, yoksa ilk kayıt
     const startWeight = goalBaseline.weight != null
       ? goalBaseline.weight
-      : normalizedWeightData[0].weight;
+      : (normalizedWeightData[0]?.weight || userData.current_weight);
     const currentWeight = userData.current_weight; // Profil bilgisinden al
     const targetWeight = userData.target_weight;
 
@@ -269,6 +269,7 @@ export default function DashboardScreen({ navigation }) {
       <Header 
         isDashboard={true}
         userName={userData?.name}
+        profilePhoto={userData?.profile_photo_url}
         showProfile={true}
         onProfilePress={() => navigation.navigate('Profile')}
       />
