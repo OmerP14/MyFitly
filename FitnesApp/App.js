@@ -13,6 +13,7 @@ import RegisterScreen from './src/screens/RegisterScreen';
 import ProfileSetupScreen from './src/screens/ProfileSetupScreen';
 import { colors } from './src/theme/colors';
 import * as Notifications from 'expo-notifications';
+import { initializeAds } from './src/services/adService';
 
 const AuthStack = createNativeStackNavigator();
 
@@ -116,6 +117,11 @@ function AppContent() {
 }
 
 export default function App() {
+  useEffect(() => {
+    // Reklamları başlat
+    initializeAds();
+  }, []);
+
   return (
     <SafeAreaProvider>
       <LanguageProvider>

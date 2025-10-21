@@ -270,39 +270,3 @@ SELECT '✅ Program detayları başarıyla İngilizce''ye çevrildi!' as message
 SELECT '📊 Güncellenen Program Sayısı: ' || COUNT(*) as updated_programs FROM template_programs;
 SELECT '📊 Güncellenen Gün Sayısı: ' || COUNT(*) as updated_days FROM template_program_days;
 SELECT '📊 Güncellenen Egzersiz Sayısı: ' || COUNT(*) as updated_exercises FROM template_exercises;
--- ============================================
--- FAVORI SOZLER OZELLIGINI KALDIR (onaylandi)
--- Kod tarafinda favorites devre disi birakildi.
--- Bu blok tabloyu ve bagli policy/index'leri KOSULLU olarak kaldirir.
--- ============================================
-
-DO $$
-BEGIN
-  IF to_regclass('public.user_favorite_quotes') IS NOT NULL THEN
-    DROP POLICY IF EXISTS "Users can manage own favorites" ON user_favorite_quotes;
-    DROP INDEX IF EXISTS user_favorite_quotes_user_id_idx;
-    DROP TABLE user_favorite_quotes CASCADE;
-  END IF;
-END $$;
-
-SELECT '✅ user_favorite_quotes kontrol edilip (varsa) kaldirildi' AS info;
-
--- ============================================
--- MOTIVASYON SOZLERINI KALDIR (opsiyonel - onaylandi)
--- Gunluk soz ozelligi kullanilmiyorsa tabloyu KOSULLU kaldirir.
--- ============================================
-
-DO $$
-BEGIN
-  IF to_regclass('public.motivation_quotes') IS NOT NULL THEN
-    DROP POLICY IF EXISTS "Anyone can read quotes" ON motivation_quotes;
-    DROP TABLE motivation_quotes CASCADE;
-  END IF;
-END $$;
-
-SELECT '✅ motivation_quotes kontrol edilip (varsa) kaldirildi' AS info;
-
-
-
-
-

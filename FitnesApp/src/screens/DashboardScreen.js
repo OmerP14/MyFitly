@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Text, View, ScrollView, TouchableOpacity, Dimensions, Platform } from 'react-native';
+import { Text, View, ScrollView, TouchableOpacity, Dimensions, Platform, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,30 +14,11 @@ import { useLanguage } from '../context/LanguageContext';
 import { getTranslations } from '../utils/translations';
 import { supabase } from '../config/supabase';
 import * as programService from '../services/programService';
+import * as trackingService from '../services/trackingService';
 
-// AdMob'u güvenli şekilde import et
-let BannerAd, BannerAdSize, TestIds, mobileAds;
-try {
-  const AdMob = require('react-native-google-mobile-ads');
-  BannerAd = AdMob.BannerAd;
-  BannerAdSize = AdMob.BannerAdSize;
-  TestIds = AdMob.TestIds;
-  mobileAds = AdMob.default;
-  
-  // AdMob'u başlat
-  if (mobileAds && mobileAds.initialize) {
-    mobileAds.initialize()
-      .then(() => console.log('✅ AdMob initialized'))
-      .catch((error) => console.error('❌ AdMob initialization error:', error));
-  }
-} catch (error) {
-  console.log('⚠️ AdMob yüklenemedi:', error.message);
-}
+import { AdBanner, showInterstitialAd } from '../services/adService';
 
 const screenWidth = Dimensions.get('window').width;
-
-// AdMob Banner ID (Test ID kullanıyoruz - gerçek uygulama için değiştirin)
-const adUnitId = TestIds ? TestIds.BANNER : 'ca-app-pub-3940256099942544/6300978111';
 
 export default function DashboardScreen({ navigation }) {
   const { colors } = useTheme();
@@ -51,6 +32,55 @@ export default function DashboardScreen({ navigation }) {
   const [goalBaseline, setGoalBaseline] = useState({ weight: null, date: null });
   const [todayWorkout, setTodayWorkout] = useState([]);
   const [weeklyStats, setWeeklyStats] = useState({ workoutDays: 0, totalSets: 0 });
+  const [strengthData, setStrengthData] = useState([]);
+
+  // Güç takibi verilerini yükle
+  const loadStrengthData = async () => {
+    if (!userData?.id) return;
+    
+    try {
+      const result = await trackingService.getStrengthData(userData.id);
+      if (result?.success) {
+        setStrengthData(result.data || []);
+      }
+    } catch (error) {
+      console.error('❌ Güç takibi verileri yüklenemedi:', error);
+    }
+  };
+
+  // Güç takibi verilerini egzersiz bazında grupla
+  const getGroupedStrengthData = () => {
+    if (!strengthData?.length) return [];
+    
+    const grouped = {};
+    strengthData.forEach(entry => {
+      const exerciseName = entry.exercise_name || entry.exercise;
+      if (!grouped[exerciseName]) {
+        grouped[exerciseName] = {
+          name: exerciseName,
+          history: [],
+          maxWeight: 0
+        };
+      }
+      
+      const weight = parseFloat(entry.weight) || 0;
+      grouped[exerciseName].history.push({
+        weight: weight,
+        date: entry.date || entry.created_at
+      });
+      
+      if (weight > grouped[exerciseName].maxWeight) {
+        grouped[exerciseName].maxWeight = weight;
+      }
+    });
+    
+    // Her egzersiz için history'yi tarihe göre sırala (eski → yeni)
+    Object.values(grouped).forEach(exercise => {
+      exercise.history.sort((a, b) => new Date(a.date) - new Date(b.date));
+    });
+    
+    return Object.values(grouped);
+  };
 
   // Kilo verilerini normalize et
   const normalizeWeightData = (data) => {
@@ -191,7 +221,8 @@ export default function DashboardScreen({ navigation }) {
   const loadAllData = async () => {
     await Promise.all([
       loadWeightData(),
-      loadTodayWorkout()
+      loadTodayWorkout(),
+      loadStrengthData()
     ]);
   };
 
@@ -274,7 +305,11 @@ export default function DashboardScreen({ navigation }) {
         onProfilePress={() => navigation.navigate('Profile')}
       />
       <SafeAreaView style={{ flex: 1 }} edges={["left", "right"]}>
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 32 }}>
+        <ScrollView 
+          contentContainerStyle={{ padding: spacing.lg, paddingBottom: 32 }}
+          showsVerticalScrollIndicator={true}
+          bounces={true}
+        >
 
           {/* Hedef Kilo İlerlemesi - Büyük Kart */}
           <Card style={{ 
@@ -445,7 +480,17 @@ export default function DashboardScreen({ navigation }) {
                 ))}
 
                 <TouchableOpacity
-                  onPress={() => navigation.navigate('Workout')}
+                  onPress={() => {
+                    // Tam ekran reklam göster
+                    console.log('🎬 Antrenman başlatılıyor - tam ekran reklam gösteriliyor...');
+                    showInterstitialAd(() => {
+                      // Reklam kapandığında Training ekranına git ve Workout tab'ını aç
+                      console.log('✅ Reklam kapandı - Training ekranına yönlendiriliyor...');
+                      navigation.navigate('Training', { 
+                        autoStartWorkout: true
+                      });
+                    });
+                  }}
                   style={{
                     backgroundColor: colors.success,
                     borderRadius: 16,
@@ -479,7 +524,7 @@ export default function DashboardScreen({ navigation }) {
                   {t.no_exercises}
                 </Text>
                 <TouchableOpacity
-                  onPress={() => navigation.navigate('Program')}
+                  onPress={() => navigation.navigate('Training')}
                   style={{
                     backgroundColor: colors.primary,
                     borderRadius: 12,
@@ -633,7 +678,7 @@ export default function DashboardScreen({ navigation }) {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => navigation.navigate('Program')}
+              onPress={() => navigation.navigate('Training')}
               style={{
                 flex: 1,
                 backgroundColor: colors.card,
@@ -687,6 +732,165 @@ export default function DashboardScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
+          {/* Banner Reklam */}
+          <View style={{ 
+            marginTop: spacing.lg,
+            marginBottom: spacing.lg,
+            alignItems: 'center',
+            backgroundColor: colors.card,
+            borderRadius: 16,
+            overflow: 'hidden',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: colors.background === '#FFFFFF' ? 0.1 : 0,
+            shadowRadius: 4,
+            elevation: colors.background === '#FFFFFF' ? 2 : 0
+          }}>
+            <AdBanner />
+          </View>
+
+          {/* Dashboard İstatistikleri - Güç Takibi */}
+          {(() => {
+            const exercises = getGroupedStrengthData();
+            console.log('📊 Dashboard İstatistikleri:', {
+              exerciseCount: exercises.length,
+              exercises: exercises.map(e => e.name),
+              allData: exercises
+            });
+            return exercises.length > 0;
+          })() && (
+            <View style={{ 
+              marginTop: spacing.lg,
+              marginBottom: spacing.lg
+            }}>
+              <Text style={{ 
+                color: colors.text, 
+                fontSize: 18, 
+                fontWeight: '700',
+                marginBottom: spacing.md,
+                paddingHorizontal: spacing.lg
+              }}>
+                📊 Dashboard İstatistikleri
+              </Text>
+              
+              {(() => {
+                const groupedExercises = getGroupedStrengthData();
+                
+                const renderExerciseCard = ({ item, index }) => {
+                  return (
+                    <View style={{
+                      width: screenWidth - 80,
+                      paddingHorizontal: spacing.sm,
+                      alignItems: 'center'
+                    }}>
+                      <View style={{
+                        width: '100%',
+                        backgroundColor: colors.card,
+                        borderRadius: 16,
+                        padding: spacing.lg,
+                        alignItems: 'center',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 4,
+                        elevation: 3,
+                        borderWidth: 1,
+                        borderColor: colors.border
+                      }}>
+                        {/* Egzersiz Adı */}
+                        <Text style={{ 
+                          color: colors.text, 
+                          fontSize: 18, 
+                          fontWeight: '700',
+                          marginBottom: spacing.lg
+                        }}>
+                          🏋️ {item.name}
+                        </Text>
+                        
+                        {/* İstatistikler Grid */}
+                        <View style={{
+                          flexDirection: 'row',
+                          flexWrap: 'wrap',
+                          justifyContent: 'space-between',
+                          width: '100%',
+                          gap: spacing.sm
+                        }}>
+                          <View style={{ width: '48%', alignItems: 'center', marginBottom: spacing.sm }}>
+                            <Text style={{ color: colors.textMuted, fontSize: 11, marginBottom: 2 }}>En Yüksek</Text>
+                            <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '700' }}>
+                              {item.maxWeight}kg
+                            </Text>
+                          </View>
+                          
+                          <View style={{ width: '48%', alignItems: 'center', marginBottom: spacing.sm }}>
+                            <Text style={{ color: colors.textMuted, fontSize: 11, marginBottom: 2 }}>İlk Kayıt</Text>
+                            <Text style={{ color: colors.purple, fontSize: 16, fontWeight: '700' }}>
+                              {item.history[0]?.weight}kg
+                            </Text>
+                          </View>
+                          
+                          <View style={{ width: '48%', alignItems: 'center', marginBottom: spacing.sm }}>
+                            <Text style={{ color: colors.textMuted, fontSize: 11, marginBottom: 2 }}>Toplam Kayıt</Text>
+                            <Text style={{ color: colors.purple, fontSize: 16, fontWeight: '700' }}>
+                              {item.history.length}
+                            </Text>
+                          </View>
+                          
+                          <View style={{ width: '48%', alignItems: 'center', marginBottom: spacing.sm }}>
+                            <Text style={{ color: colors.textMuted, fontSize: 11, marginBottom: 2 }}>Değişim</Text>
+                            <Text style={{ 
+                              color: (item.history[item.history.length - 1]?.weight - item.history[0]?.weight) >= 0 
+                                ? colors.success : colors.error, 
+                              fontSize: 16, 
+                              fontWeight: '700' 
+                            }}>
+                              {(item.history[item.history.length - 1]?.weight - item.history[0]?.weight) >= 0 ? '+' : ''}
+                              {(item.history[item.history.length - 1]?.weight - item.history[0]?.weight).toFixed(1)}kg
+                            </Text>
+                          </View>
+                          
+                          <View style={{ width: '48%', alignItems: 'center', marginBottom: spacing.sm }}>
+                            <Text style={{ color: colors.textMuted, fontSize: 11, marginBottom: 2 }}>Son Ağırlık</Text>
+                            <Text style={{ color: colors.warning, fontSize: 16, fontWeight: '700' }}>
+                              {item.history[item.history.length - 1]?.weight}kg
+                            </Text>
+                          </View>
+                          
+                          <View style={{ width: '48%', alignItems: 'center', marginBottom: spacing.sm }}>
+                            <Text style={{ color: colors.textMuted, fontSize: 11, marginBottom: 2 }}>İlerleme</Text>
+                            <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '700' }}>
+                              {item.history.length > 1 ? 
+                                (((item.history[item.history.length - 1]?.weight - item.history[0]?.weight) / item.history[0]?.weight) * 100).toFixed(1) + '%' 
+                                : '0.0%'
+                              }
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                };
+                
+                return (
+                  <FlatList
+                    data={groupedExercises}
+                    renderItem={renderExerciseCard}
+                    keyExtractor={(item, index) => `exercise-${index}`}
+                    horizontal
+                    showsHorizontalScrollIndicator={true}
+                    snapToInterval={screenWidth - 60}
+                    snapToAlignment="start"
+                    decelerationRate="fast"
+                    pagingEnabled={false}
+                    contentContainerStyle={{ paddingHorizontal: spacing.sm }}
+                    style={{ height: 280 }}
+                    ItemSeparatorComponent={() => <View style={{ width: spacing.md }} />}
+                  />
+                );
+              })()}
+            </View>
+          )}
+
           {/* Motivasyon Sözü */}
           <Card style={{ 
             marginTop: spacing.lg,
@@ -714,32 +918,6 @@ export default function DashboardScreen({ navigation }) {
             </Text>
           </Card>
 
-          {/* AdMob Banner Reklam */}
-          {BannerAd && BannerAdSize && (
-            <View style={{ 
-              marginTop: spacing.lg,
-              alignItems: 'center',
-              backgroundColor: colors.card,
-              borderRadius: 16,
-              overflow: 'hidden',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: colors.background === '#FFFFFF' ? 0.1 : 0,
-              shadowRadius: 4,
-              elevation: colors.background === '#FFFFFF' ? 2 : 0
-            }}>
-              <BannerAd
-                unitId={adUnitId}
-                size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-                requestOptions={{
-                  requestNonPersonalizedAdsOnly: true,
-                }}
-                onAdFailedToLoad={(error) => {
-                  console.log('Banner reklam yüklenemedi:', error);
-                }}
-              />
-            </View>
-          )}
 
         </ScrollView>
       </SafeAreaView>

@@ -36,25 +36,25 @@ export const ThemeProvider = ({ children }) => {
   };
 
   const darkColors = {
-    background: '#000000',
-    backgroundAlt: '#111111',
-    card: '#1A1A1A',
+    background: '#1E1E2F',
+    backgroundAlt: '#171725',
+    card: '#24243A',
     text: '#FFFFFF',
-    textMuted: '#A3A3A3',
-    primary: '#FF6B35',
-    primaryAlt: '#FF8A5C',
-    secondary: '#FF6B35',
-    success: '#34D399',
-    warning: '#FBBF24',
-    error: '#F87171',
-    danger: '#F87171',
-    info: '#FF6B35',
-    purple: '#FF6B35',
+    textMuted: '#B3B3B3',
+    primary: '#FF7A00',
+    primaryAlt: '#FF9A3D',
+    secondary: '#00C6FF',
+    success: '#00D084',
+    warning: '#FFD700',
+    error: '#FF4757',
+    danger: '#FF4757',
+    info: '#7B68EE',
+    purple: '#9B59B6',
     border: 'rgba(255,255,255,0.1)',
-    tabBarBackground: '#000000',
+    tabBarBackground: '#1E1E2F',
     tabBarBorder: 'rgba(255,255,255,0.1)',
-    accent: '#FF6B35',
-    gradient: ['#000000', '#111111']
+    accent: '#FF7A00',
+    gradient: ['#1E1E2F', '#171725']
   };
 
   const colors = isDarkMode ? darkColors : lightColors;

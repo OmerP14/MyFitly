@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Text, View, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,6 +23,12 @@ export default function RegisterScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
+  
+  // TextInput refs
+  const nameRef = useRef(null);
+  const emailRef = useRef(null);
+  const passwordRef = useRef(null);
+  const confirmPasswordRef = useRef(null);
 
   const handleRegister = async () => {
     if (!name || !email || !password || !confirmPassword) {
@@ -106,6 +112,7 @@ export default function RegisterScreen({ navigation }) {
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
           <ScrollView 
             contentContainerStyle={{ 
@@ -114,6 +121,9 @@ export default function RegisterScreen({ navigation }) {
               padding: spacing.xl 
             }}
             keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            scrollEventThrottle={16}
           >
             {/* Logo ve Başlık */}
             <View style={{ alignItems: 'center', marginBottom: spacing.xl }}>
@@ -184,11 +194,26 @@ export default function RegisterScreen({ navigation }) {
               }}>
                 <Ionicons name="person-outline" size={20} color={colors.textMuted} />
                 <TextInput
+                  ref={nameRef}
                   value={name}
                   onChangeText={setName}
                   placeholder={t.name_placeholder || 'Full name'}
                   placeholderTextColor={colors.textMuted}
                   autoCapitalize="words"
+                  autoComplete="off"
+                  autoCorrect={false}
+                  textContentType="none"
+                  importantForAutofill="no"
+                  enablesReturnKeyAutomatically={false}
+                  clearButtonMode="never"
+                  spellCheck={false}
+                  dataDetectorTypes="none"
+                  returnKeyType="next"
+                  onSubmitEditing={() => {
+                    setTimeout(() => emailRef.current?.focus(), 100);
+                  }}
+                  blurOnSubmit={false}
+                  keyboardType="default"
                   style={{
                     flex: 1,
                     color: colors.text,
@@ -221,6 +246,7 @@ export default function RegisterScreen({ navigation }) {
               }}>
                 <Ionicons name="mail-outline" size={20} color={colors.textMuted} />
                 <TextInput
+                  ref={emailRef}
                   value={email}
                   onChangeText={setEmail}
                   placeholder={t.email_placeholder || 'you@example.com'}
@@ -231,6 +257,15 @@ export default function RegisterScreen({ navigation }) {
                   autoComplete="off"
                   textContentType="none"
                   importantForAutofill="no"
+                  enablesReturnKeyAutomatically={false}
+                  clearButtonMode="never"
+                  spellCheck={false}
+                  dataDetectorTypes="none"
+                  returnKeyType="next"
+                  onSubmitEditing={() => {
+                    setTimeout(() => passwordRef.current?.focus(), 100);
+                  }}
+                  blurOnSubmit={false}
                   style={{
                     flex: 1,
                     color: colors.text,
@@ -263,6 +298,7 @@ export default function RegisterScreen({ navigation }) {
               }}>
                 <Ionicons name="lock-closed-outline" size={20} color={colors.textMuted} />
                 <TextInput
+                  ref={passwordRef}
                   value={password}
                   onChangeText={setPassword}
                   placeholder={t.password_placeholder || 'At least 6 characters'}
@@ -275,12 +311,16 @@ export default function RegisterScreen({ navigation }) {
                   passwordRules=""
                   keyboardType="default"
                   importantForAutofill="no"
+                  enablesReturnKeyAutomatically={false}
                   clearButtonMode="never"
                   spellCheck={false}
                   dataDetectorTypes="none"
                   multiline={false}
                   blurOnSubmit={false}
-                  returnKeyType="done"
+                  returnKeyType="next"
+                  onSubmitEditing={() => {
+                    setTimeout(() => confirmPasswordRef.current?.focus(), 100);
+                  }}
                   editable={true}
                   selectTextOnFocus={false}
                   style={{
@@ -322,6 +362,7 @@ export default function RegisterScreen({ navigation }) {
               }}>
                 <Ionicons name="lock-closed-outline" size={20} color={colors.textMuted} />
                 <TextInput
+                  ref={confirmPasswordRef}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   placeholder={t.confirm_password_placeholder || 'Re-enter your password'}
@@ -334,12 +375,14 @@ export default function RegisterScreen({ navigation }) {
                   passwordRules=""
                   keyboardType="default"
                   importantForAutofill="no"
+                  enablesReturnKeyAutomatically={false}
                   clearButtonMode="never"
                   spellCheck={false}
                   dataDetectorTypes="none"
                   multiline={false}
                   blurOnSubmit={false}
                   returnKeyType="done"
+                  onSubmitEditing={handleRegister}
                   editable={true}
                   selectTextOnFocus={false}
                   style={{

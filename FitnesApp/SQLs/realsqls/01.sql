@@ -37,23 +37,45 @@ DROP TABLE IF EXISTS users CASCADE;
 -- ============================================
 
 -- Users tablosu (Supabase Auth ile entegre)
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT,
   name TEXT DEFAULT 'Kullanıcı',
+  display_name TEXT DEFAULT 'Kullanıcı',
   age INTEGER,
   height INTEGER,
   current_weight DECIMAL(5,2),
   target_weight DECIMAL(5,2),
   profile_photo_url TEXT,
+  preferred_language VARCHAR(5) DEFAULT 'tr',
   is_dark_mode BOOLEAN DEFAULT true,
   notifications_enabled BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Mevcut users tablosuna display_name sütunu ekle (eğer yoksa)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'users' 
+    AND column_name = 'display_name'
+  ) THEN
+    ALTER TABLE users ADD COLUMN display_name TEXT DEFAULT 'Kullanıcı';
+    RAISE NOTICE '✅ display_name sütunu eklendi';
+  ELSE
+    RAISE NOTICE 'ℹ️ display_name sütunu zaten mevcut';
+  END IF;
+END $$;
+
+-- Mevcut kayıtlarda display_name'i name ile doldur
+UPDATE users 
+SET display_name = name 
+WHERE display_name IS NULL OR display_name = 'Kullanıcı';
+
 -- Exercises tablosu
-CREATE TABLE exercises (
+CREATE TABLE IF NOT EXISTS exercises (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   program_id UUID,
@@ -64,23 +86,55 @@ CREATE TABLE exercises (
   category TEXT DEFAULT 'Üst Vücut',
   day_of_week INTEGER NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6),
   is_completed BOOLEAN DEFAULT false,
+  is_deleted BOOLEAN DEFAULT false,
   completed_at TIMESTAMP WITH TIME ZONE,
   order_index INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Mevcut exercises tablosuna is_deleted sütunu ekle (eğer yoksa)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'exercises' 
+    AND column_name = 'is_deleted'
+  ) THEN
+    ALTER TABLE exercises ADD COLUMN is_deleted BOOLEAN DEFAULT false;
+    RAISE NOTICE '✅ exercises.is_deleted sütunu eklendi';
+  ELSE
+    RAISE NOTICE 'ℹ️ exercises.is_deleted sütunu zaten mevcut';
+  END IF;
+END $$;
+
 -- Workout Programs tablosu
-CREATE TABLE workout_programs (
+CREATE TABLE IF NOT EXISTS workout_programs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   description TEXT,
   is_custom BOOLEAN DEFAULT false,
   is_active BOOLEAN DEFAULT true,
+  is_deleted BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Mevcut workout_programs tablosuna is_deleted sütunu ekle (eğer yoksa)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'workout_programs' 
+    AND column_name = 'is_deleted'
+  ) THEN
+    ALTER TABLE workout_programs ADD COLUMN is_deleted BOOLEAN DEFAULT false;
+    RAISE NOTICE '✅ workout_programs.is_deleted sütunu eklendi';
+  ELSE
+    RAISE NOTICE 'ℹ️ workout_programs.is_deleted sütunu zaten mevcut';
+  END IF;
+END $$;
 
 -- Workout Sessions tablosu
 CREATE TABLE workout_sessions (
@@ -119,26 +173,6 @@ CREATE TABLE strength_tracking (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Motivation Quotes tablosu
--- KALDIRILDI: motivasyon sozleri artik veritabaninda tutulmuyor
--- CREATE TABLE motivation_quotes (
---   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
---   quote_text TEXT NOT NULL,
---   author TEXT,
---   category TEXT DEFAULT 'general',
---   is_active BOOLEAN DEFAULT true,
---   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
--- );
-
--- User Favorite Quotes tablosu
--- KALDIRILDI: favoriler ozelligi kaldirildi
--- CREATE TABLE user_favorite_quotes (
---   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
---   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
---   quote_id UUID REFERENCES motivation_quotes(id) ON DELETE CASCADE,
---   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
---   UNIQUE(user_id, quote_id)
--- );
 
 -- ============================================
 -- ADIM 3: INDEX'LER

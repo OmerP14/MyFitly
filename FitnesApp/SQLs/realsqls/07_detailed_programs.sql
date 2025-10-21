@@ -3,10 +3,59 @@
 -- Tüm egzersizler detaylı ve düzenli
 -- ============================================
 
--- Önce mevcut programları temizle (eğer varsa)
-DELETE FROM template_exercises;
-DELETE FROM template_program_days;
-DELETE FROM template_programs;
+-- Template tablolarını oluştur
+CREATE TABLE IF NOT EXISTS template_programs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    description TEXT,
+    level TEXT,
+    program_type TEXT,
+    days_per_week INTEGER,
+    duration_weeks INTEGER,
+    estimated_calories_per_session INTEGER,
+    icon_emoji TEXT,
+    color_hex TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Mevcut template_programs tablosuna is_active sütunu ekle (eğer yoksa)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'template_programs' 
+    AND column_name = 'is_active'
+  ) THEN
+    ALTER TABLE template_programs ADD COLUMN is_active BOOLEAN DEFAULT true;
+    RAISE NOTICE '✅ template_programs.is_active sütunu eklendi';
+  ELSE
+    RAISE NOTICE 'ℹ️ template_programs.is_active sütunu zaten mevcut';
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS template_program_days (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    template_program_id UUID REFERENCES template_programs(id) ON DELETE CASCADE,
+    day_number INTEGER NOT NULL,
+    day_name TEXT,
+    description TEXT,
+    estimated_duration_minutes INTEGER,
+    estimated_calories INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS template_exercises (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    template_program_day_id UUID REFERENCES template_program_days(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    sets INTEGER,
+    reps TEXT,
+    weight TEXT,
+    category TEXT,
+    order_index INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
 -- ============================================
 -- 🟢 BAŞLANGIÇ SEVİYESİ (6 Program)
@@ -22,14 +71,14 @@ SELECT id, 1, 'Pazartesi', 'EN: Jumping Jacks, Bodyweight Squat, Mountain Climbe
 UNION ALL SELECT id, 2, 'Çarşamba', 'EN: High Knees, Lunges, Push Up (modifiye), Glute Bridge, Shoulder Tap. TR: High Knees, Lunges, Push Up (modifiye), Glute Bridge, Shoulder Tap.', 40, 280 FROM prog
 UNION ALL SELECT id, 3, 'Cuma', 'EN: Jump Rope, Squat to Calf Raise, Mountain Climber, Side Plank. TR: İp Atlama, Squat to Calf Raise, Mountain Climber, Side Plank.', 35, 280 FROM prog;
 
-WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'HIIT Starter Blaze') LIMIT 1)
+WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'HIIT Starter Blaze' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Jumping Jacks', 3, '30 sn', 'bodyweight', 'Cardio', 1 FROM d1
 UNION ALL SELECT id, 'Bodyweight Squat', 3, '15', '0 kg', 'Alt Vücut', 2 FROM d1
 UNION ALL SELECT id, 'Mountain Climber', 3, '20 sn', 'bodyweight', 'Core', 3 FROM d1
 UNION ALL SELECT id, 'Plank', 3, '20 sn', 'bodyweight', 'Core', 4 FROM d1;
 
-WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'HIIT Starter Blaze') LIMIT 1)
+WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'HIIT Starter Blaze' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'High Knees', 3, '30 sn', 'bodyweight', 'Cardio', 1 FROM d2
 UNION ALL SELECT id, 'Lunges', 3, '10/bacak', '0-4 kg', 'Alt Vücut', 2 FROM d2
@@ -37,7 +86,7 @@ UNION ALL SELECT id, 'Push Up (modifiye)', 3, '10', 'bodyweight', 'Üst Vücut',
 UNION ALL SELECT id, 'Glute Bridge', 3, '12', 'bodyweight', 'Alt Vücut', 4 FROM d2
 UNION ALL SELECT id, 'Shoulder Tap', 3, '20 sn', 'bodyweight', 'Core', 5 FROM d2;
 
-WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'HIIT Starter Blaze') LIMIT 1)
+WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'HIIT Starter Blaze' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Jump Rope', 3, '30 sn', 'bodyweight', 'Cardio', 1 FROM d3
 UNION ALL SELECT id, 'Squat to Calf Raise', 3, '12', '0 kg', 'Alt Vücut', 2 FROM d3
@@ -54,21 +103,21 @@ SELECT id, 1, 'Pazartesi', 'EN: Full body strength. TR: Tüm vücut kuvvet.', 45
 UNION ALL SELECT id, 2, 'Çarşamba', 'EN: Basic compounds. TR: Temel hareketler.', 45, 300 FROM prog
 UNION ALL SELECT id, 3, 'Cuma', 'EN: Lower + upper. TR: Alt + üst vücut.', 45, 300 FROM prog;
 
-WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Base Power Builder') LIMIT 1)
+WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Base Power Builder' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Goblet Squat', 3, '12', '12 kg', 'Alt Vücut', 1 FROM d1
 UNION ALL SELECT id, 'Dumbbell Bench Press', 3, '12', '10 kg × 2', 'Üst Vücut', 2 FROM d1
 UNION ALL SELECT id, 'Lat Pulldown', 3, '12', '30 kg', 'Üst Vücut', 3 FROM d1
 UNION ALL SELECT id, 'Plank', 3, '30 sn', 'bodyweight', 'Core', 4 FROM d1;
 
-WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Base Power Builder') LIMIT 1)
+WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Base Power Builder' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Bodyweight Squat', 3, '15', 'bodyweight', 'Alt Vücut', 1 FROM d2
 UNION ALL SELECT id, 'Push Up', 3, '10', 'bodyweight', 'Üst Vücut', 2 FROM d2
 UNION ALL SELECT id, 'Seated Row', 3, '12', '25 kg', 'Üst Vücut', 3 FROM d2
 UNION ALL SELECT id, 'Crunch', 3, '15', 'bodyweight', 'Core', 4 FROM d2;
 
-WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Base Power Builder') LIMIT 1)
+WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Base Power Builder' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Lunges', 3, '12', '5 kg × 2', 'Alt Vücut', 1 FROM d3
 UNION ALL SELECT id, 'Shoulder Press', 3, '12', '8 kg × 2', 'Üst Vücut', 2 FROM d3
@@ -85,19 +134,19 @@ SELECT id, 1, 'Pazartesi', 'EN: Push focused. TR: İtme odaklı.', 40, 270 FROM 
 UNION ALL SELECT id, 2, 'Çarşamba', 'EN: Pull focused. TR: Çekme odaklı.', 40, 270 FROM prog
 UNION ALL SELECT id, 3, 'Cuma', 'EN: Upper + core. TR: Üst vücut + core.', 40, 270 FROM prog;
 
-WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Upper Sculpt Starter') LIMIT 1)
+WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Upper Sculpt Starter' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Push Up', 3, '10', 'bodyweight', 'Üst Vücut', 1 FROM d1
 UNION ALL SELECT id, 'Shoulder Press', 3, '12', '8 kg × 2', 'Üst Vücut', 2 FROM d1
 UNION ALL SELECT id, 'Plank', 3, '30 sn', 'bodyweight', 'Core', 3 FROM d1;
 
-WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Upper Sculpt Starter') LIMIT 1)
+WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Upper Sculpt Starter' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Dumbbell Row', 3, '12', '10 kg × 2', 'Üst Vücut', 1 FROM d2
 UNION ALL SELECT id, 'Dumbbell Curl', 3, '12', '6-8 kg', 'Üst Vücut', 2 FROM d2
 UNION ALL SELECT id, 'Side Plank', 3, '30 sn', 'bodyweight', 'Core', 3 FROM d2;
 
-WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Upper Sculpt Starter') LIMIT 1)
+WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Upper Sculpt Starter' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Lat Pulldown', 3, '12', '30 kg', 'Üst Vücut', 1 FROM d3
 UNION ALL SELECT id, 'Crunch', 3, '15', 'bodyweight', 'Core', 2 FROM d3
@@ -114,21 +163,21 @@ SELECT id, 1, 'Pazartesi', 'EN: Basic lower body. TR: Temel alt vücut.', 45, 29
 UNION ALL SELECT id, 2, 'Çarşamba', 'EN: Glute focused. TR: Kalça odaklı.', 45, 290 FROM prog
 UNION ALL SELECT id, 3, 'Cuma', 'EN: Lower + cardio. TR: Alt vücut + kardiyo.', 45, 290 FROM prog;
 
-WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Lower Shape Lite') LIMIT 1)
+WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Lower Shape Lite' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Bodyweight Squat', 3, '15', 'bodyweight', 'Alt Vücut', 1 FROM d1
 UNION ALL SELECT id, 'Lunges', 3, '12', '0-5 kg', 'Alt Vücut', 2 FROM d1
 UNION ALL SELECT id, 'Glute Bridge', 3, '12', 'bodyweight', 'Alt Vücut', 3 FROM d1
 UNION ALL SELECT id, 'Calf Raise', 3, '15', 'bodyweight', 'Alt Vücut', 4 FROM d1;
 
-WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Lower Shape Lite') LIMIT 1)
+WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Lower Shape Lite' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Step Up', 3, '10/bacak', '0 kg', 'Alt Vücut', 1 FROM d2
 UNION ALL SELECT id, 'Side Lunge', 3, '12', '0 kg', 'Alt Vücut', 2 FROM d2
 UNION ALL SELECT id, 'Wall Sit', 3, '30 sn', 'bodyweight', 'Alt Vücut', 3 FROM d2
 UNION ALL SELECT id, 'Plank', 3, '30 sn', 'bodyweight', 'Core', 4 FROM d2;
 
-WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Lower Shape Lite') LIMIT 1)
+WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Lower Shape Lite' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Sumo Squat', 3, '12', '8 kg', 'Alt Vücut', 1 FROM d3
 UNION ALL SELECT id, 'Hip Thrust', 3, '12', '10 kg', 'Alt Vücut', 2 FROM d3
@@ -145,21 +194,21 @@ SELECT id, 1, 'Pazartesi', 'EN: Core + cardio mix. TR: Core + kardiyo karışım
 UNION ALL SELECT id, 2, 'Çarşamba', 'EN: Core stability. TR: Core stabilite.', 35, 250 FROM prog
 UNION ALL SELECT id, 3, 'Cuma', 'EN: Core endurance. TR: Core dayanıklılık.', 35, 250 FROM prog;
 
-WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Core Burn Basic') LIMIT 1)
+WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Core Burn Basic' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Jumping Jack', 3, '30 sn', 'bodyweight', 'Cardio', 1 FROM d1
 UNION ALL SELECT id, 'Crunch', 3, '15', 'bodyweight', 'Core', 2 FROM d1
 UNION ALL SELECT id, 'Leg Raise', 3, '12', 'bodyweight', 'Core', 3 FROM d1
 UNION ALL SELECT id, 'Plank', 3, '30 sn', 'bodyweight', 'Core', 4 FROM d1;
 
-WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Core Burn Basic') LIMIT 1)
+WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Core Burn Basic' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'March in Place', 3, '1 dk', 'bodyweight', 'Cardio', 1 FROM d2
 UNION ALL SELECT id, 'Side Crunch', 3, '15', 'bodyweight', 'Core', 2 FROM d2
 UNION ALL SELECT id, 'Glute Bridge', 3, '12', 'bodyweight', 'Alt Vücut', 3 FROM d2
 UNION ALL SELECT id, 'Mountain Climber', 3, '20 sn', 'bodyweight', 'Core', 4 FROM d2;
 
-WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Core Burn Basic') LIMIT 1)
+WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Core Burn Basic' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'High Knees', 3, '30 sn', 'bodyweight', 'Cardio', 1 FROM d3
 UNION ALL SELECT id, 'Flutter Kicks', 3, '20 sn', 'bodyweight', 'Core', 2 FROM d3
@@ -176,21 +225,21 @@ SELECT id, 1, 'Pazartesi', 'EN: Hip mobility. TR: Kalça mobilitesi.', 30, 200 F
 UNION ALL SELECT id, 2, 'Çarşamba', 'EN: Full body stretch. TR: Tüm vücut esneme.', 30, 200 FROM prog
 UNION ALL SELECT id, 3, 'Cuma', 'EN: Deep stretch. TR: Derin esneme.', 30, 200 FROM prog;
 
-WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Flex Flow Start') LIMIT 1)
+WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Flex Flow Start' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Hip Opener Stretch', 3, '30 sn', 'bodyweight', 'Esneme', 1 FROM d1
 UNION ALL SELECT id, 'Cat-Cow', 3, '30 sn', 'bodyweight', 'Esneme', 2 FROM d1
 UNION ALL SELECT id, 'Side Bend', 3, '20 sn', 'bodyweight', 'Esneme', 3 FROM d1
 UNION ALL SELECT id, 'Downward Dog', 3, '30 sn', 'bodyweight', 'Esneme', 4 FROM d1;
 
-WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Flex Flow Start') LIMIT 1)
+WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Flex Flow Start' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Hip Flexor Stretch', 3, '30 sn', 'bodyweight', 'Esneme', 1 FROM d2
 UNION ALL SELECT id, 'Shoulder Stretch', 3, '30 sn', 'bodyweight', 'Esneme', 2 FROM d2
 UNION ALL SELECT id, 'Bird Dog', 3, '20 sn', 'bodyweight', 'Core', 3 FROM d2
 UNION ALL SELECT id, 'Child''s Pose', 3, '30 sn', 'bodyweight', 'Esneme', 4 FROM d2;
 
-WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Flex Flow Start') LIMIT 1)
+WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Flex Flow Start' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Standing Toe Touch', 3, '20 sn', 'bodyweight', 'Esneme', 1 FROM d3
 UNION ALL SELECT id, 'Seated Twist', 3, '20 sn', 'bodyweight', 'Esneme', 2 FROM d3
@@ -213,28 +262,28 @@ UNION ALL SELECT id, 2, 'Salı', 'EN: Power day. TR: Güç günü.', 60, 400 FRO
 UNION ALL SELECT id, 3, 'Perşembe', 'EN: Hypertrophy. TR: Hipertrofi.', 55, 400 FROM prog
 UNION ALL SELECT id, 4, 'Cuma', 'EN: HIIT finisher. TR: HIIT bitirici.', 50, 400 FROM prog;
 
-WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Hybrid Strength 1.0') LIMIT 1)
+WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Hybrid Strength 1.0' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Barbell Squat', 4, '8', '50-70 kg', 'Alt Vücut', 1 FROM d1
 UNION ALL SELECT id, 'Bench Press', 4, '8', '40-60 kg', 'Üst Vücut', 2 FROM d1
 UNION ALL SELECT id, 'Lat Pulldown', 4, '10', '40 kg', 'Üst Vücut', 3 FROM d1
 UNION ALL SELECT id, 'Plank', 4, '45 sn', 'bodyweight', 'Core', 4 FROM d1;
 
-WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Salı' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Hybrid Strength 1.0') LIMIT 1)
+WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Salı' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Hybrid Strength 1.0' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Deadlift', 4, '8', '60-80 kg', 'Alt Vücut', 1 FROM d2
 UNION ALL SELECT id, 'Shoulder Press', 4, '10', '25 kg', 'Üst Vücut', 2 FROM d2
 UNION ALL SELECT id, 'Seated Row', 4, '10', '35 kg', 'Üst Vücut', 3 FROM d2
 UNION ALL SELECT id, 'Leg Raise', 3, '15', 'bodyweight', 'Core', 4 FROM d2;
 
-WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Perşembe' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Hybrid Strength 1.0') LIMIT 1)
+WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Perşembe' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Hybrid Strength 1.0' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Lunges', 4, '12', '10 kg × 2', 'Alt Vücut', 1 FROM d3
 UNION ALL SELECT id, 'Push Up', 4, '15', 'bodyweight', 'Üst Vücut', 2 FROM d3
 UNION ALL SELECT id, 'Dumbbell Curl', 4, '12', '10 kg', 'Üst Vücut', 3 FROM d3
 UNION ALL SELECT id, 'Side Plank', 3, '45 sn', 'bodyweight', 'Core', 4 FROM d3;
 
-WITH d4 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Hybrid Strength 1.0') LIMIT 1)
+WITH d4 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Hybrid Strength 1.0' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Jump Rope', 3, '1 dk', 'bodyweight', 'Cardio', 1 FROM d4
 UNION ALL SELECT id, 'Burpees', 3, '15', 'bodyweight', 'Cardio', 2 FROM d4
@@ -251,21 +300,21 @@ SELECT id, 1, 'Pazartesi (Push)', 'EN: Push day. TR: İtme günü.', 60, 420 FRO
 UNION ALL SELECT id, 2, 'Çarşamba (Pull)', 'EN: Pull day. TR: Çekme günü.', 60, 420 FROM prog
 UNION ALL SELECT id, 3, 'Cuma (Legs)', 'EN: Legs day. TR: Bacak günü.', 60, 420 FROM prog;
 
-WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi (Push)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Push Pull Boost') LIMIT 1)
+WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi (Push)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Push Pull Boost' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Bench Press', 4, '8', '40-60 kg', 'Üst Vücut', 1 FROM d1
 UNION ALL SELECT id, 'Shoulder Press', 4, '10', '20-30 kg', 'Üst Vücut', 2 FROM d1
 UNION ALL SELECT id, 'Dips', 3, '12', 'bodyweight', 'Üst Vücut', 3 FROM d1
 UNION ALL SELECT id, 'Push Up', 3, '15', 'bodyweight', 'Üst Vücut', 4 FROM d1;
 
-WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba (Pull)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Push Pull Boost') LIMIT 1)
+WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba (Pull)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Push Pull Boost' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Deadlift', 4, '8', '60-80 kg', 'Alt Vücut', 1 FROM d2
 UNION ALL SELECT id, 'Lat Pulldown', 4, '10', '40-50 kg', 'Üst Vücut', 2 FROM d2
 UNION ALL SELECT id, 'Barbell Curl', 3, '12', '20 kg', 'Üst Vücut', 3 FROM d2
 UNION ALL SELECT id, 'Face Pull', 3, '15', '25 kg', 'Üst Vücut', 4 FROM d2;
 
-WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma (Legs)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Push Pull Boost') LIMIT 1)
+WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma (Legs)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Push Pull Boost' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Squat', 4, '8', '50-70 kg', 'Alt Vücut', 1 FROM d3
 UNION ALL SELECT id, 'Lunges', 3, '12', '10 kg × 2', 'Alt Vücut', 2 FROM d3
@@ -283,28 +332,28 @@ UNION ALL SELECT id, 2, 'Salı (Lower)', 'EN: Lower body. TR: Alt vücut.', 55, 
 UNION ALL SELECT id, 3, 'Perşembe (Upper)', 'EN: Upper body B. TR: Üst vücut B.', 55, 380 FROM prog
 UNION ALL SELECT id, 4, 'Cuma (Lower)', 'EN: Lower body B. TR: Alt vücut B.', 55, 380 FROM prog;
 
-WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi (Upper)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Upper Lower Pro') LIMIT 1)
+WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi (Upper)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Upper Lower Pro' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Bench Press', 4, '8', '50 kg', 'Üst Vücut', 1 FROM d1
 UNION ALL SELECT id, 'Seated Row', 4, '10', '40 kg', 'Üst Vücut', 2 FROM d1
 UNION ALL SELECT id, 'Shoulder Press', 4, '10', '25 kg', 'Üst Vücut', 3 FROM d1
 UNION ALL SELECT id, 'Plank', 3, '45 sn', 'bodyweight', 'Core', 4 FROM d1;
 
-WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Salı (Lower)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Upper Lower Pro') LIMIT 1)
+WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Salı (Lower)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Upper Lower Pro' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Squat', 4, '8', '60 kg', 'Alt Vücut', 1 FROM d2
 UNION ALL SELECT id, 'Leg Press', 4, '10', '100 kg', 'Alt Vücut', 2 FROM d2
 UNION ALL SELECT id, 'Romanian Deadlift', 4, '10', '50 kg', 'Alt Vücut', 3 FROM d2
 UNION ALL SELECT id, 'Calf Raise', 3, '15', 'bodyweight', 'Alt Vücut', 4 FROM d2;
 
-WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Perşembe (Upper)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Upper Lower Pro') LIMIT 1)
+WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Perşembe (Upper)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Upper Lower Pro' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Incline Bench Press', 4, '8', '50 kg', 'Üst Vücut', 1 FROM d3
 UNION ALL SELECT id, 'Lat Pulldown', 4, '10', '40 kg', 'Üst Vücut', 2 FROM d3
 UNION ALL SELECT id, 'Dumbbell Curl', 3, '12', '10 kg', 'Üst Vücut', 3 FROM d3
 UNION ALL SELECT id, 'Side Plank', 3, '30 sn', 'bodyweight', 'Core', 4 FROM d3;
 
-WITH d4 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma (Lower)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Upper Lower Pro') LIMIT 1)
+WITH d4 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma (Lower)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Upper Lower Pro' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Lunges', 4, '12', '10 kg × 2', 'Alt Vücut', 1 FROM d4
 UNION ALL SELECT id, 'Deadlift', 4, '8', '70 kg', 'Alt Vücut', 2 FROM d4
@@ -321,21 +370,21 @@ SELECT id, 1, 'Pazartesi', 'EN: Cardio core mix. TR: Kardiyo core karışım.', 
 UNION ALL SELECT id, 2, 'Çarşamba', 'EN: Core stability. TR: Core stabilite.', 45, 350 FROM prog
 UNION ALL SELECT id, 3, 'Cuma', 'EN: HIIT core. TR: HIIT core.', 45, 350 FROM prog;
 
-WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Cardio Core Storm') LIMIT 1)
+WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Cardio Core Storm' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Jump Rope', 3, '1 dk', 'bodyweight', 'Cardio', 1 FROM d1
 UNION ALL SELECT id, 'Mountain Climber', 3, '30 sn', 'bodyweight', 'Core', 2 FROM d1
 UNION ALL SELECT id, 'Plank', 4, '45 sn', 'bodyweight', 'Core', 3 FROM d1
 UNION ALL SELECT id, 'Russian Twist', 3, '20', 'bodyweight', 'Core', 4 FROM d1;
 
-WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Cardio Core Storm') LIMIT 1)
+WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Cardio Core Storm' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'High Knees', 3, '45 sn', 'bodyweight', 'Cardio', 1 FROM d2
 UNION ALL SELECT id, 'Leg Raise', 3, '15', 'bodyweight', 'Core', 2 FROM d2
 UNION ALL SELECT id, 'Superman Hold', 3, '45 sn', 'bodyweight', 'Core', 3 FROM d2
 UNION ALL SELECT id, 'Bicycle Crunch', 3, '20', 'bodyweight', 'Core', 4 FROM d2;
 
-WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Cardio Core Storm') LIMIT 1)
+WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Cardio Core Storm' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Burpees', 3, '15', 'bodyweight', 'Cardio', 1 FROM d3
 UNION ALL SELECT id, 'Flutter Kicks', 3, '30 sn', 'bodyweight', 'Core', 2 FROM d3
@@ -352,21 +401,21 @@ SELECT id, 1, 'Pazartesi', 'EN: Power movements. TR: Güç hareketleri.', 50, 36
 UNION ALL SELECT id, 2, 'Çarşamba', 'EN: Compound lifts. TR: Çok eklemli.', 50, 360 FROM prog
 UNION ALL SELECT id, 3, 'Cuma', 'EN: Metabolic finisher. TR: Metabolik bitirici.', 50, 360 FROM prog;
 
-WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Functional Warrior') LIMIT 1)
+WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Functional Warrior' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Kettlebell Swing', 3, '15', '12 kg', 'Alt Vücut', 1 FROM d1
 UNION ALL SELECT id, 'Deadlift', 4, '8', '60 kg', 'Alt Vücut', 2 FROM d1
 UNION ALL SELECT id, 'Overhead Press', 3, '10', '25 kg', 'Üst Vücut', 3 FROM d1
 UNION ALL SELECT id, 'Plank', 4, '45 sn', 'bodyweight', 'Core', 4 FROM d1;
 
-WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Functional Warrior') LIMIT 1)
+WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Functional Warrior' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Goblet Squat', 4, '10', '16 kg', 'Alt Vücut', 1 FROM d2
 UNION ALL SELECT id, 'Row', 4, '10', '30 kg', 'Üst Vücut', 2 FROM d2
 UNION ALL SELECT id, 'Push Up', 3, '15', 'bodyweight', 'Üst Vücut', 3 FROM d2
 UNION ALL SELECT id, 'Russian Twist', 3, '20', '5 kg', 'Core', 4 FROM d2;
 
-WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Functional Warrior') LIMIT 1)
+WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Functional Warrior' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Lunges', 4, '12', '10 kg × 2', 'Alt Vücut', 1 FROM d3
 UNION ALL SELECT id, 'Shoulder Press', 4, '10', '20 kg × 2', 'Üst Vücut', 2 FROM d3
@@ -383,21 +432,21 @@ SELECT id, 1, 'Pazartesi', 'EN: HIIT explosion. TR: HIIT patlaması.', 40, 400 F
 UNION ALL SELECT id, 2, 'Çarşamba', 'EN: Cardio strength. TR: Kardiyo güç.', 40, 400 FROM prog
 UNION ALL SELECT id, 3, 'Cuma', 'EN: Full body burn. TR: Tüm vücut yakım.', 40, 400 FROM prog;
 
-WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'HIIT Blaze 2.0') LIMIT 1)
+WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'HIIT Blaze 2.0' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Burpees', 3, '15', 'bodyweight', 'Cardio', 1 FROM d1
 UNION ALL SELECT id, 'Squat Jump', 3, '15', 'bodyweight', 'Alt Vücut', 2 FROM d1
 UNION ALL SELECT id, 'High Knees', 3, '30 sn', 'bodyweight', 'Cardio', 3 FROM d1
 UNION ALL SELECT id, 'Plank', 3, '45 sn', 'bodyweight', 'Core', 4 FROM d1;
 
-WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'HIIT Blaze 2.0') LIMIT 1)
+WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'HIIT Blaze 2.0' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Jump Rope', 3, '1 dk', 'bodyweight', 'Cardio', 1 FROM d2
 UNION ALL SELECT id, 'Lunges', 3, '12', '10 kg × 2', 'Alt Vücut', 2 FROM d2
 UNION ALL SELECT id, 'Push Up', 3, '15', 'bodyweight', 'Üst Vücut', 3 FROM d2
 UNION ALL SELECT id, 'Mountain Climber', 3, '30 sn', 'bodyweight', 'Core', 4 FROM d2;
 
-WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'HIIT Blaze 2.0') LIMIT 1)
+WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'HIIT Blaze 2.0' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Jumping Jack', 3, '30 sn', 'bodyweight', 'Cardio', 1 FROM d3
 UNION ALL SELECT id, 'Squat', 3, '15', '20 kg', 'Alt Vücut', 2 FROM d3
@@ -421,35 +470,35 @@ UNION ALL SELECT id, 3, 'Çarşamba (Legs)', 'EN: Heavy legs. TR: Ağır bacak.'
 UNION ALL SELECT id, 4, 'Cuma (Push B)', 'EN: Push volume. TR: İtme hacmi.', 65, 500 FROM prog
 UNION ALL SELECT id, 5, 'Cumartesi (Pull B)', 'EN: Pull volume. TR: Çekme hacmi.', 65, 500 FROM prog;
 
-WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi (Push)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'PPL Intense') LIMIT 1)
+WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi (Push)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'PPL Intense' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Bench Press', 5, '6', '60-90 kg', 'Üst Vücut', 1 FROM d1
 UNION ALL SELECT id, 'Overhead Press', 4, '8', '30-40 kg', 'Üst Vücut', 2 FROM d1
 UNION ALL SELECT id, 'Dips', 4, '12', 'bodyweight', 'Üst Vücut', 3 FROM d1
 UNION ALL SELECT id, 'Push Up', 3, '20', 'bodyweight', 'Üst Vücut', 4 FROM d1;
 
-WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Salı (Pull)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'PPL Intense') LIMIT 1)
+WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Salı (Pull)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'PPL Intense' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Deadlift', 5, '5', '80-110 kg', 'Alt Vücut', 1 FROM d2
 UNION ALL SELECT id, 'Pull Up', 4, '8', 'bodyweight', 'Üst Vücut', 2 FROM d2
 UNION ALL SELECT id, 'Barbell Row', 4, '10', '50-60 kg', 'Üst Vücut', 3 FROM d2
 UNION ALL SELECT id, 'Face Pull', 3, '15', '30 kg', 'Üst Vücut', 4 FROM d2;
 
-WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba (Legs)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'PPL Intense') LIMIT 1)
+WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Çarşamba (Legs)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'PPL Intense' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Back Squat', 5, '6', '80-100 kg', 'Alt Vücut', 1 FROM d3
 UNION ALL SELECT id, 'Leg Press', 4, '10', '140-180 kg', 'Alt Vücut', 2 FROM d3
 UNION ALL SELECT id, 'Lunges', 3, '12', '15 kg × 2', 'Alt Vücut', 3 FROM d3
 UNION ALL SELECT id, 'Calf Raise', 3, '20', 'bodyweight', 'Alt Vücut', 4 FROM d3;
 
-WITH d4 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma (Push B)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'PPL Intense') LIMIT 1)
+WITH d4 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma (Push B)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'PPL Intense' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Incline Bench Press', 4, '8', '60-80 kg', 'Üst Vücut', 1 FROM d4
 UNION ALL SELECT id, 'Dumbbell Shoulder Press', 4, '10', '20 kg × 2', 'Üst Vücut', 2 FROM d4
 UNION ALL SELECT id, 'Dips', 3, '12', 'bodyweight', 'Üst Vücut', 3 FROM d4
 UNION ALL SELECT id, 'Push Up', 3, '20', 'bodyweight', 'Üst Vücut', 4 FROM d4;
 
-WITH d5 AS (SELECT id FROM template_program_days WHERE day_name = 'Cumartesi (Pull B)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'PPL Intense') LIMIT 1)
+WITH d5 AS (SELECT id FROM template_program_days WHERE day_name = 'Cumartesi (Pull B)' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'PPL Intense' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Romanian Deadlift', 5, '5', '90-110 kg', 'Alt Vücut', 1 FROM d5
 UNION ALL SELECT id, 'Dumbbell Curl', 3, '12', '12 kg', 'Üst Vücut', 2 FROM d5
@@ -467,28 +516,28 @@ UNION ALL SELECT id, 2, 'Salı', 'EN: Strength pull. TR: Güç çekme.', 70, 480
 UNION ALL SELECT id, 3, 'Perşembe', 'EN: Power day. TR: Güç günü.', 65, 480 FROM prog
 UNION ALL SELECT id, 4, 'Cuma', 'EN: HIIT core. TR: HIIT core.', 50, 480 FROM prog;
 
-WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Iron Core Strength') LIMIT 1)
+WITH d1 AS (SELECT id FROM template_program_days WHERE day_name = 'Pazartesi' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Iron Core Strength' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Squat', 5, '5', '90 kg', 'Alt Vücut', 1 FROM d1
 UNION ALL SELECT id, 'Bench Press', 5, '5', '70 kg', 'Üst Vücut', 2 FROM d1
 UNION ALL SELECT id, 'Deadlift', 5, '5', '100 kg', 'Alt Vücut', 3 FROM d1
 UNION ALL SELECT id, 'Plank', 4, '60 sn', 'bodyweight', 'Core', 4 FROM d1;
 
-WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Salı' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Iron Core Strength') LIMIT 1)
+WITH d2 AS (SELECT id FROM template_program_days WHERE day_name = 'Salı' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Iron Core Strength' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Overhead Press', 4, '8', '35 kg', 'Üst Vücut', 1 FROM d2
 UNION ALL SELECT id, 'Pull Up', 4, '10', 'bodyweight', 'Üst Vücut', 2 FROM d2
 UNION ALL SELECT id, 'Barbell Row', 4, '8', '50 kg', 'Üst Vücut', 3 FROM d2
 UNION ALL SELECT id, 'Side Plank', 3, '45 sn', 'bodyweight', 'Core', 4 FROM d2;
 
-WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Perşembe' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Iron Core Strength') LIMIT 1)
+WITH d3 AS (SELECT id FROM template_program_days WHERE day_name = 'Perşembe' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Iron Core Strength' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Front Squat', 4, '8', '70 kg', 'Alt Vücut', 1 FROM d3
 UNION ALL SELECT id, 'Incline Bench Press', 4, '8', '60 kg', 'Üst Vücut', 2 FROM d3
 UNION ALL SELECT id, 'Romanian Deadlift', 4, '10', '80 kg', 'Alt Vücut', 3 FROM d3
 UNION ALL SELECT id, 'Mountain Climber', 3, '30 sn', 'bodyweight', 'Core', 4 FROM d3;
 
-WITH d4 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Iron Core Strength') LIMIT 1)
+WITH d4 AS (SELECT id FROM template_program_days WHERE day_name = 'Cuma' AND template_program_id = (SELECT id FROM template_programs WHERE name = 'Iron Core Strength' LIMIT 1) LIMIT 1)
 INSERT INTO template_exercises (template_program_day_id, name, sets, reps, weight, category, order_index)
 SELECT id, 'Burpees', 3, '20', 'bodyweight', 'Cardio', 1 FROM d4
 UNION ALL SELECT id, 'Jump Rope', 4, '1 dk', 'bodyweight', 'Cardio', 2 FROM d4

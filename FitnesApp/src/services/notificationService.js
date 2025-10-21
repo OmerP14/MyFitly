@@ -16,24 +16,6 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// Motivasyon sözleri listesi
-const motivationQuotes = [
-  { text: "Disiplin > Motivasyon", emoji: "💪" },
-  { text: "Bugün yapmazsanız, yarın yapan birini izlersiniz", emoji: "🔥" },
-  { text: "Başarı, günlük küçük çabaların toplamıdır", emoji: "🎯" },
-  { text: "Ağrı geçicidir, başarı kalıcıdır", emoji: "⚡" },
-  { text: "Hedefine odaklan, sürekli ilerle", emoji: "🚀" },
-  { text: "Senin için mümkün olmayan bir şey yok", emoji: "💯" },
-  { text: "Her gün kendini geliştirmeye devam et", emoji: "📈" },
-  { text: "Zorluklarla büyürsün, rahatlıkla körleşirsin", emoji: "🏋️" },
-  { text: "Başlamak, başarmanın yarısıdır", emoji: "✨" },
-  { text: "İmkansız, denemeyenlerin sözlüğünde yazılı", emoji: "🌟" },
-  { text: "Her tekrar seni hedefe bir adım daha yaklaştırır", emoji: "🎖️" },
-  { text: "Kendinle yarışıyorsun, dünkü halinle", emoji: "⭐" },
-  { text: "Acı geçicidir, vazgeçmek kalıcıdır", emoji: "💥" },
-  { text: "Sınırlarını zorla, sınırların genişlesin", emoji: "🔝" },
-  { text: "Bugün yapacağın antrenman, yarının gücü", emoji: "⚡" }
-];
 
 /**
  * Bildirim izinlerini al
@@ -85,13 +67,6 @@ export const cancelAllNotifications = async () => {
   }
 };
 
-/**
- * Rastgele motivasyon sözü getir
- */
-const getRandomMotivationQuote = () => {
-  const randomIndex = Math.floor(Math.random() * motivationQuotes.length);
-  return motivationQuotes[randomIndex];
-};
 
 /**
  * Antrenman bildirimleri zamanla
@@ -127,13 +102,10 @@ export const scheduleWorkoutNotifications = async (workoutDays = {}, notificatio
       repeats: true
     };
     
-    // Rastgele motivasyon sözü seç (kısa ve öz)
-    const quote = getRandomMotivationQuote();
-    
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
         title: '🏋️ Bugünkü Antrenman',
-        body: `${quote.emoji} ${quote.text}`,
+        body: 'Antrenman zamanı! Hadi başlayalım! 💪',
         sound: 'default',
         priority: Notifications.AndroidNotificationPriority.HIGH,
         vibrate: [0, 250, 250, 250],
@@ -161,58 +133,9 @@ export const scheduleWorkoutNotifications = async (workoutDays = {}, notificatio
   }
 };
 
-/**
- * Motivasyon bildirimleri zamanla (haftada 2-3 tane)
- */
-export const scheduleMotivationNotifications = async () => {
-  try {
-    console.log('✨ Motivasyon bildirimleri zamanlanıyor...');
-    
-    // Haftada 2-3 motivasyon bildirimi (rastgele günler)
-    const motivationDays = [2, 4, 6]; // Salı, Perşembe, Cumartesi
-    const motivationHours = [11, 15, 20]; // 11:00, 15:00, 20:00
-    
-    for (let i = 0; i < motivationDays.length; i++) {
-      const day = motivationDays[i];
-      const hour = motivationHours[i];
-      const quote = getRandomMotivationQuote();
-      
-      const trigger = {
-        weekday: day + 1,
-        hour: hour,
-        minute: 0,
-        repeats: true
-      };
-      
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: `${quote.emoji} Motivasyon`,
-          body: quote.text,
-          sound: 'default',
-          priority: Notifications.AndroidNotificationPriority.DEFAULT,
-          vibrate: [0, 250, 250, 250],
-          data: { 
-            type: 'motivation-quote',
-            quote: quote.text
-          },
-        },
-        trigger,
-      });
-      
-      const dayNames = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
-      console.log(`✨ ${dayNames[day]} ${hour}:00 için motivasyon bildirimi zamanlandı (ID: ${notificationId})`);
-    }
-    
-    console.log('✅ Motivasyon bildirimleri başarıyla eklendi');
-    return true;
-  } catch (error) {
-    console.error('Motivasyon bildirimi zamanlama hatası:', error);
-    return false;
-  }
-};
 
 /**
- * Antrenman günlerini ProgramScreen'den al ve bildirimleri ayarla
+ * Antrenman günlerini TrainingScreen'den al ve bildirimleri ayarla
  * @param {Object} exercises - Günlük egzersiz listesi
  * @param {boolean} enabled - Bildirimler açık mı?
  */
@@ -338,7 +261,6 @@ export default {
   requestNotificationPermissions,
   cancelAllNotifications,
   scheduleWorkoutNotifications,
-  scheduleMotivationNotifications,
   updateWorkoutNotifications,
   setNotificationTime,
   getNotificationTime,

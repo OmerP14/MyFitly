@@ -8,12 +8,9 @@ import { useLanguage } from '../context/LanguageContext';
 import { getTranslations } from '../utils/translations';
 
 import DashboardScreen from '../screens/DashboardScreen';
-import ProgramScreen from '../screens/ProgramScreen';
 import TrainingScreen from '../screens/TrainingScreen';
 import TrackingScreen from '../screens/TrackingScreen';
-import MotivationScreen from '../screens/MotivationScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import WorkoutScreen from '../screens/WorkoutScreen';
 
 const Tab = createBottomTabNavigator();
 export const RootStack = createNativeStackNavigator();
@@ -27,9 +24,7 @@ export function Tabs() {
     let iconName = 'home-outline';
     if (route.name === 'Dashboard') iconName = focused ? 'home' : 'home-outline';
     if (route.name === 'Training') iconName = focused ? 'flash' : 'flash-outline';
-    if (route.name === 'Program') iconName = focused ? 'barbell' : 'barbell-outline';
     if (route.name === 'Tracking') iconName = focused ? 'analytics' : 'analytics-outline';
-    if (route.name === 'Motivation') iconName = focused ? 'flame' : 'flame-outline';
     if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
     
     return (
@@ -95,11 +90,6 @@ export function Tabs() {
         name="Tracking" 
         component={TrackingScreen} 
         options={{ title: t.tracking_tab }}
-      />
-      <Tab.Screen 
-        name="Motivation" 
-        component={MotivationScreen} 
-        options={{ title: t.motivation_tab }}
       />
       <Tab.Screen 
         name="Profile" 

@@ -7,6 +7,7 @@ export const getExercises = async (userId, dayOfWeek = null) => {
       .from('exercises')
       .select('*')
       .eq('user_id', userId)
+      .eq('is_deleted', false) // Deleted olmayan egzersizleri getir
       .order('created_at', { ascending: false });
 
     if (dayOfWeek !== null) {
@@ -63,7 +64,8 @@ export const addExercise = async (userId, exerciseData) => {
       weight: exerciseData.weight,
       category: exerciseData.category,
       day_of_week: exerciseData.dayOfWeek,
-      is_completed: false // Varsayılan olarak tamamlanmamış
+      is_completed: false, // Varsayılan olarak tamamlanmamış
+      is_deleted: false
     };
 
     // program_id varsa ekle
@@ -230,6 +232,7 @@ export const createWeeklyProgram = async (userId, programData) => {
           description: programData.description,
           is_active: true,
           is_custom: true,
+          is_deleted: false,
           created_at: new Date().toISOString()
         }
       ])
@@ -252,7 +255,8 @@ export const createWeeklyProgram = async (userId, programData) => {
             weight: exercise.weight,
             category: exercise.category || 'Genel',
             day_of_week: dayIndex,
-            is_completed: false
+            is_completed: false,
+            is_deleted: false
           });
         });
       }
@@ -282,6 +286,7 @@ export const getUserPrograms = async (userId) => {
       .from('workout_programs')
       .select('*')
       .eq('user_id', userId)
+      .eq('is_deleted', false) // Deleted olmayan programları getir
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -358,6 +363,7 @@ export const createDefaultProgram = async (userId) => {
           description: 'Otomatik oluşturulan varsayılan program',
           is_active: true,
           is_custom: true,
+          is_deleted: false,
           created_at: new Date().toISOString()
         }
       ])
@@ -661,6 +667,7 @@ export const copyTemplateProgramToUser = async (userId, templateProgramId) => {
       .select('id, name, created_at')
       .eq('user_id', userId)
       .eq('is_custom', false)
+      .eq('is_deleted', false) // Deleted olmayan programları kontrol et
       .order('created_at', { ascending: false });
 
     if (checkError) {
@@ -727,6 +734,7 @@ export const copyTemplateProgramToUser = async (userId, templateProgramId) => {
           description: templateProgram.description,
           is_active: true,
           is_custom: false,
+          is_deleted: false,
           created_at: new Date().toISOString()
         }
       ])
@@ -758,7 +766,8 @@ export const copyTemplateProgramToUser = async (userId, templateProgramId) => {
             weight: exercise.weight || '0kg',
             category: exercise.category || 'Üst Vücut',
             day_of_week: day.day_number,
-            is_completed: false
+            is_completed: false,
+            is_deleted: false
           };
           console.log(`    ${idx + 1}. ${exercise.name} - Gün: ${day.day_number}`);
           exercisesToInsert.push(exerciseData);
@@ -822,4 +831,41 @@ export const copyTemplateProgramToUser = async (userId, templateProgramId) => {
 export const addTemplateProgramToUser = async (userId, templateProgramId) => {
   console.log('📋 addTemplateProgramToUser çağrıldı - copyTemplateProgramToUser\'a yönlendiriliyor...');
   return await copyTemplateProgramToUser(userId, templateProgramId);
+};
+
+// Kullanıcı programını kaldır (soft delete - deleted olarak işaretle)
+export const removeUserProgram = async (programId) => {
+  try {
+    console.log('🗑️ Program kullanıcıdan kaldırılıyor, programId:', programId);
+    
+    // Önce programın egzersizlerini deleted olarak işaretle
+    const { error: exercisesError } = await supabase
+      .from('exercises')
+      .update({ is_deleted: true })
+      .eq('program_id', programId);
+    
+    if (exercisesError) {
+      console.error('❌ Egzersizler kaldırılırken hata:', exercisesError);
+      throw exercisesError;
+    }
+    
+    console.log('✅ Program egzersizleri deleted olarak işaretlendi');
+    
+    // Sonra programı deleted olarak işaretle
+    const { error: programError } = await supabase
+      .from('workout_programs')
+      .update({ is_deleted: true })
+      .eq('id', programId);
+    
+    if (programError) {
+      console.error('❌ Program kaldırılırken hata:', programError);
+      throw programError;
+    }
+    
+    console.log('✅ Program başarıyla deleted olarak işaretlendi');
+    return true;
+  } catch (error) {
+    console.error('❌ Program kaldırma hatası:', error);
+    throw error;
+  }
 };

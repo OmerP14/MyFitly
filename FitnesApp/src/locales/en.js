@@ -92,7 +92,7 @@ export default {
   no_exercises: 'No exercises yet',
   add_first_exercise: 'Add your first exercise to get started!',
   
-  // ProgramScreen Specific
+  // TrainingScreen Specific
   all_exercises: 'All',
   add_exercise_to_day: 'Add Exercise to Day',
   edit_exercise: 'Edit Exercise',
@@ -239,7 +239,7 @@ export default {
 
   // Workout
   workout: 'Workout',
-  ready_programs: 'Pre-made Programs',
+  ready_programs: 'Pre-made',
   custom_programs: 'Custom Programs',
   start_workout_session: 'Start Workout Session',
   pause_workout: 'Pause Workout',
@@ -475,6 +475,9 @@ export default {
   exercise_selection: 'Exercise Selection',
   custom_exercise_placeholder: 'Custom exercise name - E.g: Custom Exercise',
   reps_weight_placeholder: 'Reps x Weight - E.g: 8x65kg',
+  weight_only_placeholder: 'Weight - E.g: 65',
+  no_enough_data: 'More data needed for chart',
+  single_record: 'Single record',
   saving: 'Saving...',
   set_target_weight: 'Set Target Weight',
   set_target_strength: 'Set Target Strength',

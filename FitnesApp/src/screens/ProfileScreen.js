@@ -801,7 +801,7 @@ ${t.progress_report_header}
         {/* Photo Selection Modal */}
         <PhotoSelectionModal />
 
-        {/* Edit Profile Modal - ProgramScreen gibi direkt JSX */}
+        {/* Edit Profile Modal - TrainingScreen gibi direkt JSX */}
         <Modal
           visible={showEditModal}
           transparent={true}

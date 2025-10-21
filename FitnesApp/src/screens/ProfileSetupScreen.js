@@ -89,53 +89,65 @@ export default function ProfileSetupScreen() {
           return;
         }
         
-        // INSERT kullan (UPSERT yerine) - daha güvenli
-        console.log('🔄 Profil INSERT ediliyor...');
-        const { data: insertData, error: insertError } = await supabase
+        // Önce kullanıcının var olup olmadığını kontrol et
+        console.log('🔍 Kullanıcı kontrol ediliyor...');
+        const { data: existingUser } = await supabase
           .from('users')
-          .insert({
-            id: session.user.id,
-            email: session.user.email,
-            name: name.trim(),
-            display_name: name.trim(),
-            age: parseInt(age),
-            height: parseInt(height),
-            current_weight: parseFloat(currentWeight),
-            target_weight: parseFloat(targetWeight),
-            preferred_language: language
-          })
-          .select()
+          .select('id')
+          .eq('id', session.user.id)
           .single();
 
-        if (insertError) {
-          console.error('❌ Profil oluşturma hatası:', insertError);
+        let insertData;
+        let insertError = null;
+
+        if (existingUser) {
+          // Kullanıcı zaten varsa UPDATE yap
+          console.log('🔄 Kullanıcı mevcut, profil güncelleniyor...');
+          const { data: updatedUser, error: updateError } = await supabase
+            .from('users')
+            .update({
+              name: name.trim(),
+              display_name: name.trim(),
+              age: parseInt(age),
+              height: parseInt(height),
+              current_weight: parseFloat(currentWeight),
+              target_weight: parseFloat(targetWeight),
+              preferred_language: language,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', session.user.id)
+            .select()
+            .single();
           
-          // Eğer kullanıcı zaten varsa UPDATE dene
-          if (insertError.code === '23505') { // Unique constraint violation
-            console.log('🔄 Kullanıcı zaten mevcut, UPDATE deneniyor...');
-            const { error: updateError } = await supabase
-              .from('users')
-              .update({
-                name: name.trim(),
-                display_name: name.trim(),
-                age: parseInt(age),
-                height: parseInt(height),
-                current_weight: parseFloat(currentWeight),
-                target_weight: parseFloat(targetWeight),
-                preferred_language: language,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', session.user.id);
-              
-            if (updateError) {
-              console.error('❌ Profil güncelleme hatası:', updateError);
-              Alert.alert('Hata', 'Profil güncellenirken bir hata oluştu');
-              return;
-            }
-          } else {
-            Alert.alert('Hata', 'Profil oluşturulurken bir hata oluştu');
-            return;
-          }
+          insertData = updatedUser;
+          insertError = updateError;
+        } else {
+          // Kullanıcı yoksa INSERT yap
+          console.log('➕ Yeni kullanıcı oluşturuluyor...');
+          const { data: newUser, error: newUserError } = await supabase
+            .from('users')
+            .insert({
+              id: session.user.id,
+              email: session.user.email,
+              name: name.trim(),
+              display_name: name.trim(),
+              age: parseInt(age),
+              height: parseInt(height),
+              current_weight: parseFloat(currentWeight),
+              target_weight: parseFloat(targetWeight),
+              preferred_language: language
+            })
+            .select()
+            .single();
+          
+          insertData = newUser;
+          insertError = newUserError;
+        }
+
+        if (insertError) {
+          console.error('❌ Profil işlemi hatası:', insertError);
+          Alert.alert('Hata', 'Profil işlemi sırasında bir hata oluştu');
+          return;
         }
         console.log('✅ Profil başarıyla oluşturuldu/güncellendi');
       } else {

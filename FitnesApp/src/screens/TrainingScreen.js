@@ -13,10 +13,11 @@ import { useLanguage } from '../context/LanguageContext';
 import { getTranslations, translateExerciseName, translateProgramName, translateProgramDescription, translateDayName, translateDayDescription } from '../utils/translations';
 import * as programService from '../services/programService';
 import useRewardedAd from '../hooks/useRewardedAd';
+import { AdBanner } from '../services/adService';
 
 const { width } = Dimensions.get('window');
 
-export default function TrainingScreen({ navigation }) {
+export default function TrainingScreen({ navigation, route }) {
   const { colors } = useTheme();
   const { userData, userId } = useUser();
   const { language } = useLanguage();
@@ -24,9 +25,10 @@ export default function TrainingScreen({ navigation }) {
 
   // State management
   const [activeTab, setActiveTab] = useState('program'); // 'program' or 'workout'
+  const [programSubTab, setProgramSubTab] = useState('premade'); // 'premade' or 'active'
   const [exercises, setExercises] = useState({});
-  const [workoutData, setWorkoutData] = useState({ name: '', exercises: [] });
   const [isLoading, setIsLoading] = useState(true);
+  const [userPrograms, setUserPrograms] = useState([]);
   
   // Program states
   const [selectedDay, setSelectedDay] = useState(new Date().getDay());
@@ -50,21 +52,22 @@ export default function TrainingScreen({ navigation }) {
     dayExercises: {}
   });
 
-  // Workout states
-  const [workoutActiveTab, setWorkoutActiveTab] = useState('active');
-  const [isRunning, setIsRunning] = useState(false);
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const [completedExercises, setCompletedExercises] = useState([]);
-  const [showProgramModal, setShowProgramModal] = useState(false);
-  const [selectedProgram, setSelectedProgram] = useState(null);
+  // Template program states
   const [templatePrograms, setTemplatePrograms] = useState([]);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [showTemplateDetail, setShowTemplateDetail] = useState(false);
   const [templateDetails, setTemplateDetails] = useState([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
 
+  // Workout states
+  const [isRunning, setIsRunning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [completedExercises, setCompletedExercises] = useState([]);
+  const [workoutData, setWorkoutData] = useState({ name: '', exercises: [] });
+
   // Rewarded Ad hook
-  const { loaded: adLoaded, loading: adLoading, showAd } = useRewardedAd();
+  const { loaded: adLoaded, loading: adLoading, showAd, loadAd } = useRewardedAd();
   
   // Reklam durumunu logla
   useEffect(() => {
@@ -78,10 +81,22 @@ export default function TrainingScreen({ navigation }) {
     }, [])
   );
 
+  // Check for auto start workout parameter
+  useEffect(() => {
+    if (route?.params?.autoStartWorkout) {
+      // Switch to workout tab and active programs sub-tab
+      setActiveTab('workout');
+      setProgramSubTab('active');
+      
+      // Clear the parameter to prevent re-triggering
+      navigation.setParams({ autoStartWorkout: undefined });
+    }
+  }, [route?.params?.autoStartWorkout, navigation]);
+
   // Timer effect
   useEffect(() => {
     let interval = null;
-    if (isRunning) {
+    if (isRunning && !isPaused) {
       interval = setInterval(() => {
         setElapsedTime(time => time + 1);
       }, 1000);
@@ -89,7 +104,8 @@ export default function TrainingScreen({ navigation }) {
       clearInterval(interval);
     }
     return () => clearInterval(interval);
-  }, [isRunning, elapsedTime]);
+  }, [isRunning, isPaused, elapsedTime]);
+
 
   const loadTrainingData = async () => {
     try {
@@ -99,6 +115,10 @@ export default function TrainingScreen({ navigation }) {
       // Load program exercises
       const programData = await programService.getExercises(userId);
       setExercises(programData || {});
+      
+      // Load user programs
+      const programs = await programService.getUserPrograms(userId);
+      setUserPrograms(programs || []);
       
       // Load today's workout (get today's exercises)
       const todayExercises = await programService.getExercises(userId, today);
@@ -150,9 +170,96 @@ export default function TrainingScreen({ navigation }) {
     }
   };
 
+  // Check if program already exists
+  const isProgramAlreadyAdded = (program) => {
+    if (!userPrograms || !Array.isArray(userPrograms)) return false;
+    return userPrograms.some(p => 
+      p.name.toLowerCase().trim() === program.name.toLowerCase().trim()
+    );
+  };
+
+  // Remove user program
+  const removeUserProgram = async (program) => {
+    try {
+      Alert.alert(
+        language === 'en' ? 'Remove Program' : 'Programı Kaldır',
+        language === 'en' 
+          ? `Are you sure you want to remove "${program.name}" from your programs? You can add it back later. A short ad will be shown.`
+          : `"${program.name}" programını programlarınızdan kaldırmak istediğinize emin misiniz? Daha sonra tekrar ekleyebilirsiniz. Kısa bir reklam gösterilecek.`,
+        [
+          {
+            text: language === 'en' ? 'Cancel' : 'İptal',
+            style: 'cancel'
+          },
+          {
+            text: language === 'en' ? 'Remove' : 'Kaldır',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                console.log('🗑️ Program kaldırılıyor:', program.name);
+                
+                // Önce reklam göster - ZORLA GÖSTER
+                console.log('📺 Program silme için reklam gösteriliyor...');
+                console.log('🔍 Reklam durumu:', { adLoaded, adLoading });
+                
+                // Reklamı zorla göster
+                try {
+                  console.log('📺 Reklam zorla gösteriliyor...');
+                  await showAd();
+                  console.log('✅ Reklam izlendi, program siliniyor...');
+                } catch (adError) {
+                  console.warn('⚠️ Reklam gösterilemedi:', adError);
+                  console.log('⚠️ Reklam hatası detayı:', adError.message);
+                  
+                  // Reklam gösterilemezse de devam et
+                  console.log('⚠️ Reklam gösterilemedi, program direkt siliniyor...');
+                }
+                
+                // Reklam sonrası kısa bekleme
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                await programService.removeUserProgram(program.id);
+                console.log('✅ Program başarıyla kaldırıldı');
+                
+                // Verileri yenile
+                await loadTrainingData();
+                
+                // userPrograms state'ini de güncelle
+                const updatedPrograms = await programService.getUserPrograms(userId);
+                console.log('🔍 Kaldırma sonrası user programs:', updatedPrograms);
+                console.log('🔍 Kaldırma sonrası program sayısı:', updatedPrograms ? updatedPrograms.length : 0);
+                setUserPrograms(updatedPrograms || []);
+                
+                Alert.alert(
+                  language === 'en' ? 'Success' : 'Başarılı',
+                  language === 'en' 
+                    ? 'Program removed from your programs'
+                    : 'Program programlarınızdan kaldırıldı',
+                  [{ text: language === 'en' ? 'OK' : 'Tamam' }]
+                );
+              } catch (error) {
+                console.error('❌ Program kaldırma hatası:', error);
+                Alert.alert(
+                  language === 'en' ? 'Error' : 'Hata',
+                  language === 'en' 
+                    ? 'Failed to remove program'
+                    : 'Program kaldırılamadı',
+                  [{ text: language === 'en' ? 'OK' : 'Tamam' }]
+                );
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('❌ Remove program error:', error);
+    }
+  };
+
   // Add template program to user's program
   const addTemplateProgram = async (program) => {
     try {
+      // Her zaman reklam göster, kontrol yapma
       console.log('🔄 Program ekleme başlatıldı:', {
         programId: program.id,
         programName: program.name,
@@ -161,7 +268,14 @@ export default function TrainingScreen({ navigation }) {
         adLoading
       });
 
+      // Debug: Mevcut user programs'ı kontrol et
+      const currentUserPrograms = await programService.getUserPrograms(userId);
+      console.log('🔍 Mevcut user programs:', currentUserPrograms);
+      console.log('🔍 Program sayısı:', currentUserPrograms ? currentUserPrograms.length : 0);
+
       // Önce reklam göster
+      console.log('📺 Reklam kontrolü:', { adLoaded, adLoading });
+      
       if (adLoaded) {
         console.log('📺 Reklam gösteriliyor...');
         try {
@@ -174,17 +288,69 @@ export default function TrainingScreen({ navigation }) {
       } else {
         console.log('⚠️ Reklam durumu:', { adLoaded, adLoading });
         console.log('⚠️ Reklam hazır değil, program direkt ekleniyor...');
+        
+        // Reklam hazır değilse yeni reklam yüklemeye çalış
+        console.log('🔄 Yeni reklam yükleniyor...');
+        try {
+          if (loadAd) {
+            loadAd();
+            console.log('✅ Reklam yükleme başlatıldı');
+          } else {
+            console.log('⚠️ loadAd fonksiyonu mevcut değil');
+          }
+        } catch (loadError) {
+          console.warn('⚠️ Reklam yükleme hatası:', loadError);
+        }
       }
+
+      // Reklam işleminden sonra daha uzun bekleme ekle
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       console.log('🔄 ProgramService.addTemplateProgramToUser çağrılıyor...');
       await programService.addTemplateProgramToUser(userId, program.id);
       console.log('✅ Program başarıyla eklendi, veriler yenileniyor...');
       
-      await loadTrainingData();
+      // Modal'ı kapat
       setShowTemplateDetail(false);
-      Alert.alert(t.successful || 'Success', t.program_added_successfully || 'Program added successfully');
+      
+      // Ekran güncellemesi için kısa bekleme
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Verileri yenile
+      try {
+        await loadTrainingData();
+        
+        // userPrograms state'ini de güncelle
+        const updatedPrograms = await programService.getUserPrograms(userId);
+        setUserPrograms(updatedPrograms || []);
+        
+        console.log('✅ Veriler başarıyla yenilendi');
+      } catch (loadError) {
+        console.error('❌ Veri yenileme hatası:', loadError);
+        setIsLoading(false);
+      }
+      
+      // Ekran güncellemesi için ek bekleme
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Başarı mesajını göster
+      Alert.alert(
+        t.successful || 'Success', 
+        t.program_added_successfully || 'Program added successfully',
+        [
+          {
+            text: t.ok || 'OK',
+            onPress: () => {
+              console.log('✅ Program ekleme işlemi tamamlandı');
+            }
+          }
+        ]
+      );
     } catch (error) {
       console.error('❌ Add template program error:', error);
+      
+      // Loading state'ini false yap
+      setIsLoading(false);
       
       // Özel hata mesajları
       let errorMessage = t.program_add_error || 'Failed to add program';
@@ -201,42 +367,6 @@ export default function TrainingScreen({ navigation }) {
     }
   };
 
-  // Format time helper
-  const formatTime = (seconds) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // Calculate calories helper
-  const calculateCalories = () => {
-    // Simple calorie calculation based on completed exercises
-    return completedExercises.length * 15; // 15 calories per exercise
-  };
-
-  // Finish workout
-  const finishWorkout = () => {
-    setIsRunning(false);
-    Alert.alert(
-      t.workout_completed || 'Workout Completed',
-      `${t.congratulations || 'Congratulations'} ${completedExercises.length}/${workoutData.exercises.length} ${t.exercises_completed || 'exercises completed'}.\n\n${t.calories_burned || 'Calories burned'}: ${calculateCalories()} ${t.kcal || 'kcal'}\n${t.duration || 'Duration'}: ${formatTime(elapsedTime)}`,
-      [
-        {
-          text: t.ok || 'OK',
-          onPress: () => {
-            setCompletedExercises([]);
-            setElapsedTime(0);
-            setIsRunning(false);
-          }
-        }
-      ]
-    );
-  };
 
   // Get week dates
   const getWeekDates = () => {
@@ -363,7 +493,7 @@ export default function TrainingScreen({ navigation }) {
     return { total: todayExercises.length, completed };
   };
 
-  // Quick start workout
+  // Start workout - switch to active programs tab
   const startQuickWorkout = () => {
     const todayExercises = getTodayExercises();
     if (!todayExercises || !Array.isArray(todayExercises) || todayExercises.length === 0) {
@@ -380,257 +510,51 @@ export default function TrainingScreen({ navigation }) {
       exercises: todayExercises
     });
     setActiveTab('workout');
-    setWorkoutActiveTab('active');
+    setProgramSubTab('active');
   };
 
-  // Render program section
-  const renderProgramSection = () => {
-    const todayStats = getTodayStats();
-    const todayExercises = getTodayExercises();
-    const selectedDayExercises = (exercises && exercises[selectedDay]) ? exercises[selectedDay] : [];
+  // Format time helper
+  const formatTime = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  };
 
-    return (
-      <View>
-        {/* Weekly Calendar */}
-        <Card style={{ marginBottom: spacing.lg, backgroundColor: 'rgba(255, 122, 0, 0.05)' }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-            <TouchableOpacity 
-              onPress={() => setWeekOffset(prev => prev - 1)}
-              style={{
-                backgroundColor: colors.background,
-                borderRadius: 8,
-                padding: 8
-              }}
-            >
-              <Ionicons name="chevron-back" size={20} color={colors.primary} />
-            </TouchableOpacity>
-            
-            <View style={{ flex: 1, alignItems: 'center' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="calendar" size={18} color={colors.primary} style={{ marginRight: 6 }} />
-                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700' }}>
-                  {weekOffset === 0 ? t.this_week : weekOffset === -1 ? t.previous_week : weekOffset === 1 ? t.next_week : `${weekOffset > 0 ? '+' : ''}${weekOffset} ${t.week}`}
-                </Text>
-              </View>
-              <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
-                {weekDates[0].date}-{weekDates[6].date} {new Date().toLocaleDateString('tr-TR', { month: 'short' })}
-              </Text>
-            </View>
+  // Calculate calories helper
+  const calculateCalories = () => {
+    // Simple calorie calculation based on completed exercises
+    return completedExercises.length * 15; // 15 calories per exercise
+  };
 
-            <TouchableOpacity 
-              onPress={() => setWeekOffset(prev => prev + 1)}
-              style={{
-                backgroundColor: colors.background,
-                borderRadius: 8,
-                padding: 8
-              }}
-            >
-              <Ionicons name="chevron-forward" size={20} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-          
-          {/* Week Days */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            {weekDates.map((dayData, index) => {
-              const dayExercises = (exercises && exercises[dayData.dayIndex]) ? exercises[dayData.dayIndex] : [];
-              const completedCount = dayExercises.filter(ex => ex.completed).length;
-              const totalCount = dayExercises.length;
-              
-              return (
-                <TouchableOpacity
-                  key={index}
-                  onPress={() => setSelectedDay(dayData.dayIndex)}
-                  style={{
-                    flex: 1,
-                    alignItems: 'center',
-                    paddingHorizontal: 4,
-                    paddingVertical: spacing.sm,
-                    borderRadius: 8,
-                    backgroundColor: selectedDay === dayData.dayIndex ? colors.primary : 'transparent',
-                    marginHorizontal: 1,
-                    minWidth: 45
-                  }}
-                >
-                  <Text style={{ 
-                    color: selectedDay === dayData.dayIndex ? colors.background : colors.textMuted,
-                    fontSize: 9,
-                    fontWeight: '600',
-                    textAlign: 'center',
-                    width: '100%'
-                  }}>
-                    {weekDays[dayData.dayIndex]}
-                  </Text>
-                  <Text style={{ 
-                    color: selectedDay === dayData.dayIndex ? colors.background : colors.text,
-                    fontSize: 16,
-                    fontWeight: '700',
-                    marginTop: 2,
-                    textAlign: 'center'
-                  }}>
-                    {dayData.date}
-                  </Text>
-                  <View style={{ 
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    marginTop: 4,
-                    paddingHorizontal: 6,
-                    paddingVertical: 3,
-                    backgroundColor: selectedDay === dayData.dayIndex ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                    borderRadius: 10,
-                    borderWidth: 1,
-                    borderColor: selectedDay === dayData.dayIndex ? colors.background : colors.border,
-                    minWidth: 35
-                  }}>
-                    <Text style={{ 
-                      color: selectedDay === dayData.dayIndex ? colors.background : colors.textMuted,
-                      fontSize: 9,
-                      fontWeight: '600',
-                      textAlign: 'center'
-                    }}>
-                      {completedCount}/{totalCount}
-                    </Text>
-                  </View>
-                  
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </Card>
-
-        {/* Selected Day Exercises */}
-        <Card style={{ marginBottom: spacing.lg }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: spacing.md }}>
-            <TouchableOpacity
-              onPress={() => setShowAddModal(true)}
-              style={{
-                backgroundColor: colors.primary,
-                borderRadius: 20,
-                width: 40,
-                height: 40,
-                justifyContent: 'center',
-                alignItems: 'center'
-              }}
-            >
-              <Ionicons name="add" size={20} color={colors.background} />
-            </TouchableOpacity>
-          </View>
-
-          {selectedDayExercises.length > 0 ? (
-            <View>
-              {selectedDayExercises.map((exercise, index) => (
-                <View
-                  key={index}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    padding: spacing.md,
-                    backgroundColor: exercise.completed ? 'rgba(34, 197, 94, 0.1)' : colors.card,
-                    borderRadius: 8,
-                    marginBottom: spacing.sm,
-                    borderLeftWidth: 4,
-                    borderLeftColor: exercise.completed ? colors.success : colors.primary
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ 
-                      color: colors.text, 
-                      fontSize: 16, 
-                      fontWeight: '600',
-                      textDecorationLine: exercise.completed ? 'line-through' : 'none'
-                    }}>
-                      {translateExerciseName(exercise.name, language)}
-                    </Text>
-                    <Text style={{ color: colors.textMuted, fontSize: 14, marginTop: 2 }}>
-                      {exercise.sets} {t.sets || 'sets'} × {exercise.reps} {t.reps || 'reps'} {exercise.weight > 0 && `@ ${exercise.weight}kg`}
-                    </Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    {/* Tamamlama Butonu */}
-                    <TouchableOpacity
-                      onPress={async () => {
-                        try {
-                          console.log('🔄 Egzersiz durumu değiştiriliyor:', exercise.name, !exercise.completed);
-                          
-                          const result = await programService.toggleExerciseCompletion(exercise.id, !exercise.completed);
-                          console.log('✅ Egzersiz durumu güncellendi:', result);
-                          
-                          await loadTrainingData();
-                        } catch (error) {
-                          console.error('❌ Toggle completion error:', error);
-                          Alert.alert(
-                            t.error || 'Error',
-                            t.exercise_toggle_error || 'Failed to update exercise status'
-                          );
-                        }
-                      }}
-                      style={{
-                        backgroundColor: exercise.completed ? colors.success : 'transparent',
-                        borderRadius: 20,
-                        width: 24,
-                        height: 24,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        borderWidth: 1.5,
-                        borderColor: exercise.completed ? colors.success : colors.textMuted
-                      }}
-                    >
-                      {exercise.completed && (
-                        <Ionicons name="checkmark" size={14} color={colors.background} />
-                      )}
-                    </TouchableOpacity>
-
-                    {/* Düzenle Butonu */}
-                    <TouchableOpacity
-                      onPress={() => setEditingExercise(exercise)}
-                      style={{
-                        backgroundColor: 'transparent',
-                        borderRadius: 6,
-                        paddingHorizontal: 8,
-                        paddingVertical: 6,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        borderWidth: 1,
-                        borderColor: colors.border
-                      }}
-                    >
-                      <Ionicons name="create-outline" size={14} color={colors.textMuted} />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <View style={{ alignItems: 'center', padding: spacing.xl }}>
-              <Ionicons name="barbell-outline" size={48} color={colors.textMuted} />
-              <Text style={{ color: colors.textMuted, fontSize: 16, marginTop: spacing.md, textAlign: 'center' }}>
-                {t.no_exercises || 'No exercises for this day'}
-              </Text>
-              <TouchableOpacity
-                onPress={() => setShowAddModal(true)}
-                style={{
-                  backgroundColor: colors.primary,
-                  borderRadius: 12,
-                  paddingHorizontal: spacing.lg,
-                  paddingVertical: spacing.sm,
-                  marginTop: spacing.md
-                }}
-              >
-                <Text style={{ color: colors.background, fontSize: 14, fontWeight: '600' }}>
-                  {t.add_exercise || 'Add Exercise'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </Card>
-      </View>
+  // Finish workout
+  const finishWorkout = () => {
+    setIsRunning(false);
+    Alert.alert(
+      t.workout_completed || 'Workout Completed',
+      `${t.congratulations || 'Congratulations'} ${completedExercises.length}/${workoutData.exercises.length} ${t.exercises_completed || 'exercises completed'}.\n\n${t.calories_burned || 'Calories burned'}: ${calculateCalories()} ${t.kcal || 'kcal'}\n${t.duration || 'Duration'}: ${formatTime(elapsedTime)}`,
+      [
+        {
+          text: t.ok || 'OK',
+          onPress: () => {
+            setCompletedExercises([]);
+            setElapsedTime(0);
+            setIsRunning(false);
+          }
+        }
+      ]
     );
   };
 
-  // Render workout section
-  const renderWorkoutSection = () => {
+  // Render program section with sub-tabs
+  const renderProgramSection = () => {
     return (
       <View>
-        {/* Workout Tab Bar */}
+        {/* Sub Tab Bar */}
         <View style={{ 
           flexDirection: 'row', 
           backgroundColor: colors.card,
@@ -639,52 +563,309 @@ export default function TrainingScreen({ navigation }) {
           padding: 4
         }}>
           <TouchableOpacity
-            onPress={() => setWorkoutActiveTab('active')}
+            onPress={() => setProgramSubTab('premade')}
             style={{
               flex: 1,
               padding: spacing.sm,
               borderRadius: 8,
-              backgroundColor: workoutActiveTab === 'active' ? colors.success : 'transparent',
+              backgroundColor: programSubTab === 'premade' ? colors.primary : 'transparent',
               alignItems: 'center'
             }}
           >
             <Text style={{ 
-              color: workoutActiveTab === 'active' ? colors.background : colors.textMuted,
+              color: programSubTab === 'premade' ? colors.background : colors.textMuted,
               fontSize: 14,
               fontWeight: '600'
             }}>
-              {t.active_workout || 'Active'}
+              {language === 'en' ? 'Pre-made Programs' : 'Hazır Programlar'}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => setWorkoutActiveTab('templates')}
+            onPress={() => setProgramSubTab('active')}
             style={{
               flex: 1,
               padding: spacing.sm,
               borderRadius: 8,
-              backgroundColor: workoutActiveTab === 'templates' ? colors.primary : 'transparent',
+              backgroundColor: programSubTab === 'active' ? colors.success : 'transparent',
               alignItems: 'center'
             }}
           >
             <Text style={{ 
-              color: workoutActiveTab === 'templates' ? colors.background : colors.textMuted,
+              color: programSubTab === 'active' ? colors.background : colors.textMuted,
               fontSize: 14,
               fontWeight: '600'
             }}>
-              {t.ready_programs || 'Programs'}
+              {language === 'en' ? 'Active Programs' : 'Aktif Programlar'}
             </Text>
           </TouchableOpacity>
         </View>
 
-        {workoutActiveTab === 'active' ? (
+        {programSubTab === 'premade' ? (
+          /* Pre-made Programs */
+          <View>
+            <Text style={{ 
+              color: colors.text, 
+              fontSize: 20, 
+              fontWeight: '700', 
+              marginBottom: spacing.sm,
+              textAlign: 'center'
+            }}>
+              {language === 'en' ? 'Pre-made Programs' : 'Hazır Programlar'}
+            </Text>
+            <Text style={{ 
+              color: colors.textMuted, 
+              fontSize: 14, 
+              marginBottom: spacing.lg,
+              textAlign: 'center'
+            }}>
+              {language === 'en' ? 'Professional trainer programs' : 'Profesyonel antrenör programları'}
+            </Text>
+
+            {/* My Programs Section */}
+            {userPrograms && userPrograms.length > 0 && (
+              <View style={{ marginBottom: spacing.lg }}>
+                <Text style={{ 
+                  color: colors.text, 
+                  fontSize: 18, 
+                  fontWeight: '600', 
+                  marginBottom: spacing.md,
+                  textAlign: 'center'
+                }}>
+                  {language === 'en' ? 'My Programs' : 'Programlarım'}
+                </Text>
+                
+                {userPrograms.map((program) => (
+                  <Card key={program.id} style={{ 
+                    marginBottom: spacing.sm,
+                    backgroundColor: colors.card,
+                    borderLeftWidth: 4,
+                    borderLeftColor: colors.success,
+                    elevation: 2,
+                    shadowColor: colors.success,
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 2
+                  }}>
+                    <View style={{ 
+                      flexDirection: 'row', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center',
+                      padding: spacing.sm
+                    }}>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                          <Ionicons 
+                            name="checkmark-circle" 
+                            size={16} 
+                            color={colors.success} 
+                            style={{ marginRight: spacing.xs }}
+                          />
+                          <Text style={{ 
+                            color: colors.text, 
+                            fontSize: 16, 
+                            fontWeight: '600'
+                          }}>
+                            {program.name}
+                          </Text>
+                        </View>
+                        <Text style={{ 
+                          color: colors.textMuted, 
+                          fontSize: 12,
+                          marginLeft: 20
+                        }}>
+                          {language === 'en' ? 'Added program' : 'Eklenen program'}
+                        </Text>
+                      </View>
+                      
+                      <TouchableOpacity
+                        onPress={() => removeUserProgram(program)}
+                        style={{
+                          backgroundColor: 'rgba(255, 71, 87, 0.1)',
+                          borderWidth: 1,
+                          borderColor: colors.error || '#FF4757',
+                          borderRadius: 12,
+                          paddingHorizontal: spacing.md,
+                          paddingVertical: spacing.sm,
+                          marginLeft: spacing.sm,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          minWidth: 80
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons 
+                          name="trash-outline" 
+                          size={16} 
+                          color={colors.error || '#FF4757'} 
+                          style={{ marginRight: spacing.xs }}
+                        />
+                        <Text style={{ 
+                          color: colors.error || '#FF4757', 
+                          fontSize: 12, 
+                          fontWeight: '600'
+                        }}>
+                          {language === 'en' ? 'Remove' : 'Kaldır'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </Card>
+                ))}
+              </View>
+            )}
+
+            {isLoadingTemplates ? (
+              <View style={{ alignItems: 'center', padding: spacing.xl }}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginTop: spacing.md }}>
+                  {language === 'en' ? 'Loading template programs...' : 'Hazır programlar yükleniyor...'}
+                </Text>
+              </View>
+            ) : (
+              <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 32 }}>
+                {templatePrograms.length > 0 ? (
+                  templatePrograms.map((program, index) => (
+                    <View key={program.id}>
+                      <TouchableOpacity
+                        onPress={() => viewTemplateProgramDetails(program)}
+                        style={{
+                          marginBottom: spacing.md
+                        }}
+                      >
+                        <Card style={{
+                          borderLeftWidth: 5,
+                          borderLeftColor: program.color_hex || colors.primary,
+                          backgroundColor: colors.card,
+                          elevation: 3,
+                          shadowColor: program.color_hex || colors.primary,
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.15,
+                          shadowRadius: 4
+                        }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.sm }}>
+                            <View style={{ flex: 1 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                                <View style={{
+                                  backgroundColor: 'rgba(255, 122, 0, 0.15)',
+                                  borderRadius: 6,
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 4,
+                                  marginRight: spacing.sm
+                                }}>
+                                  <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>
+                                    {program.icon_emoji || '💪'}
+                                  </Text>
+                                </View>
+                                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', flex: 1 }}>
+                                  {translateProgramName(program.name, language)}
+                                </Text>
+                              </View>
+                              <Text style={{ color: colors.textMuted, fontSize: 14, lineHeight: 20, marginBottom: spacing.sm }}>
+                                {translateProgramDescription(program.description, language)}
+                              </Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
+                                <View style={{
+                                  backgroundColor: program.level === 'Başlangıç' || program.level === 'Beginner' ? 'rgba(0, 208, 132, 0.15)' : 
+                                                 program.level === 'Orta' || program.level === 'Intermediate' ? 'rgba(255, 122, 0, 0.15)' : 
+                                                 'rgba(255, 71, 87, 0.15)',
+                                  borderRadius: 12,
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 4,
+                                  marginRight: spacing.sm
+                                }}>
+                                  <Text style={{ 
+                                    color: program.level === 'Başlangıç' || program.level === 'Beginner' ? '#00D084' : 
+                                           program.level === 'Orta' || program.level === 'Intermediate' ? '#FF7A00' : '#FF4757',
+                                    fontSize: 12, 
+                                    fontWeight: '600' 
+                                  }}>
+                                    {program.level === 'Başlangıç' || program.level === 'Beginner' ? t.beginner :
+                                     program.level === 'Orta' || program.level === 'Intermediate' ? t.intermediate :
+                                     program.level === 'İleri' || program.level === 'Advanced' ? t.advanced : program.level}
+                                  </Text>
+                                </View>
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                  <Ionicons name="calendar-outline" size={14} color={colors.textMuted} />
+                                  <Text style={{ color: colors.textMuted, fontSize: 12, marginLeft: 4 }}>
+                                    {program.days_per_week} {t.days_per_week || 'days/week'}
+                                  </Text>
+                                </View>
+                              </View>
+                              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Ionicons name="time-outline" size={14} color={colors.textMuted} />
+                                <Text style={{ color: colors.textMuted, fontSize: 12, marginLeft: 4 }}>
+                                  {program.duration_weeks} {t.weeks || 'weeks'}
+                                </Text>
+                                <View style={{ width: 1, height: 12, backgroundColor: colors.border, marginHorizontal: spacing.sm }} />
+                                <Ionicons name="flame-outline" size={14} color={colors.textMuted} />
+                                <Text style={{ color: colors.textMuted, fontSize: 12, marginLeft: 4 }}>
+                                  {program.estimated_calories_per_session} {t.kcal || 'kcal'}
+                                </Text>
+                              </View>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                          </View>
+                        </Card>
+                      </TouchableOpacity>
+
+                      {/* Her 3 programdan sonra reklam ekle */}
+                      {(index + 1) % 3 === 0 && index < templatePrograms.length - 1 && (
+                        <View style={{ marginBottom: spacing.md }}>
+                          <AdBanner 
+                            style={{ 
+                              alignSelf: 'center',
+                              backgroundColor: colors.card,
+                              borderRadius: 8,
+                              overflow: 'hidden'
+                            }}
+                            onAdFailedToLoad={(error) => {
+                              console.log('Banner reklam yüklenemedi (normal):', error);
+                            }}
+                          />
+                        </View>
+                      )}
+                    </View>
+                  ))
+                ) : (
+                  <View style={{ alignItems: 'center', padding: spacing.xl }}>
+                    <Ionicons name="library-outline" size={48} color={colors.textMuted} />
+                    <Text style={{ color: colors.textMuted, fontSize: 16, marginTop: spacing.md, textAlign: 'center' }}>
+                      {t.no_template_programs || 'No template programs available'}
+                    </Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 14, marginTop: spacing.sm, textAlign: 'center' }}>
+                      {t.run_sql_setup || 'Please run SQL setup files to load template programs'}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Liste sonunda banner reklam */}
+                {templatePrograms.length > 0 && (
+                  <View style={{ marginTop: spacing.lg, marginBottom: spacing.md }}>
+                    <AdBanner 
+                      style={{ 
+                        alignSelf: 'center',
+                        backgroundColor: colors.card,
+                        borderRadius: 8,
+                        overflow: 'hidden'
+                      }}
+                      onAdFailedToLoad={(error) => {
+                        console.log('Banner reklam yüklenemedi (normal):', error);
+                      }}
+                    />
+                  </View>
+                )}
+              </ScrollView>
+            )}
+          </View>
+        ) : (
           /* Active Programs */
           <View>
             <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700', marginBottom: spacing.sm, paddingHorizontal: spacing.md }}>
-              {t.active_programs || 'Active Programs'}
+              {language === 'en' ? 'Active Programs' : 'Aktif Programlar'}
             </Text>
             <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: spacing.lg, paddingHorizontal: spacing.md }}>
-              {t.your_current_programs || 'Your current workout programs'}
+              {language === 'en' ? 'Your current workout programs' : 'Mevcut antrenman programlarınız'}
             </Text>
 
             {/* Stats Card */}
@@ -819,7 +1000,7 @@ export default function TrainingScreen({ navigation }) {
                     {t.no_active_workout || 'No active workout'}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => setWorkoutActiveTab('templates')}
+                    onPress={() => setProgramSubTab('premade')}
                     style={{
                       backgroundColor: colors.primary,
                       borderRadius: 12,
@@ -839,168 +1020,388 @@ export default function TrainingScreen({ navigation }) {
             {/* Workout Controls */}
             {workoutData.exercises.length > 0 && (
               <Card style={{ marginBottom: spacing.lg }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+                {!isRunning ? (
+                  /* Start Button */
                   <TouchableOpacity
-                    onPress={() => setIsRunning(!isRunning)}
+                    onPress={() => {
+                      // Antrenmanı başlat
+                      setIsRunning(true);
+                      setIsPaused(false);
+                      setElapsedTime(0);
+                      setCompletedExercises([]);
+                    }}
                     style={{
-                      backgroundColor: isRunning ? colors.warning : colors.success,
+                      backgroundColor: colors.success,
                       borderRadius: 12,
                       paddingHorizontal: spacing.lg,
                       paddingVertical: spacing.md,
                       alignItems: 'center',
-                      flexDirection: 'row'
+                      flexDirection: 'row',
+                      justifyContent: 'center'
                     }}
                   >
-                    <Ionicons name={isRunning ? "pause" : "play"} size={20} color={colors.background} />
+                    <Ionicons name="play" size={20} color={colors.background} />
                     <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600', marginLeft: spacing.sm }}>
-                      {isRunning ? t.pause : t.start}
+                      {t.start || 'Start'}
                     </Text>
                   </TouchableOpacity>
-                  
-                  {completedExercises.length === workoutData.exercises.length && (
+                ) : (
+                  /* Stop and Cancel Buttons */
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
                     <TouchableOpacity
-                      onPress={finishWorkout}
+                      onPress={() => {
+                        if (isPaused) {
+                          // Devam et
+                          setIsPaused(false);
+                        } else {
+                          // Durdur
+                          setIsPaused(true);
+                        }
+                      }}
                       style={{
-                        backgroundColor: colors.primary,
+                        backgroundColor: isPaused ? colors.success : colors.warning,
                         borderRadius: 12,
                         paddingHorizontal: spacing.lg,
                         paddingVertical: spacing.md,
                         alignItems: 'center',
-                        flexDirection: 'row'
+                        flexDirection: 'row',
+                        flex: 1,
+                        marginRight: spacing.sm
                       }}
                     >
-                      <Ionicons name="checkmark-circle" size={20} color={colors.background} />
+                      <Ionicons name={isPaused ? "play" : "pause"} size={20} color={colors.background} />
                       <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600', marginLeft: spacing.sm }}>
-                        {t.finish || 'Finish'}
+                        {isPaused ? (t.resume || 'Devam Et') : (t.pause || 'Durdur')}
                       </Text>
                     </TouchableOpacity>
-                  )}
-                </View>
-              </Card>
-            )}
-          </View>
-        ) : (
-          /* Ready Programs */
-          <View>
-            <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700', marginBottom: spacing.sm, paddingHorizontal: spacing.md }}>
-              {t.ready_workout_programs || 'Ready Workout Programs'}
-            </Text>
-            <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: spacing.lg, paddingHorizontal: spacing.md }}>
-              {t.professional_trainer_programs || 'Professional trainer programs'}
-            </Text>
-
-            {isLoadingTemplates ? (
-              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl }}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginTop: spacing.md }}>
-                  {language === 'en' ? 'Loading template programs...' : 'Hazır programlar yükleniyor...'}
-                </Text>
-              </View>
-            ) : (
-              <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 32 }}>
-                {templatePrograms.length > 0 ? (
-                  templatePrograms.map((program) => (
+                    
                     <TouchableOpacity
-                      key={program.id}
-                      onPress={() => viewTemplateProgramDetails(program)}
+                      onPress={() => {
+                        Alert.alert(
+                          language === 'en' ? 'Cancel Workout' : 'Antrenmanı İptal Et',
+                          language === 'en' 
+                            ? 'Are you sure you want to cancel the entire workout? All progress will be lost.' 
+                            : 'Tüm antrenmanı iptal etmek istediğinize emin misiniz? Tüm ilerleme kaybolacak.',
+                          [
+                            {
+                              text: language === 'en' ? 'No' : 'Hayır',
+                              style: 'cancel'
+                            },
+                            {
+                              text: language === 'en' ? 'Yes, Cancel' : 'Evet, İptal Et',
+                              style: 'destructive',
+                              onPress: () => {
+                                // Tüm antrenmanı sıfırla
+                                setIsRunning(false);
+                                setIsPaused(false);
+                                setElapsedTime(0);
+                                setCompletedExercises([]);
+                                
+                                // Bugünkü egzersizleri sıfırla (completed = false yap)
+                                const resetTodayExercises = async () => {
+                                  try {
+                                    const today = new Date().getDay();
+                                    const todayExercises = await programService.getExercises(userId, today);
+                                    
+                                    if (todayExercises && todayExercises.length > 0) {
+                                      for (const exercise of todayExercises) {
+                                        if (exercise.completed) {
+                                          await programService.toggleExerciseCompletion(exercise.id, false);
+                                        }
+                                      }
+                                    }
+                                    
+                                    // Verileri yenile
+                                    await loadTrainingData();
+                                  } catch (error) {
+                                    console.error('❌ Reset exercises error:', error);
+                                  }
+                                };
+                                
+                                resetTodayExercises();
+                                
+                                Alert.alert(
+                                  language === 'en' ? 'Workout Cancelled' : 'Antrenman İptal Edildi',
+                                  language === 'en' 
+                                    ? 'All progress has been reset.' 
+                                    : 'Tüm ilerleme sıfırlandı.',
+                                  [{ text: language === 'en' ? 'OK' : 'Tamam' }]
+                                );
+                              }
+                            }
+                          ]
+                        );
+                      }}
                       style={{
-                        marginBottom: spacing.md
+                        backgroundColor: colors.error || '#FF4757',
+                        borderRadius: 12,
+                        paddingHorizontal: spacing.lg,
+                        paddingVertical: spacing.md,
+                        alignItems: 'center',
+                        flexDirection: 'row',
+                        flex: 1,
+                        marginLeft: spacing.sm
                       }}
                     >
-                      <Card style={{
-                        borderLeftWidth: 5,
-                        borderLeftColor: program.color_hex || colors.primary,
-                        backgroundColor: colors.card,
-                        elevation: 3,
-                        shadowColor: program.color_hex || colors.primary,
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.15,
-                        shadowRadius: 4
-                      }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.sm }}>
-                          <View style={{ flex: 1 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                              <View style={{
-                                backgroundColor: 'rgba(255, 122, 0, 0.15)',
-                                borderRadius: 6,
-                                paddingHorizontal: 8,
-                                paddingVertical: 4,
-                                marginRight: spacing.sm
-                              }}>
-                                <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>
-                                  {program.icon_emoji || '💪'}
-                                </Text>
-                              </View>
-                              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', flex: 1 }}>
-                                {translateProgramName(program.name, language)}
-                              </Text>
-                            </View>
-                            <Text style={{ color: colors.textMuted, fontSize: 14, lineHeight: 20, marginBottom: spacing.sm }}>
-                              {translateProgramDescription(program.description, language)}
-                            </Text>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
-                              <View style={{
-                                backgroundColor: program.level === 'Başlangıç' || program.level === 'Beginner' ? 'rgba(0, 208, 132, 0.15)' : 
-                                               program.level === 'Orta' || program.level === 'Intermediate' ? 'rgba(255, 122, 0, 0.15)' : 
-                                               'rgba(255, 71, 87, 0.15)',
-                                borderRadius: 12,
-                                paddingHorizontal: 8,
-                                paddingVertical: 4,
-                                marginRight: spacing.sm
-                              }}>
-                                <Text style={{ 
-                                  color: program.level === 'Başlangıç' || program.level === 'Beginner' ? '#00D084' : 
-                                         program.level === 'Orta' || program.level === 'Intermediate' ? '#FF7A00' : '#FF4757',
-                                  fontSize: 12, 
-                                  fontWeight: '600' 
-                                }}>
-                                  {program.level === 'Başlangıç' || program.level === 'Beginner' ? t.beginner :
-                                   program.level === 'Orta' || program.level === 'Intermediate' ? t.intermediate :
-                                   program.level === 'İleri' || program.level === 'Advanced' ? t.advanced : program.level}
-                                </Text>
-                              </View>
-                              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Ionicons name="calendar-outline" size={14} color={colors.textMuted} />
-                                <Text style={{ color: colors.textMuted, fontSize: 12, marginLeft: 4 }}>
-                                  {program.days_per_week} {t.days_per_week || 'days/week'}
-                                </Text>
-                              </View>
-                            </View>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                              <Ionicons name="time-outline" size={14} color={colors.textMuted} />
-                              <Text style={{ color: colors.textMuted, fontSize: 12, marginLeft: 4 }}>
-                                {program.duration_weeks} {t.weeks || 'weeks'}
-                              </Text>
-                              <View style={{ width: 1, height: 12, backgroundColor: colors.border, marginHorizontal: spacing.sm }} />
-                              <Ionicons name="flame-outline" size={14} color={colors.textMuted} />
-                              <Text style={{ color: colors.textMuted, fontSize: 12, marginLeft: 4 }}>
-                                {program.estimated_calories_per_session} {t.kcal || 'kcal'}
-                              </Text>
-                            </View>
-                          </View>
-                          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-                        </View>
-                      </Card>
+                      <Ionicons name="close-circle" size={20} color={colors.background} />
+                      <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600', marginLeft: spacing.sm }}>
+                        {language === 'en' ? 'Cancel' : 'İptal Et'}
+                      </Text>
                     </TouchableOpacity>
-                  ))
-                ) : (
-                  <View style={{ alignItems: 'center', padding: spacing.xl }}>
-                    <Ionicons name="library-outline" size={48} color={colors.textMuted} />
-                    <Text style={{ color: colors.textMuted, fontSize: 16, marginTop: spacing.md, textAlign: 'center' }}>
-                      {t.no_template_programs || 'No template programs available'}
-                    </Text>
-                    <Text style={{ color: colors.textMuted, fontSize: 14, marginTop: spacing.sm, textAlign: 'center' }}>
-                      {t.run_sql_setup || 'Please run SQL setup files to load template programs'}
-                    </Text>
                   </View>
                 )}
-              </ScrollView>
+              </Card>
             )}
           </View>
         )}
       </View>
     );
   };
+
+  // Render workout section (weekly calendar and exercises)
+  const renderWorkoutSection = () => {
+    const todayStats = getTodayStats();
+    const todayExercises = getTodayExercises();
+    const selectedDayExercises = (exercises && exercises[selectedDay]) ? exercises[selectedDay] : [];
+
+    return (
+      <View>
+        {/* Weekly Calendar */}
+        <Card style={{ marginBottom: spacing.lg, backgroundColor: 'rgba(255, 122, 0, 0.05)' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+            <TouchableOpacity 
+              onPress={() => setWeekOffset(prev => prev - 1)}
+              style={{
+                backgroundColor: colors.background,
+                borderRadius: 8,
+                padding: 8
+              }}
+            >
+              <Ionicons name="chevron-back" size={20} color={colors.primary} />
+            </TouchableOpacity>
+            
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="calendar" size={18} color={colors.primary} style={{ marginRight: 6 }} />
+                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700' }}>
+                  {weekOffset === 0 ? t.this_week : weekOffset === -1 ? t.previous_week : weekOffset === 1 ? t.next_week : `${weekOffset > 0 ? '+' : ''}${weekOffset} ${t.week}`}
+                </Text>
+              </View>
+              <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
+                {weekDates[0].date}-{weekDates[6].date} {new Date().toLocaleDateString('tr-TR', { month: 'short' })}
+              </Text>
+            </View>
+
+            <TouchableOpacity 
+              onPress={() => setWeekOffset(prev => prev + 1)}
+              style={{
+                backgroundColor: colors.background,
+                borderRadius: 8,
+                padding: 8
+              }}
+            >
+              <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+          
+          {/* Week Days */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            {weekDates.map((dayData, index) => {
+              const dayExercises = (exercises && exercises[dayData.dayIndex]) ? exercises[dayData.dayIndex] : [];
+              const completedCount = dayExercises.filter(ex => ex.completed).length;
+              const totalCount = dayExercises.length;
+              
+              return (
+                <TouchableOpacity
+                  key={index}
+                  onPress={() => setSelectedDay(dayData.dayIndex)}
+                  style={{
+                    flex: 1,
+                    alignItems: 'center',
+                    paddingHorizontal: 4,
+                    paddingVertical: spacing.sm,
+                    borderRadius: 8,
+                    backgroundColor: selectedDay === dayData.dayIndex ? colors.primary : 'transparent',
+                    marginHorizontal: 1,
+                    minWidth: 45
+                  }}
+                >
+                  <Text style={{ 
+                    color: selectedDay === dayData.dayIndex ? colors.background : colors.textMuted,
+                    fontSize: 9,
+                    fontWeight: '600',
+                    textAlign: 'center',
+                    width: '100%'
+                  }}>
+                    {weekDays[dayData.dayIndex]}
+                  </Text>
+                  <Text style={{ 
+                    color: selectedDay === dayData.dayIndex ? colors.background : colors.text,
+                    fontSize: 16,
+                    fontWeight: '700',
+                    marginTop: 2,
+                    textAlign: 'center'
+                  }}>
+                    {dayData.date}
+                  </Text>
+                  <View style={{ 
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginTop: 4,
+                    paddingHorizontal: 6,
+                    paddingVertical: 3,
+                    backgroundColor: selectedDay === dayData.dayIndex ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: selectedDay === dayData.dayIndex ? colors.background : colors.border,
+                    minWidth: 35
+                  }}>
+                    <Text style={{ 
+                      color: selectedDay === dayData.dayIndex ? colors.background : colors.textMuted,
+                      fontSize: 9,
+                      fontWeight: '600',
+                      textAlign: 'center'
+                    }}>
+                      {completedCount}/{totalCount}
+                    </Text>
+                  </View>
+                  
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Card>
+
+
+        {/* Selected Day Exercises */}
+        <Card style={{ marginBottom: spacing.lg }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: spacing.md }}>
+            <TouchableOpacity
+              onPress={() => setShowAddModal(true)}
+              style={{
+                backgroundColor: colors.primary,
+                borderRadius: 20,
+                width: 40,
+                height: 40,
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}
+            >
+              <Ionicons name="add" size={20} color={colors.background} />
+            </TouchableOpacity>
+          </View>
+
+          {selectedDayExercises.length > 0 ? (
+            <View>
+              {selectedDayExercises.map((exercise, index) => (
+                <View
+                  key={index}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    padding: spacing.md,
+                    backgroundColor: exercise.completed ? 'rgba(34, 197, 94, 0.1)' : colors.card,
+                    borderRadius: 8,
+                    marginBottom: spacing.sm,
+                    borderLeftWidth: 4,
+                    borderLeftColor: exercise.completed ? colors.success : colors.primary
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ 
+                      color: colors.text, 
+                      fontSize: 16, 
+                      fontWeight: '600',
+                      textDecorationLine: exercise.completed ? 'line-through' : 'none'
+                    }}>
+                      {translateExerciseName(exercise.name, language)}
+                    </Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 14, marginTop: 2 }}>
+                      {exercise.sets} {t.sets || 'sets'} × {exercise.reps} {t.reps || 'reps'} {exercise.weight > 0 && `@ ${exercise.weight}kg`}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    {/* Tamamlama Butonu */}
+                    <TouchableOpacity
+                      onPress={async () => {
+                        try {
+                          console.log('🔄 Egzersiz durumu değiştiriliyor:', exercise.name, !exercise.completed);
+                          
+                          const result = await programService.toggleExerciseCompletion(exercise.id, !exercise.completed);
+                          console.log('✅ Egzersiz durumu güncellendi:', result);
+                          
+                          await loadTrainingData();
+                        } catch (error) {
+                          console.error('❌ Toggle completion error:', error);
+                          Alert.alert(
+                            t.error || 'Error',
+                            t.exercise_toggle_error || 'Failed to update exercise status'
+                          );
+                        }
+                      }}
+                      style={{
+                        backgroundColor: exercise.completed ? colors.success : 'transparent',
+                        borderRadius: 20,
+                        width: 24,
+                        height: 24,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        borderWidth: 1.5,
+                        borderColor: exercise.completed ? colors.success : colors.textMuted
+                      }}
+                    >
+                      {exercise.completed && (
+                        <Ionicons name="checkmark" size={14} color={colors.background} />
+                      )}
+                    </TouchableOpacity>
+
+                    {/* Düzenle Butonu */}
+                    <TouchableOpacity
+                      onPress={() => setEditingExercise(exercise)}
+                      style={{
+                        backgroundColor: 'transparent',
+                        borderRadius: 6,
+                        paddingHorizontal: 8,
+                        paddingVertical: 6,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        borderWidth: 1,
+                        borderColor: colors.border
+                      }}
+                    >
+                      <Ionicons name="create-outline" size={14} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={{ alignItems: 'center', padding: spacing.xl }}>
+              <Ionicons name="barbell-outline" size={48} color={colors.textMuted} />
+              <Text style={{ color: colors.textMuted, fontSize: 16, marginTop: spacing.md, textAlign: 'center' }}>
+                {t.no_exercises || 'No exercises for this day'}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowAddModal(true)}
+                style={{
+                  backgroundColor: colors.primary,
+                  borderRadius: 12,
+                  paddingHorizontal: spacing.lg,
+                  paddingVertical: spacing.sm,
+                  marginTop: spacing.md
+                }}
+              >
+                <Text style={{ color: colors.background, fontSize: 14, fontWeight: '600' }}>
+                  {t.add_exercise || 'Add Exercise'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </Card>
+      </View>
+    );
+  };
+
 
   if (isLoading) {
     return (
@@ -1051,7 +1452,7 @@ export default function TrainingScreen({ navigation }) {
               fontWeight: '600',
               marginTop: 4
             }}>
-              {t.program_tab}
+              {t.program_tab || 'Program'}
             </Text>
           </TouchableOpacity>
 
@@ -1076,13 +1477,13 @@ export default function TrainingScreen({ navigation }) {
               fontWeight: '600',
               marginTop: 4
             }}>
-              {t.workout_tab}
+              {t.workout_tab || 'Workout'}
             </Text>
           </TouchableOpacity>
         </View>
 
         <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 32 }}>
-          {activeTab === 'program' ? renderProgramSection() : renderWorkoutSection()}
+          {activeTab === 'program' ? renderWorkoutSection() : renderProgramSection()}
         </ScrollView>
       </SafeAreaView>
 
@@ -1303,18 +1704,27 @@ export default function TrainingScreen({ navigation }) {
 
                   <TouchableOpacity
                     onPress={() => addTemplateProgram(selectedTemplate)}
+                    disabled={isProgramAlreadyAdded(selectedTemplate)}
                     style={{
-                      backgroundColor: colors.primary,
+                      backgroundColor: isProgramAlreadyAdded(selectedTemplate) ? colors.textMuted : colors.primary,
                       borderRadius: 12,
                       padding: spacing.md,
                       alignItems: 'center',
                       flexDirection: 'row',
-                      justifyContent: 'center'
+                      justifyContent: 'center',
+                      opacity: isProgramAlreadyAdded(selectedTemplate) ? 0.6 : 1
                     }}
                   >
-                    <Ionicons name="add" size={20} color={colors.background} />
+                    <Ionicons 
+                      name={isProgramAlreadyAdded(selectedTemplate) ? "checkmark" : "add"} 
+                      size={20} 
+                      color={colors.background} 
+                    />
                     <Text style={{ color: colors.background, fontSize: 16, fontWeight: '600', marginLeft: spacing.sm }}>
-                      {t.add_to_my_programs || 'Add to My Programs'}
+                      {isProgramAlreadyAdded(selectedTemplate) 
+                        ? 'Zaten Eklenmiş' 
+                        : (t.add_to_my_programs || 'Add to My Programs')
+                      }
                     </Text>
                   </TouchableOpacity>
                 </Card>

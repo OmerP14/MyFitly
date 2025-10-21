@@ -13,21 +13,16 @@ import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
 import { useLanguage } from '../context/LanguageContext';
 import { getTranslations } from '../utils/translations';
+import { AdBanner, showInterstitialAd } from '../services/adService';
 
 // trackingService'i dene, yoksa devam et
 let trackingService = null;
-let motivationService = null;
 try {
   trackingService = require('../services/trackingService').default;
 } catch (error) {
   console.warn('Tracking service yüklenemedi:', error.message);
 }
 
-try {
-  motivationService = require('../services/motivationService').default;
-} catch (error) {
-  console.warn('Motivation service yüklenemedi:', error.message);
-}
 
 // supabase'i import et
 import { supabase } from '../config/supabase';
@@ -53,7 +48,7 @@ export default function TrackingScreen() {
       borderRadius: 16
     },
     propsForDots: {
-      r: '6',
+      r: '4',
       strokeWidth: '2',
       stroke: colors.primary
     },
@@ -61,6 +56,9 @@ export default function TrackingScreen() {
       strokeDasharray: '',
       stroke: colors.border,
       strokeWidth: 0.5,
+    },
+    propsForLabels: {
+      fontSize: 12,
     },
   };
 
@@ -566,259 +564,122 @@ export default function TrackingScreen() {
     
     try {
       if (selectedTracking === 'weight') {
-        const result = await trackingService.addWeightEntry(
-          userUUID,
-          parseFloat(newWeight),
-          new Date().toISOString().split('T')[0],
-          null
-        );
-
-        if (result?.success) {
-          const newWeightValue = parseFloat(newWeight);
-          const currentTargetWeight = parseFloat(userData?.target_weight || 0);
-          
-          // Profil ekranındaki mevcut kiloyu güncelle
-          if (userData && updateUserData) {
-            updateUserData({ current_weight: newWeightValue });
+        // Önce tam ekran reklam göster
+        console.log('🎬 Kilo girişi yapılıyor - tam ekran reklam gösteriliyor...');
+        showInterstitialAd(async () => {
+          // Reklam kapandığında kilo verisini kaydet
+          console.log('✅ Reklam kapandı - kilo verisi kaydediliyor...');
+          try {
+            await saveWeightData();
+          } catch (error) {
+            console.error('❌ Kilo kaydetme hatası:', error);
+            Alert.alert(t.error || 'Hata', t.data_save_error || 'Veri kaydedilemedi');
+          } finally {
+            setSaving(false);
           }
-          
-          // Verileri yeniden yükle (Dashboard'ı güncellemek için)
-          setTimeout(() => {
-            loadData();
-          }, 500);
-          
-          // Hedef kiloya ulaşıldı mı kontrol et
-          if (checkTargetReached(newWeightValue, currentTargetWeight)) {
-            // Hedef kiloya ulaşıldı, yeni hedef belirleme modalı göster
-            setTimeout(() => {
-              showNewTargetModal(newWeightValue, currentTargetWeight);
-            }, 1000); // 1 saniye bekle ki başarı mesajı görünsün
-          } else {
-            Alert.alert(t.success || 'Başarılı', t.weight_data_saved || 'Kilo verisi kaydedildi!');
-          }
-          
-          setShowAddModal(false);
-          setNewWeight('');
-          
-          // Başarım kontrolü
-          if (motivationService && userUUID) {
-            setTimeout(async () => {
-              try {
-                console.log('🔍 Başarım kontrolü başlıyor...');
-                console.log('userUUID:', userUUID);
-                console.log('motivationService:', !!motivationService);
-                
-                // Gerçek verileri hesapla
-                const currentWeight = parseFloat(newWeight);
-                const targetWeight = parseFloat(userData?.target_weight || dashboardStats?.target_weight || 0);
-                const normalizedWeightData = normalizeWeightData(weightData);
-                const firstWeight = normalizedWeightData.length > 0 ? normalizedWeightData[0].weight : currentWeight; // En eski
-                const weightLoss = firstWeight > currentWeight ? firstWeight - currentWeight : 0;
-                const targetReached = targetWeight > 0 && Math.abs(currentWeight - targetWeight) <= 1; // 1kg tolerans
-                
-                const userStats = {
-                  hasFirstEntry: true,
-                  totalEntries: (weightData?.length || 0) + 1,
-                  weightLoss: weightLoss,
-                  strengthGain: 0,
-                  targetReached: targetReached,
-                  currentWeight: currentWeight,
-                  targetWeight: targetWeight,
-                  trackingType: 'weight' // Kilo takibi olduğunu belirt
-                };
-                
-                console.log('📊 Başarım kontrolü için userStats:', userStats);
-                console.log('🎯 Hedef kontrolü:', {
-                  currentWeight,
-                  targetWeight,
-                  targetReached,
-                  difference: Math.abs(currentWeight - targetWeight)
-                });
-                
-                const result = await motivationService.checkAndAddAchievements(userUUID, userStats, language);
-                console.log('🏆 Başarım kontrolü sonucu:', result);
-                
-                if (result.success && result.data.length > 0) {
-                  console.log('🎉 Yeni başarım(lar) kazanıldı:', result.data.length);
-                  // Başarım kazanıldığında kullanıcıya bildir
-                  result.data.forEach((achievement, index) => {
-                    setTimeout(() => {
-                      Alert.alert(
-                        '🎉 Yeni Başarım!', 
-                        `${achievement.title}\n\n${achievement.description || ''}`,
-                        [{ text: 'Harika!', style: 'default' }]
-                      );
-                    }, index * 500); // Her başarım için 500ms gecikme
-                  });
-                  
-                  console.log('✅ Başarımlar başarıyla eklendi ve bildirim gösterildi');
-                } else {
-                  console.log('ℹ️ Bu kayıt için yeni başarım kazanılmadı');
-                }
-              } catch (error) {
-                console.error('❌ Başarım kontrolü hatası:', error);
-              }
-            }, 1000);
-          } else {
-            console.log('❌ Başarım kontrolü yapılamadı:', {
-              motivationService: !!motivationService,
-              userUUID: !!userUUID
-            });
-          }
-          
-          // Verileri yeniden yükle
-          setTimeout(() => {
-            loadData();
-          }, 500);
-        } else {
-          throw new Error(result?.message || 'Kaydetme başarısız');
-        }
+        });
       } else {
-        const { reps, weight } = trackingService.parseRepsAndWeight(newReps);
-        
-        if (!weight || weight === 0) {
-          Alert.alert(t.error || 'Hata', t.invalid_weight_format || 'Geçersiz ağırlık formatı. Örnek: 8x65kg');
-          setSaving(false);
-          return;
-        }
-
-        const result = await trackingService.addStrengthEntry(
-          userUUID,
-          newExercise,
-          weight,
-          reps,
-          new Date().toISOString().split('T')[0],
-          null
-        );
-
-        if (result?.success) {
-          if (result.is_new_record) {
-            Alert.alert(
-              t.new_record_title || '🎉 Yeni Rekor!',
-              `${newExercise} ${t.exercise_new_record || 'egzersizinde yeni rekorunuz'}: ${weight}kg!\n${result.improvement}kg ${t.improvement || 'gelişim'}!`
-            );
-          } else {
-            Alert.alert(t.success || 'Başarılı', t.strength_data_saved || 'Ağırlık verisi kaydedildi!');
-          }
-          setShowAddModal(false);
-          setNewExercise('');
-          setNewReps('');
-          
-          // Başarım kontrolü
-          if (motivationService && userUUID) {
-            setTimeout(async () => {
-              try {
-                console.log('🔍 Ağırlık başarım kontrolü başlıyor...');
-                console.log('userUUID:', userUUID);
-                console.log('motivationService:', !!motivationService);
-                
-                // Gerçek verileri hesapla
-                const { reps, weight } = trackingService.parseRepsAndWeight(newReps);
-                const totalEntries = (strengthData?.length || 0) + 1;
-                const totalSets = totalEntries; // Her kayıt bir set sayılır
-                
-                // Bu egzersize ait önceki kayıtları bul
-                const normalizeExerciseName = (name) => {
-                  const normalized = name.toLowerCase().trim().replace(/\s+/g, ' ').replace(/[^\w\s]/g, '');
-                  if (normalized.includes('squat')) return 'squat';
-                  if (normalized.includes('bench') && normalized.includes('press')) return 'bench press';
-                  if (normalized.includes('deadlift')) return 'deadlift';
-                  if (normalized.includes('overhead') && normalized.includes('press')) return 'overhead press';
-                  if (normalized.includes('row')) return 'row';
-                  return normalized;
-                };
-                
-                const currentExerciseNormalized = normalizeExerciseName(newExercise);
-                const exerciseHistory = strengthData?.filter(entry => {
-                  const entryName = normalizeExerciseName(entry.exercise_name || '');
-                  return entryName === currentExerciseNormalized;
-                }) || [];
-                
-                // İlk ağırlık ve artış hesapla
-                let firstWeight = weight || 0;
-                let strengthGain = 0;
-                
-                if (exerciseHistory.length > 0) {
-                  // Bu egzersiz için önceki kayıtlar var
-                  const weights = exerciseHistory.map(e => {
-                    const parsed = trackingService.parseRepsAndWeight(e.reps || e.weight || '0');
-                    return parsed.weight || 0;
-                  }).filter(w => w > 0);
-                  
-                  if (weights.length > 0) {
-                    firstWeight = Math.min(...weights);
-                    strengthGain = (weight || 0) - firstWeight;
-                  }
-                } else {
-                  // İlk kayıt - artış 0
-                  strengthGain = 0;
-                }
-                
-                // Ağırlık takibi için özel veriler
-                const userStats = {
-                  hasFirstEntry: exerciseHistory.length === 0, // İlk kayıt mı?
-                  totalEntries: totalEntries,
-                  totalSets: totalSets,
-                  strengthGain: Math.max(0, strengthGain), // Negatif olmasın
-                  weightLoss: 0,
-                  targetReached: false,
-                  currentWeight: weight || 0,
-                  targetWeight: 0, // Ağırlık takibi için hedef yok
-                  exerciseName: newExercise,
-                  reps: reps || 0,
-                  weight: weight || 0,
-                  firstWeight: firstWeight,
-                  trackingType: 'strength' // Ağırlık takibi olduğunu belirt
-                };
-                
-                console.log('🏋️ Ağırlık başarım kontrolü için userStats:', userStats);
-                console.log('💪 Egzersiz detayları:', {
-                  exerciseName: newExercise,
-                  reps: reps,
-                  weight: weight,
-                  totalEntries: totalEntries
-                });
-                
-                const result = await motivationService.checkAndAddAchievements(userUUID, userStats, language);
-                console.log('🏆 Ağırlık başarım kontrolü sonucu:', result);
-                
-                if (result.success && result.data.length > 0) {
-                  console.log('🎉 Yeni ağırlık başarım(lar)ı kazanıldı:', result.data.length);
-                  // Başarım kazanıldığında kullanıcıya bildir
-                  result.data.forEach((achievement, index) => {
-                    setTimeout(() => {
-                      Alert.alert(
-                        '🎉 Yeni Başarım!', 
-                        `${achievement.title}\n\n${achievement.description || ''}`,
-                        [{ text: 'Harika!', style: 'default' }]
-                      );
-                    }, index * 500); // Her başarım için 500ms gecikme
-                  });
-                  
-                  console.log('✅ Ağırlık başarımları başarıyla eklendi ve bildirim gösterildi');
-                } else {
-                  console.log('ℹ️ Bu ağırlık kaydı için yeni başarım kazanılmadı');
-                }
-              } catch (error) {
-                console.error('❌ Ağırlık başarım kontrolü hatası:', error);
-              }
-            }, 1000);
-          } else {
-            console.log('❌ Ağırlık başarım kontrolü yapılamadı:', {
-              motivationService: !!motivationService,
-              userUUID: !!userUUID
-            });
-          }
-          
-          // Verileri yeniden yükle
-          setTimeout(() => {
-            loadData();
-          }, 500);
-        } else {
-          throw new Error(result?.message || t.save_failed || 'Kaydetme başarısız');
-        }
+        // Ağırlık takibi için normal işlem
+        await saveStrengthData();
       }
     } catch (error) {
+      console.error('❌ Veri kaydetme hatası:', error);
+      Alert.alert(t.error || 'Hata', t.data_save_error || 'Veri kaydedilemedi');
+      setSaving(false);
+    }
+  };
+
+  // Kilo verisi kaydetme fonksiyonu
+  const saveWeightData = async () => {
+    try {
+      const result = await trackingService.addWeightEntry(
+        userUUID,
+        parseFloat(newWeight),
+        new Date().toISOString().split('T')[0],
+        null
+      );
+
+      if (result?.success) {
+        const newWeightValue = parseFloat(newWeight);
+        const currentTargetWeight = parseFloat(userData?.target_weight || 0);
+        
+        // Profil ekranındaki mevcut kiloyu güncelle
+        if (userData && updateUserData) {
+          updateUserData({ current_weight: newWeightValue });
+        }
+        
+        // Hedef kiloya ulaşıldı mı kontrol et
+        if (checkTargetReached(newWeightValue, currentTargetWeight)) {
+          setTimeout(() => {
+            showNewTargetModal(newWeightValue, currentTargetWeight);
+          }, 1000);
+        } else {
+          Alert.alert(t.success || 'Başarılı', t.weight_data_saved || 'Kilo verisi kaydedildi!');
+        }
+        
+        setShowAddModal(false);
+        setNewWeight('');
+        
+        // Verileri yeniden yükle
+        setTimeout(() => {
+          loadData();
+        }, 500);
+      } else {
+        throw new Error(result?.message || 'Kaydetme başarısız');
+      }
+    } catch (error) {
+      console.error('❌ Kilo kaydetme hatası:', error);
+      Alert.alert(t.error || 'Hata', t.data_save_error || 'Veri kaydedilemedi');
+    }
+  };
+
+  // Ağırlık verisi kaydetme fonksiyonu
+  const saveStrengthData = async () => {
+    try {
+      // Sadece ağırlık değeri girildi, otomatik olarak kg ekle
+      const weight = parseFloat(newReps);
+      
+      if (!weight || weight === 0 || isNaN(weight)) {
+        Alert.alert(t.error || 'Hata', t.invalid_weight_format || 'Geçersiz ağırlık değeri. Örnek: 65');
+        setSaving(false);
+        return;
+      }
+
+      // Varsayılan olarak 1 set kabul et
+      const reps = 1;
+
+      const result = await trackingService.addStrengthEntry(
+        userUUID,
+        newExercise,
+        weight,
+        reps,
+        new Date().toISOString().split('T')[0],
+        null
+      );
+
+      if (result?.success) {
+        if (result.is_new_record) {
+          Alert.alert(
+            t.new_record_title || '🎉 Yeni Rekor!',
+            `${newExercise} ${t.exercise_new_record || 'egzersizinde yeni rekorunuz'}: ${weight}kg!\n${result.improvement}kg ${t.improvement || 'gelişim'}!`
+          );
+        } else {
+          Alert.alert(t.success || 'Başarılı', t.strength_data_saved || 'Ağırlık verisi kaydedildi!');
+        }
+        
+        setShowAddModal(false);
+        setNewExercise('');
+        setNewReps('');
+        
+        // Verileri yeniden yükle
+        setTimeout(() => {
+          loadData();
+        }, 500);
+      } else {
+        throw new Error(result?.message || t.save_failed || 'Kaydetme başarısız');
+      }
+    } catch (error) {
+      console.error('❌ Ağırlık kaydetme hatası:', error);
       Alert.alert(t.error || 'Hata', error.message || t.data_save_failed || 'Veri kaydedilemedi');
     } finally {
       setSaving(false);
@@ -1275,8 +1136,8 @@ export default function TrackingScreen() {
                     
                     return (
                       <View style={{ 
-                        width: '100%',
-                        paddingHorizontal: spacing.md,
+                        width: screenWidth - 80,
+                        paddingHorizontal: spacing.sm,
                         alignItems: 'center'
                       }}>
                         {/* Egzersiz Başlığı */}
@@ -1424,12 +1285,13 @@ export default function TrackingScreen() {
                       renderItem={renderExerciseDashboard}
                       keyExtractor={(item, index) => `dashboard-${index}`}
                       horizontal
-                      showsHorizontalScrollIndicator={false}
+                      showsHorizontalScrollIndicator={true}
                       snapToInterval={screenWidth - 60}
                       snapToAlignment="start"
                       decelerationRate="fast"
                       pagingEnabled={false}
-                      contentContainerStyle={{ paddingHorizontal: 0 }}
+                      contentContainerStyle={{ paddingHorizontal: spacing.sm }}
+                      ItemSeparatorComponent={() => <View style={{ width: spacing.md }} />}
                     />
                   );
                 })()
@@ -1550,12 +1412,25 @@ export default function TrackingScreen() {
                 const renderExerciseCard = ({ item, index }) => {
                   const isLineChart = item.history.length > 1;
                   
+                  // Debug: Verileri kontrol et
+                  console.log(`📊 ${item.name} verileri:`, {
+                    history: item.history,
+                    maxWeight: item.maxWeight,
+                    historyLength: item.history.length
+                  });
+                  
                   return (
-                    <View style={{ 
-                      width: '100%',
-                      paddingHorizontal: spacing.md,
-                      alignItems: 'center'
-                    }}>
+                    <TouchableOpacity 
+                      style={{ 
+                        width: screenWidth - 80,
+                        paddingHorizontal: spacing.sm,
+                        alignItems: 'center'
+                      }}
+                      onPress={() => {
+                        console.log('Egzersiz kartına tıklandı:', item.exerciseName);
+                      }}
+                      activeOpacity={0.7}
+                    >
                       {/* Egzersiz Başlığı */}
                       <View style={{ 
                         flexDirection: 'row', 
@@ -1573,63 +1448,89 @@ export default function TrackingScreen() {
                         </Text>
                       </View>
                       
-                      {/* Grafik - Her zaman LineChart */}
+                      {/* LineChart Grafik */}
                       <View style={{ 
                         backgroundColor: colors.backgroundAlt, 
                         borderRadius: 12, 
                         padding: spacing.sm,
-                        width: '100%'
+                        width: '100%',
+                        height: 220,
+                        justifyContent: 'center',
+                        alignItems: 'center'
                       }}>
-                        <LineChart
-                          data={{
-                            labels: item.history.length > 1 
-                              ? [...item.history].reverse().map((_, i) => (i + 1).toString())
-                              : ['1', '2'], // Tek kayıt için 2 nokta
-                            datasets: [{
-                              data: item.history.length > 1
-                                ? [...item.history].reverse().map(h => h.weight)
-                                : [item.maxWeight, item.maxWeight], // Tek kayıt için aynı değer
+                        <ScrollView 
+                          horizontal 
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={{ alignItems: 'center' }}
+                        >
+                          <LineChart
+                            data={{
+                              labels: [...item.history].reverse().map((_, index) => (index + 1).toString()),
+                              datasets: [{
+                                data: [...item.history].reverse().map(h => h.weight),
+                                color: (opacity = 1) => {
+                                  const firstWeight = item.history[0].weight;
+                                  const lastWeight = item.history[item.history.length - 1].weight;
+                                  if (lastWeight > firstWeight) {
+                                    return `rgba(76, 175, 80, ${opacity})`; // Yeşil - artış
+                                  } else if (lastWeight < firstWeight) {
+                                    return `rgba(244, 67, 54, ${opacity})`; // Kırmızı - azalış
+                                  } else {
+                                    return `rgba(255, 152, 0, ${opacity})`; // Turuncu - aynı
+                                  }
+                                },
+                                strokeWidth: 3
+                              }]
+                            }}
+                            width={Math.max(screenWidth - 80, item.history.length * 40)}
+                            height={200}
+                            chartConfig={{
+                              backgroundColor: colors.background,
+                              backgroundGradientFrom: colors.background,
+                              backgroundGradientTo: colors.backgroundAlt,
+                              decimalPlaces: 1,
                               color: (opacity = 1) => {
-                                // İlk ve son değere göre renk belirle (history YENİ → ESKİ sıralı)
-                                const firstWeight = item.history[item.history.length - 1].weight; // EN ESKİ
-                                const lastWeight = item.history[0].weight; // EN YENİ
+                                const firstWeight = item.history[0].weight;
+                                const lastWeight = item.history[item.history.length - 1].weight;
                                 if (lastWeight > firstWeight) {
-                                  return `rgba(76, 175, 80, ${opacity})`; // Yeşil - artış
+                                  return `rgba(76, 175, 80, ${opacity})`; // Yeşil
                                 } else if (lastWeight < firstWeight) {
-                                  return `rgba(244, 67, 54, ${opacity})`; // Kırmızı - azalış
+                                  return `rgba(244, 67, 54, ${opacity})`; // Kırmızı
                                 } else {
-                                  return `rgba(255, 152, 0, ${opacity})`; // Turuncu - aynı
+                                  return `rgba(255, 152, 0, ${opacity})`; // Turuncu
                                 }
                               },
-                              strokeWidth: 3
-                            }]
-                          }}
-                          width={screenWidth - 100}
-                          height={180}
-                          chartConfig={{
-                            ...chartConfig,
-                            color: (opacity = 1) => {
-                              const firstWeight = item.history[item.history.length - 1].weight; // EN ESKİ
-                              const lastWeight = item.history[0].weight; // EN YENİ
-                              if (lastWeight > firstWeight) {
-                                return `rgba(76, 175, 80, ${opacity})`; // Yeşil
-                              } else if (lastWeight < firstWeight) {
-                                return `rgba(244, 67, 54, ${opacity})`; // Kırmızı
-                              } else {
-                                return `rgba(255, 152, 0, ${opacity})`; // Turuncu
-                              }
-                            }
-                          }}
-                          bezier
-                          style={{ marginVertical: spacing.xs }}
-                          withDots={true}
-                          withShadow={false}
-                          withScrollableDot={false}
-                          withVerticalLabels={true}
-                          withHorizontalLabels={true}
-                          segments={4}
-                          fromZero={false}
-                        />
+                              labelColor: (opacity = 1) => isDarkMode ? `rgba(255, 255, 255, ${opacity})` : `rgba(26, 26, 26, ${opacity})`,
+                              style: {
+                                borderRadius: 16
+                              },
+                              propsForDots: {
+                                r: '4',
+                                strokeWidth: '2',
+                                stroke: colors.primary
+                              },
+                              propsForBackgroundLines: {
+                                strokeDasharray: '',
+                                stroke: colors.border,
+                                strokeWidth: 0.5,
+                              },
+                              propsForLabels: {
+                                fontSize: 12,
+                              },
+                            }}
+                            bezier
+                            style={{ marginVertical: spacing.xs, borderRadius: 16 }}
+                            withDots={true}
+                            withShadow={false}
+                            withScrollableDot={false}
+                            withVerticalLabels={true}
+                            withHorizontalLabels={true}
+                            segments={3}
+                            fromZero={true}
+                            withInnerLines={true}
+                            withOuterLines={true}
+                          />
+                        </ScrollView>
                       </View>
                       
                       {/* Trend Bilgisi */}
@@ -1716,23 +1617,25 @@ export default function TrackingScreen() {
                           </Text>
                         </View>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   );
                 };
                 
                 return (
-                  <FlatList
-                    data={groupedExercises}
-                    renderItem={renderExerciseCard}
-                    keyExtractor={(item, index) => `exercise-${index}`}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    snapToInterval={screenWidth - 60}
-                    snapToAlignment="start"
-                    decelerationRate="fast"
-                    pagingEnabled={false}
-                    contentContainerStyle={{ paddingHorizontal: 0 }}
-                  />
+                    <FlatList
+                      data={groupedExercises}
+                      renderItem={renderExerciseCard}
+                      keyExtractor={(item, index) => `exercise-${index}`}
+                      horizontal
+                      showsHorizontalScrollIndicator={true}
+                      snapToInterval={screenWidth - 60}
+                      snapToAlignment="start"
+                      decelerationRate="fast"
+                      pagingEnabled={false}
+                      contentContainerStyle={{ paddingHorizontal: spacing.sm }}
+                      style={{ height: 280 }}
+                      ItemSeparatorComponent={() => <View style={{ width: spacing.md }} />}
+                    />
                 );
               })()}
             </Card>
@@ -1852,7 +1755,7 @@ export default function TrackingScreen() {
           )}
         </ScrollView>
 
-        {/* Add Data Modal - ProgramScreen'deki gibi */}
+        {/* Add Data Modal - TrainingScreen'deki gibi */}
         <Modal
           visible={showAddModal}
           transparent={true}
@@ -1956,7 +1859,7 @@ export default function TrackingScreen() {
                     <TextInput
                       value={newReps}
                       onChangeText={setNewReps}
-                      placeholder={t.reps_weight_placeholder || "Tekrar x Ağırlık - Örn: 8x65kg"}
+                      placeholder={t.weight_only_placeholder || "Ağırlık - Örn: 65"}
                       placeholderTextColor={colors.textMuted}
                       style={{
                         backgroundColor: colors.background,
@@ -1968,6 +1871,7 @@ export default function TrackingScreen() {
                         borderWidth: 1,
                         borderColor: colors.border
                       }}
+                      keyboardType="decimal-pad"
                       onSubmitEditing={handleSaveData}
                     />
                   </>
@@ -2196,6 +2100,22 @@ export default function TrackingScreen() {
             </View>
           </KeyboardAvoidingView>
         </Modal>
+
+        {/* Banner Reklam - En Alt */}
+        <View style={{ 
+          alignItems: 'center',
+          backgroundColor: colors.card,
+          borderRadius: 16,
+          margin: spacing.md,
+          overflow: 'hidden',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: colors.background === '#FFFFFF' ? 0.1 : 0,
+          shadowRadius: 4,
+          elevation: colors.background === '#FFFFFF' ? 2 : 0
+        }}>
+          <AdBanner />
+        </View>
       </SafeAreaView>
     </LinearGradient>
   );
