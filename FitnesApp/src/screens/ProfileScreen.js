@@ -14,6 +14,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { getTranslations } from '../utils/translations';
 import { supabase } from '../config/supabase';
 import * as notificationService from '../services/notificationService';
+import { scheduleWaterReminder } from '../services/notificationService';
 import LanguageSelector from '../components/LanguageSelector';
 
 const ProfileMenuItem = ({ icon, title, subtitle, onPress, showArrow = true, colors }) => (
@@ -383,19 +384,19 @@ export default function ProfileScreen() {
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <View style={{ alignItems: 'center', flex: 1 }}>
                 <Text style={{ color: colors.text, fontSize: 24, fontWeight: '800' }}>{localUserData.weight || 0}</Text>
-                <Text style={{ color: colors.textMuted, fontSize: 12 }}>{t.current_weight_label}</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>{t.current_weight_label}</Text>
               </View>
               <View style={{ alignItems: 'center', flex: 1 }}>
                 <Text style={{ color: colors.text, fontSize: 24, fontWeight: '800' }}>{localUserData.targetWeight || 0}</Text>
-                <Text style={{ color: colors.textMuted, fontSize: 12 }}>{t.target_weight_label}</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>{t.target_weight_label}</Text>
               </View>
               <View style={{ alignItems: 'center', flex: 1 }}>
                 <Text style={{ color: colors.text, fontSize: 24, fontWeight: '800' }}>{localUserData.age || 0}</Text>
-                <Text style={{ color: colors.textMuted, fontSize: 12 }}>{t.age}</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>{t.age}</Text>
               </View>
               <View style={{ alignItems: 'center', flex: 1 }}>
                 <Text style={{ color: colors.text, fontSize: 24, fontWeight: '800' }}>{localUserData.height || 0}</Text>
-                <Text style={{ color: colors.textMuted, fontSize: 12 }}>{t.height}</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>{t.height}</Text>
               </View>
             </View>
           </Card>
@@ -440,6 +441,8 @@ export default function ProfileScreen() {
                       const hasPermission = await notificationService.requestNotificationPermissions();
                       
                       if (hasPermission) {
+                        console.log('✅ Bildirim izni verildi, hatırlatıcılar ayarlanıyor...');
+                        
                         // Egzersiz verilerini al
                         try {
                           const programService = require('../services/programService');
@@ -451,8 +454,16 @@ export default function ProfileScreen() {
                             exercises[day] = weeklyStats[day]?.exercises || [];
                           }
                           
-                          // Bildirimleri zamanla
-                          const result = await notificationService.updateWorkoutNotifications(exercises, true);
+                          // Antrenman bildirimlerini zamanla
+                          const workoutDays = Object.keys(exercises).filter(day => exercises[day].length > 0).map(Number);
+                          const result = await notificationService.updateWorkoutNotifications(workoutDays, '09:00');
+                          
+                          // Su hatırlatıcısını da ayarla (eğer diyet ayarlarında aktifse)
+                          if (userData?.water_reminders_enabled !== false) {
+                            const waterInterval = userData?.reminder_frequency_hours || 2;
+                            console.log('💧 Su hatırlatıcısı ayarlanıyor:', waterInterval, 'saat');
+                            await scheduleWaterReminder(waterInterval);
+                          }
                           
                           if (result.success) {
                             const daysString = Array.isArray(result.scheduledDays) && result.scheduledDays.length > 0 
@@ -462,7 +473,9 @@ export default function ProfileScreen() {
                                   : "Her antrenman günü saat 09:00'da");
                             Alert.alert(
                               t.notifications_enabled,
-                              t.notifications_schedule_info.replace('{days}', daysString),
+                              (language === 'tr' 
+                                ? `Bildirimler etkinleştirildi!\n\nAntrenman: ${daysString}\nSu Hatırlatıcısı: ${userData?.water_reminders_enabled !== false ? 'Aktif' : 'Kapalı'}`
+                                : `Notifications enabled!\n\nWorkout: ${daysString}\nWater Reminder: ${userData?.water_reminders_enabled !== false ? 'Active' : 'Off'}`),
                               [{ text: t.great }]
                             );
                           }
@@ -499,6 +512,7 @@ export default function ProfileScreen() {
                 thumbColor={colors.background}
               />
             </View>
+
 
             {/* Dark Theme */}
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)' }}>

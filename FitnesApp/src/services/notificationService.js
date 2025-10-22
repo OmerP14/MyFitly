@@ -1,270 +1,429 @@
-/**
- * NOTIFICATION SERVICE
- * Antrenman günlerinde bildirim gönderir
- */
-
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Bildirim davranışını ayarla
+// Bildirim ayarları
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
-    shouldSetBadge: true,
+    shouldSetBadge: false,
   }),
 });
 
-
-/**
- * Bildirim izinlerini al
- */
-export const requestNotificationPermissions = async () => {
+export const requestPermissions = async (silent = false) => {
   try {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
     
+    console.log('🔔 Mevcut bildirim izin durumu:', existingStatus);
+    
     if (existingStatus !== 'granted') {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
+      console.log('🔔 Yeni bildirim izin durumu:', status);
     }
     
     if (finalStatus !== 'granted') {
-      console.log('⚠️ Bildirim izni verilmedi');
+      if (!silent) {
+        alert('Bildirim izni verilmedi!');
+      }
       return false;
     }
     
-    console.log('✅ Bildirim izni alındı');
-    
-    // Android için bildirim kanalı oluştur
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('workout-reminders', {
-        name: 'Antrenman Hatırlatıcıları',
-        importance: Notifications.AndroidImportance.HIGH,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF7A00',
-        sound: 'default',
-      });
-    }
-    
     return true;
   } catch (error) {
-    console.error('Bildirim izni alma hatası:', error);
+    console.error('❌ Bildirim izni hatası:', error);
     return false;
   }
 };
 
-/**
- * Tüm zamanlanmış bildirimleri iptal et
- */
-export const cancelAllNotifications = async () => {
+// Alias for compatibility with ProfileScreen
+export const requestNotificationPermissions = requestPermissions;
+
+// İzin durumunu kontrol et (sormadan)
+export const checkPermissionStatus = async () => {
   try {
-    await Notifications.cancelAllScheduledNotificationsAsync();
-    console.log('✅ Tüm bildirimler iptal edildi');
+    const { status } = await Notifications.getPermissionsAsync();
+    return status === 'granted';
   } catch (error) {
-    console.error('Bildirim iptal etme hatası:', error);
+    console.error('❌ İzin durumu kontrol hatası:', error);
+    return false;
   }
 };
 
-
-/**
- * Antrenman bildirimleri zamanla
- * @param {Object} workoutDays - {0: true, 1: true, ...} formatında antrenman günleri
- * @param {string} notificationTime - Bildirim saati (HH:MM formatında)
- */
-export const scheduleWorkoutNotifications = async (workoutDays = {}, notificationTime = '09:00') => {
+export const scheduleWaterReminder = async (intervalHours = 2) => {
   try {
-    console.log('📅 Antrenman bildirimleri zamanlanıyor...', workoutDays);
+    console.log('🔔 Su hatırlatıcısı ayarlanıyor:', intervalHours, 'saat');
     
-    // Önce tüm eski bildirimleri iptal et
-    await cancelAllNotifications();
-    
-    // Bildirim zamanını parse et
-    const [hour, minute] = notificationTime.split(':').map(Number);
-    
-    // Antrenman günlerini kontrol et
-    const hasWorkoutDays = Object.values(workoutDays).some(hasWorkout => hasWorkout);
-    
-    if (!hasWorkoutDays) {
-      console.log('⚠️ Antrenman günü yok, bildirim zamanlanmıyor');
-      return {
-        success: true,
-        message: 'Antrenman günü yok',
-        scheduledCount: 0
-      };
+    // Önce izin iste
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) {
+      console.log('❌ Bildirim izni yok!');
+      return { success: false, error: 'no_permission' };
     }
+
+    // Mevcut su hatırlatıcılarını iptal et
+    await cancelWaterReminders();
+
+    // intervalHours çok küçükse minimum 0.5 saat (30 dakika) yap
+    const finalInterval = Math.max(0.5, intervalHours);
     
-    // GÜNLÜK MAKSİMUM 1 BİLDİRİM - Sadece bugünkü spor zamanı + mini motivasyon sözü
-    const trigger = {
-      hour: hour,
-      minute: minute,
-      repeats: true
-    };
-    
+    // Yeni hatırlatıcı oluştur
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
-        title: '🏋️ Bugünkü Antrenman',
-        body: 'Antrenman zamanı! Hadi başlayalım! 💪',
+        title: '💧 Su İçme Zamanı!',
+        body: `Hidrasyon seviyenizi korumak için su içmeyi unutmayın. (Her ${finalInterval} saatte)`,
         sound: 'default',
-        priority: Notifications.AndroidNotificationPriority.HIGH,
-        vibrate: [0, 250, 250, 250],
-        data: { 
-          type: 'workout-reminder',
-          daily: true
-        },
+        data: {
+          type: 'water_reminder',
+          interval: finalInterval
+        }
       },
-      trigger,
+      trigger: {
+        seconds: finalInterval * 3600, // Saatleri saniyeye çevir
+        repeats: true,
+      },
     });
-    
-    console.log(`✅ Günlük antrenman bildirimi zamanlandı (ID: ${notificationId}) - Saat: ${notificationTime}`);
-    console.log('✅ Günde maksimum 1 bildirim zamanlandı');
-    return {
-      success: true,
-      message: 'Günlük antrenman bildirimi zamanlandı',
-      scheduledCount: 1
-    };
+
+    console.log(`✅ Su hatırlatıcısı ${finalInterval} saatte bir ayarlandı, ID:`, notificationId);
+    return { success: true, notificationId, interval: finalInterval };
   } catch (error) {
-    console.error('Bildirim zamanlama hatası:', error);
-    return {
-      success: false,
-      error: error.message
-    };
+    console.error('❌ Su hatırlatıcısı hatası:', error);
+    return { success: false, error: error.message };
   }
 };
 
-
-/**
- * Antrenman günlerini TrainingScreen'den al ve bildirimleri ayarla
- * @param {Object} exercises - Günlük egzersiz listesi
- * @param {boolean} enabled - Bildirimler açık mı?
- */
-export const updateWorkoutNotifications = async (exercises, enabled = true) => {
+export const scheduleMealReminder = async (mealType, time) => {
   try {
-    if (!enabled) {
-      // Bildirimler kapalıysa tüm bildirimleri iptal et
-      await cancelAllNotifications();
-      console.log('✅ Bildirimler kapatıldı');
-      return { success: true, message: 'Bildirimler kapatıldı' };
-    }
-    
-    // Bildirim izni kontrolü
-    const hasPermission = await requestNotificationPermissions();
-    if (!hasPermission) {
-      return { 
-        success: false, 
-        message: 'Bildirim izni verilmedi' 
-      };
-    }
-    
-    // ÖNEMLİ: Önce tüm mevcut bildirimleri iptal et
-    await cancelAllNotifications();
-    console.log('🗑️ Mevcut bildirimler iptal edildi');
-    
-    // Antrenman günlerini belirle
-    const workoutDays = {};
-    for (let day = 0; day < 7; day++) {
-      // Bu günde egzersiz varsa true
-      workoutDays[day] = exercises[day] && exercises[day].length > 0;
-    }
-    
-    console.log('📊 Antrenman günleri:', workoutDays);
-    
-    // Bildirim zamanını al (varsayılan: 09:00)
-    let notificationTime = await AsyncStorage.getItem('notification_time');
-    if (!notificationTime) {
-      notificationTime = '09:00';
-      await AsyncStorage.setItem('notification_time', notificationTime);
-    }
-    
-    // Sadece antrenman günleri için bildirimleri zamanla
-    const result = await scheduleWorkoutNotifications(workoutDays, notificationTime);
-    
-    return result;
-  } catch (error) {
-    console.error('Bildirim güncelleme hatası:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-};
+    // Önce izin iste
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return false;
 
-/**
- * Bildirim zamanını değiştir
- * @param {string} time - HH:MM formatında saat
- */
-export const setNotificationTime = async (time) => {
-  try {
-    await AsyncStorage.setItem('notification_time', time);
-    console.log('✅ Bildirim zamanı güncellendi:', time);
+    // Öğün hatırlatıcısı oluştur
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `🍽️ ${mealType} Zamanı!`,
+        body: `${mealType} öğününüz için hatırlatma.`,
+        sound: 'default',
+      },
+      trigger: {
+        hour: time.hour,
+        minute: time.minute,
+        repeats: true,
+      },
+    });
+
+    console.log(`✅ ${mealType} hatırlatıcısı ayarlandı`);
     return true;
   } catch (error) {
-    console.error('Bildirim zamanı kaydetme hatası:', error);
+    console.error('❌ Öğün hatırlatıcısı hatası:', error);
     return false;
   }
 };
 
-/**
- * Bildirim zamanını al
- */
-export const getNotificationTime = async () => {
+export const cancelWaterReminders = async () => {
   try {
-    const time = await AsyncStorage.getItem('notification_time');
-    return time || '09:00';
+    const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+    
+    // Su hatırlatıcılarını bul ve iptal et
+    const waterReminders = scheduledNotifications.filter(
+      notification => notification.content.title?.includes('💧')
+    );
+    
+    for (const reminder of waterReminders) {
+      await Notifications.cancelScheduledNotificationAsync(reminder.identifier);
+    }
+    
+    console.log('✅ Su hatırlatıcıları iptal edildi');
+    return true;
   } catch (error) {
-    console.error('Bildirim zamanı okuma hatası:', error);
-    return '09:00';
+    console.error('❌ Su hatırlatıcıları iptal hatası:', error);
+    return false;
   }
 };
 
-/**
- * Zamanlanmış bildirimleri göster
- */
-export const getScheduledNotifications = async () => {
+export const cancelMealReminders = async () => {
   try {
-    const notifications = await Notifications.getAllScheduledNotificationsAsync();
-    console.log('📋 Zamanlanmış bildirimler:', notifications.length);
-    return notifications;
+    const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+    
+    // Öğün hatırlatıcılarını bul ve iptal et
+    const mealReminders = scheduledNotifications.filter(
+      notification => notification.content.title?.includes('🍽️')
+    );
+    
+    for (const reminder of mealReminders) {
+      await Notifications.cancelScheduledNotificationAsync(reminder.identifier);
+    }
+    
+    console.log('✅ Öğün hatırlatıcıları iptal edildi');
+    return true;
   } catch (error) {
-    console.error('Zamanlanmış bildirimleri okuma hatası:', error);
+    console.error('❌ Öğün hatırlatıcıları iptal hatası:', error);
+    return false;
+  }
+};
+
+export const getAllScheduledNotifications = async () => {
+  try {
+    return await Notifications.getAllScheduledNotificationsAsync();
+  } catch (error) {
+    console.error('❌ Bildirimler alınamadı:', error);
     return [];
   }
 };
 
-/**
- * Test bildirimi gönder (hemen)
- */
-export const sendTestNotification = async () => {
+// Tüm bildirimleri iptal et
+export const cancelAllNotifications = async () => {
   try {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: '🏋️ Test Bildirimi',
-        body: 'Bildirimler başarıyla çalışıyor! 💪',
-        sound: 'default',
-        data: { type: 'test' },
-      },
-      trigger: {
-        seconds: 2, // 2 saniye sonra gönder
-      },
-    });
-    
-    console.log('✅ Test bildirimi gönderildi');
+    console.log('🔔 Tüm bildirimler iptal ediliyor...');
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    console.log('✅ Tüm bildirimler iptal edildi');
     return true;
   } catch (error) {
-    console.error('Test bildirimi hatası:', error);
+    console.error('❌ Tüm bildirimler iptal hatası:', error);
     return false;
   }
 };
 
-export default {
-  requestNotificationPermissions,
-  cancelAllNotifications,
-  scheduleWorkoutNotifications,
-  updateWorkoutNotifications,
-  setNotificationTime,
-  getNotificationTime,
-  getScheduledNotifications,
-  sendTestNotification,
+// Antrenman bildirimlerini güncelle
+export const updateWorkoutNotifications = async (workoutDays, reminderTime = '09:00') => {
+  try {
+    console.log('🔔 Antrenman bildirimleri güncelleniyor...', workoutDays, reminderTime);
+    
+    // Önce izin iste
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) {
+      console.log('❌ Bildirim izni yok!');
+      return { success: false, error: 'no_permission' };
+    }
+
+    // Mevcut antrenman bildirimlerini iptal et
+    await cancelWorkoutReminders();
+
+    // reminderTime kontrolü ve varsayılan değer
+    const timeString = reminderTime || '09:00';
+    console.log('⏰ Hatırlatma saati:', timeString);
+    
+    // Yeni antrenman hatırlatıcıları oluştur
+    const [hour, minute] = timeString.split(':').map(Number);
+    
+    for (const day of workoutDays) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '🏋️ Antrenman Zamanı!',
+          body: `Bugün antrenman gününüz! Hedeflerinize ulaşmak için çalışmaya başlayın.`,
+          sound: 'default',
+          data: {
+            type: 'workout_reminder',
+            day: day
+          }
+        },
+        trigger: {
+          weekday: day, // 1=Pazartesi, 2=Salı, ..., 7=Pazar
+          hour: hour,
+          minute: minute,
+          repeats: true,
+        },
+      });
+    }
+
+    console.log(`✅ Antrenman bildirimleri ayarlandı: ${workoutDays.length} gün`);
+    return { success: true, days: workoutDays.length };
+  } catch (error) {
+    console.error('❌ Antrenman bildirimleri güncelleme hatası:', error);
+    return { success: false, error: error.message };
+  }
 };
 
+// Antrenman hatırlatıcılarını iptal et
+export const cancelWorkoutReminders = async () => {
+  try {
+    const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+    
+    // Antrenman hatırlatıcılarını bul ve iptal et
+    const workoutReminders = scheduledNotifications.filter(
+      notification => notification.content.title?.includes('🏋️')
+    );
+    
+    for (const reminder of workoutReminders) {
+      await Notifications.cancelScheduledNotificationAsync(reminder.identifier);
+    }
+    
+    console.log('✅ Antrenman hatırlatıcıları iptal edildi');
+    return true;
+  } catch (error) {
+    console.error('❌ Antrenman hatırlatıcıları iptal hatası:', error);
+    return false;
+  }
+};
+
+// Vitamin hatırlatıcısı
+export const scheduleVitaminReminder = async (time) => {
+  try {
+    console.log('🔔 Vitamin hatırlatıcısı ayarlanıyor:', time);
+    
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return { success: false, error: 'no_permission' };
+
+    const [hour, minute] = time.split(':').map(Number);
+    
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '💊 Vitamin Zamanı!',
+        body: 'Vitamin almanız için hatırlatma.',
+        sound: 'default',
+        data: { type: 'vitamin_reminder' }
+      },
+      trigger: {
+        hour: hour,
+        minute: minute,
+        repeats: true,
+      },
+    });
+
+    console.log('✅ Vitamin hatırlatıcısı ayarlandı');
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Vitamin hatırlatıcısı hatası:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Uyku hatırlatıcısı
+export const scheduleSleepReminder = async (time) => {
+  try {
+    console.log('🔔 Uyku hatırlatıcısı ayarlanıyor:', time);
+    
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return { success: false, error: 'no_permission' };
+
+    const [hour, minute] = time.split(':').map(Number);
+    
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '🌙 Uyku Zamanı!',
+        body: 'Sağlıklı uyku için yatmaya hazırlanın.',
+        sound: 'default',
+        data: { type: 'sleep_reminder' }
+      },
+      trigger: {
+        hour: hour,
+        minute: minute,
+        repeats: true,
+      },
+    });
+
+    console.log('✅ Uyku hatırlatıcısı ayarlandı');
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Uyku hatırlatıcısı hatası:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Test fonksiyonları
+export const testAllNotifications = async () => {
+  try {
+    console.log('🧪 Tüm bildirimler test ediliyor...');
+    
+    // İzin kontrolü
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) {
+      console.log('❌ Bildirim izni yok!');
+      return { success: false, error: 'no_permission' };
+    }
+
+    // Mevcut bildirimleri listele
+    const scheduledNotifications = await getAllScheduledNotifications();
+    console.log('📋 Mevcut bildirimler:', scheduledNotifications.length);
+    
+    scheduledNotifications.forEach((notification, index) => {
+      console.log(`${index + 1}. ${notification.content.title} - ${notification.content.body}`);
+    });
+
+    // Test bildirimleri oluştur (5 saniye sonra)
+    const testNotificationId = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '🧪 Test Bildirimi',
+        body: 'Bu bir test bildirimidir. Bildirimler çalışıyor!',
+        sound: 'default',
+        data: { type: 'test' }
+      },
+      trigger: {
+        seconds: 5,
+      },
+    });
+
+    console.log('✅ Test bildirimi ayarlandı, ID:', testNotificationId);
+    return { 
+      success: true, 
+      testId: testNotificationId,
+      scheduledCount: scheduledNotifications.length 
+    };
+  } catch (error) {
+    console.error('❌ Test hatası:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Bildirim durumunu kontrol et
+export const checkNotificationStatus = async () => {
+  try {
+    console.log('🔍 Bildirim durumu kontrol ediliyor...');
+    
+    // İzin durumu
+    const hasPermission = await checkPermissionStatus();
+    console.log('🔔 İzin durumu:', hasPermission ? 'Verildi' : 'Verilmedi');
+    
+    // Planlanmış bildirimler
+    const scheduledNotifications = await getAllScheduledNotifications();
+    console.log('📅 Planlanmış bildirim sayısı:', scheduledNotifications.length);
+    
+    // Bildirim türlerine göre grupla
+    const notificationTypes = {
+      water: 0,
+      meal: 0,
+      workout: 0,
+      vitamin: 0,
+      sleep: 0,
+      other: 0
+    };
+    
+    scheduledNotifications.forEach(notification => {
+      const title = notification.content.title || '';
+      if (title.includes('💧')) notificationTypes.water++;
+      else if (title.includes('🍽️')) notificationTypes.meal++;
+      else if (title.includes('🏋️')) notificationTypes.workout++;
+      else if (title.includes('💊')) notificationTypes.vitamin++;
+      else if (title.includes('🌙')) notificationTypes.sleep++;
+      else notificationTypes.other++;
+    });
+    
+    console.log('📊 Bildirim türleri:', notificationTypes);
+    
+    return {
+      success: true,
+      hasPermission,
+      totalNotifications: scheduledNotifications.length,
+      notificationTypes,
+      notifications: scheduledNotifications
+    };
+  } catch (error) {
+    console.error('❌ Durum kontrol hatası:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Test bildirimini iptal et
+export const cancelTestNotification = async (testId) => {
+  try {
+    if (testId) {
+      await Notifications.cancelScheduledNotificationAsync(testId);
+      console.log('✅ Test bildirimi iptal edildi');
+    }
+    return true;
+  } catch (error) {
+    console.error('❌ Test bildirimi iptal hatası:', error);
+    return false;
+  }
+};

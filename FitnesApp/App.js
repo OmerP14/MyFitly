@@ -11,9 +11,15 @@ import { LanguageProvider } from './src/context/LanguageContext';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import ProfileSetupScreen from './src/screens/ProfileSetupScreen';
+import DietPlanScreen from './src/screens/DietPlanScreen';
+import AddFoodScreen from './src/screens/AddFoodScreen';
+import WaterTrackingScreen from './src/screens/WaterTrackingScreen';
+import DietSettingsScreen from './src/screens/DietSettingsScreen';
+import DietNotificationsScreen from './src/screens/DietNotificationsScreen';
 import { colors } from './src/theme/colors';
 import * as Notifications from 'expo-notifications';
 import { initializeAds } from './src/services/adService';
+import { checkPermissionStatus } from './src/services/notificationService';
 
 const AuthStack = createNativeStackNavigator();
 
@@ -109,6 +115,11 @@ function AppContent() {
         // Kullanıcı giriş yapmış ve profili tamamlamış - Ana uygulama
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
           <RootStack.Screen name="Root" component={Tabs} />
+          <RootStack.Screen name="DietPlan" component={DietPlanScreen} />
+          <RootStack.Screen name="AddFood" component={AddFoodScreen} />
+          <RootStack.Screen name="WaterTracking" component={WaterTrackingScreen} />
+          <RootStack.Screen name="DietSettings" component={DietSettingsScreen} />
+          <RootStack.Screen name="DietNotifications" component={DietNotificationsScreen} />
         </RootStack.Navigator>
       )}
       <StatusBar style={isDarkMode ? "light" : "dark"} />
@@ -118,8 +129,21 @@ function AppContent() {
 
 export default function App() {
   useEffect(() => {
-    // Reklamları başlat
-    initializeAds();
+    const initializeApp = async () => {
+      // Reklamları başlat
+      initializeAds();
+      
+      // Bildirim izin durumunu kontrol et (kullanıcıdan sormadan)
+      console.log('🔔 Bildirim izin durumu kontrol ediliyor...');
+      const hasPermission = await checkPermissionStatus();
+      if (hasPermission) {
+        console.log('✅ Bildirim izinleri zaten verilmiş');
+      } else {
+        console.log('ℹ️ Bildirim izni henüz verilmemiş (profil veya ayarlardan istenecek)');
+      }
+    };
+
+    initializeApp();
   }, []);
 
   return (

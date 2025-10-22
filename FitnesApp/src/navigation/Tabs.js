@@ -10,6 +10,7 @@ import { getTranslations } from '../utils/translations';
 import DashboardScreen from '../screens/DashboardScreen';
 import TrainingScreen from '../screens/TrainingScreen';
 import TrackingScreen from '../screens/TrackingScreen';
+import DietScreen from '../screens/DietScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
@@ -25,6 +26,7 @@ export function Tabs() {
     if (route.name === 'Dashboard') iconName = focused ? 'home' : 'home-outline';
     if (route.name === 'Training') iconName = focused ? 'flash' : 'flash-outline';
     if (route.name === 'Tracking') iconName = focused ? 'analytics' : 'analytics-outline';
+    if (route.name === 'Diet') iconName = focused ? 'restaurant' : 'restaurant-outline';
     if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
     
     return (
@@ -90,6 +92,11 @@ export function Tabs() {
         name="Tracking" 
         component={TrackingScreen} 
         options={{ title: t.tracking_tab }}
+      />
+      <Tab.Screen 
+        name="Diet" 
+        component={DietScreen} 
+        options={{ title: t.diet_tab }}
       />
       <Tab.Screen 
         name="Profile" 

@@ -7,6 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { getTranslations } from '../utils/translations';
 import { getCurrentWeather } from '../services/weatherService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Header({ 
   title, 
@@ -49,13 +50,33 @@ export default function Header({
     if (isDashboard) {
       loadWeather();
     }
+    
+    // Gün değişikliği kontrolü
+    checkDayChange();
   }, [isDashboard, language]);
+
+  // Gün değişikliği takibi için state
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  // Gün değişikliği kontrolü
+  const checkDayChange = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const savedLastDate = await AsyncStorage.getItem('last_date_check');
+      
+      if (savedLastDate !== today) {
+        console.log('📅 Header: Yeni gün tespit edildi, tarih güncelleniyor...');
+        setCurrentDate(new Date());
+        await AsyncStorage.setItem('last_date_check', today);
+      }
+    } catch (error) {
+      console.error('❌ Header gün kontrolü hatası:', error);
+    }
+  };
 
   // Tarih bilgisi
   const getDateInfo = () => {
-    const today = new Date();
-    
-    const todayStr = today.toLocaleDateString(language === 'en' ? 'en-US' : 'tr-TR', { 
+    const todayStr = currentDate.toLocaleDateString(language === 'en' ? 'en-US' : 'tr-TR', { 
       weekday: 'long',
       day: 'numeric',
       month: 'long'

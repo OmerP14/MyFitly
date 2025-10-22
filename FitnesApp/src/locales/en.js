@@ -61,7 +61,6 @@ export default {
   program_tab: 'Program',
   workout_tab: 'Workout',
   tracking_tab: 'Tracking',
-  motivation_tab: 'Motivation',
   profile_tab: 'Profile',
   welcome: 'Hi',
   start_workout: 'Start Workout',
@@ -260,12 +259,6 @@ export default {
   date: 'Date',
   notes: 'Notes',
 
-  // Motivation
-  motivation: 'Motivation',
-  daily_quote: 'Daily Quote',
-  change_quote: 'Change Quote',
-  favorites: 'Favorites',
-  streaks: 'Streaks',
   watch_ad_for_reward: 'Watch Ad for Reward',
   reward_earned: 'Reward earned!',
   ad_not_loaded: 'Ad not ready yet',
@@ -425,8 +418,6 @@ export default {
   workout_goal: 'Workout Goal',
   completed: 'completed',
   weekly_statistics: 'Weekly Statistics',
-  focus_on_goal: 'Focus on your goals, keep progressing 💪',
-  discipline_motivation: 'Discipline > Motivation',
   today_total_sets: 'Today\ntotal sets',
   weight_change_label: 'Weight Change',
   
@@ -522,14 +513,7 @@ export default {
   yearly: 'Yearly',
 
   // Motivation
-  motivation: 'Motivation',
-  motivation_subtitle: 'Focus on your goals, keep progressing',
-  motivation_tips: 'Motivation Tips',
-  loading_motivation_data: 'Loading motivation data...',
-  motivation_data_load_error: 'Motivation data could not be loaded',
   user_info_not_found: 'User information not found',
-  new_quote_not_found: 'New motivation quote could not be retrieved',
-  quote_change_error: 'Quote change error',
   quote_change_failed: 'Motivation quote could not be changed',
   user_or_quote_not_found: 'User information or quote not found',
   quote_added_to_favorites: 'Quote added to favorites!',
@@ -769,4 +753,316 @@ export default {
   name_email_required: 'Name and email fields are required',
   profile_photo_title: 'Profile Photo',
   profile_photo_desc: 'Choose from gallery or take a photo',
+
+  // Diet Module
+  diet: 'Diet',
+  diet_tab: 'Diet',
+  diet_dashboard: 'Diet Dashboard',
+  diet_subtitle: 'Reach your goals with healthy nutrition',
+  daily_calories: 'Daily Calories',
+  remaining_calories: 'Remaining Calories',
+  consumed_calories: 'Consumed Calories',
+  target_calories: 'Target Calories',
+  macros: 'Macros',
+  protein: 'Protein',
+  carbs: 'Carbs',
+  fat: 'Fat',
+  fiber: 'Fiber',
+  grams: 'g',
+  calories_unit: 'kcal',
+  
+  // BMR/TDEE Calculation
+  bmr_calculation: 'BMR Calculation',
+  tdee_calculation: 'TDEE Calculation',
+  mifflin_formula: 'Mifflin-St Jeor Formula',
+  katch_formula: 'Katch-McArdle Formula',
+  activity_level: 'Activity Level',
+  sedentary: 'Sedentary',
+  lightly_active: 'Lightly Active',
+  moderately_active: 'Moderately Active',
+  very_active: 'Very Active',
+  extremely_active: 'Extremely Active',
+  
+  // Goal Types
+  goal_type: 'Goal Type',
+  lose_weight: 'Lose Weight',
+  maintain_weight: 'Maintain Weight',
+  gain_weight: 'Gain Weight',
+  goal_percentage: 'Goal Percentage',
+  aggressive_cut: 'Aggressive Cut (-25%)',
+  moderate_cut: 'Moderate Cut (-15%)',
+  mild_cut: 'Mild Cut (-10%)',
+  maintenance: 'Maintenance (0%)',
+  mild_bulk: 'Mild Bulk (+5%)',
+  moderate_bulk: 'Moderate Bulk (+10%)',
+  aggressive_bulk: 'Aggressive Bulk (+20%)',
+  
+  // Diet Types
+  diet_type: 'Diet Type',
+  balanced: 'Balanced',
+  low_carb: 'Low Carb',
+  high_protein: 'High Protein',
+  mediterranean: 'Mediterranean',
+  ketogenic: 'Ketogenic',
+  intermittent_fasting: 'Intermittent Fasting',
+  
+  // Macro Distribution
+  macro_distribution: 'Macro Distribution',
+  protein_ratio: 'Protein Ratio',
+  carb_ratio: 'Carb Ratio',
+  fat_ratio: 'Fat Ratio',
+  fiber_target: 'Fiber Target',
+  protein_per_kg: 'Protein/kg',
+  fat_per_kg: 'Fat/kg',
+  
+  // Meals
+  meals: 'Meals',
+  breakfast: 'Breakfast',
+  morning_snack: 'Morning Snack',
+  lunch: 'Lunch',
+  afternoon_snack: 'Afternoon Snack',
+  dinner: 'Dinner',
+  evening_snack: 'Evening Snack',
+  meal_plan: 'Meal Plan',
+  weekly_plan: 'Weekly Plan',
+  daily_plan: 'Daily Plan',
+  
+  // Food Tracking
+  food_log: 'Food Log',
+  add_food: 'Add Food',
+  search_food: 'Search Food',
+  scan_barcode: 'Scan Barcode',
+  food_database: 'Food Database',
+  custom_food: 'Custom Food',
+  portion_size: 'Portion Size',
+  serving_size: 'Serving Size',
+  amount: 'Amount',
+  unit: 'Unit',
+  calories_per_100g: 'kcal/100g',
+  
+  // Water Tracking
+  water_tracking: 'Water Tracking',
+  water_tracking_subtitle: 'Track your daily water consumption',
+  water_intake: 'Water Intake',
+  daily_water_goal: 'Daily Water Goal',
+  add_water: 'Add Water',
+  water_reminder: 'Water Reminder',
+  water_history: 'Water History',
+  no_water_logged: 'No water logged yet. Add water using the buttons above.',
+  quick_add: 'Quick Add',
+  consumed: 'Consumed',
+  remaining: 'Remaining',
+  clear_all: 'Clear All',
+  ml: 'ml',
+  liters: 'L',
+  
+  // Goals and Settings
+  diet_goals: 'Diet Goals',
+  diet_settings: 'Diet Settings',
+  target_weight: 'Target Weight',
+  current_weight: 'Current Weight',
+  height: 'Height',
+  age: 'Age',
+  gender: 'Gender',
+  male: 'Male',
+  female: 'Female',
+  body_fat_percentage: 'Body Fat %',
+  
+  // Allergies and Restrictions
+  allergies: 'Allergies',
+  restrictions: 'Restrictions',
+  lactose_free: 'Lactose Free',
+  gluten_free: 'Gluten Free',
+  nut_free: 'Nut Free',
+  vegetarian: 'Vegetarian',
+  vegan: 'Vegan',
+  pescatarian: 'Pescatarian',
+  halal: 'Halal',
+  kosher: 'Kosher',
+  
+  // Notifications and Reminders
+  meal_reminders: 'Meal Reminders',
+  water_reminders: 'Water Reminders',
+  reminder_frequency: 'Reminder Frequency',
+  every_2_hours: 'Every 2 Hours',
+  every_3_hours: 'Every 3 Hours',
+  every_4_hours: 'Every 4 Hours',
+  custom_interval: 'Custom Interval',
+  
+  // Reports and Statistics
+  diet_reports: 'Diet Reports',
+  weekly_report: 'Weekly Report',
+  monthly_report: 'Monthly Report',
+  progress_summary: 'Progress Summary',
+  average_daily_calories: 'Average Daily Calories',
+  average_daily_protein: 'Average Daily Protein',
+  average_daily_carbs: 'Average Daily Carbs',
+  average_daily_fat: 'Average Daily Fat',
+  consistency_score: 'Consistency Score',
+  adherence_rate: 'Adherence Rate',
+  
+  // Motivation and Achievements
+  diet_achievements: 'Diet Achievements',
+  streak_days: 'Streak Days',
+  goal_reached: 'Goal Reached',
+  perfect_week: 'Perfect Week',
+  macro_master: 'Macro Master',
+  consistency_king: 'Consistency King',
+  
+  // Error Messages
+  invalid_height: 'Invalid height value (100-250 cm)',
+  invalid_weight: 'Invalid weight value (30-300 kg)',
+  invalid_age: 'Invalid age value (10-100)',
+  invalid_body_fat: 'Invalid body fat percentage (5-50%)',
+  bmr_calculation_error: 'BMR could not be calculated',
+  tdee_calculation_error: 'TDEE could not be calculated',
+  macro_calculation_error: 'Macros could not be calculated',
+  food_not_found: 'Food not found',
+  barcode_not_found: 'Barcode not found',
+  portion_too_large: 'Portion too large',
+  portion_too_small: 'Portion too small',
+  
+  // Success Messages
+  goal_set_success: 'Goal set successfully!',
+  food_added_success: 'Food added successfully!',
+  water_added_success: 'Water added successfully!',
+  meal_planned_success: 'Meal planned successfully!',
+  bmr_calculated_success: 'BMR calculated successfully!',
+  tdee_calculated_success: 'TDEE calculated successfully!',
+  
+  // Form Validations
+  please_enter_height: 'Please enter height value',
+  please_enter_weight: 'Please enter weight value',
+  please_enter_age: 'Please enter age value',
+  please_select_gender: 'Please select gender',
+  please_select_activity: 'Please select activity level',
+  please_select_goal: 'Please select goal type',
+  please_select_diet: 'Please select diet type',
+  
+  // Example Values
+  height_placeholder: 'E.g: 175',
+  weight_placeholder: 'E.g: 70',
+  age_placeholder: 'E.g: 25',
+  body_fat_placeholder: 'E.g: 15',
+  food_search_placeholder: 'Search food...',
+  portion_placeholder: 'E.g: 100',
+  
+  // Units
+  kg: 'kg',
+  cm: 'cm',
+  years: 'years',
+  percent: '%',
+  g_per_kg: 'g/kg',
+  kcal_per_g: 'kcal/g',
+  
+  // Time
+  today: 'Today',
+  yesterday: 'Yesterday',
+  this_week: 'This Week',
+  last_week: 'Last Week',
+  this_month: 'This Month',
+  last_month: 'Last Month',
+  
+  // Statistics
+  total_calories: 'Total Calories',
+  total_protein: 'Total Protein',
+  total_carbs: 'Total Carbs',
+  total_fat: 'Total Fat',
+  total_fiber: 'Total Fiber',
+  average_calories: 'Average Calories',
+  calories_burned: 'Calories Burned',
+  net_calories: 'Net Calories',
+  calorie_deficit: 'Calorie Deficit',
+  calorie_surplus: 'Calorie Surplus',
+  
+  // Goal Status
+  goal_exceeded: 'Goal Exceeded',
+  goal_reached: 'Goal Reached',
+  goal_not_reached: 'Goal Not Reached',
+  under_target: 'Under Target',
+  over_target: 'Over Target',
+  on_target: 'On Target',
+  
+  // Suggestions
+  suggestions: 'Suggestions',
+  meal_suggestions: 'Meal Suggestions',
+  snack_suggestions: 'Snack Suggestions',
+  drink_suggestions: 'Drink Suggestions',
+  alternative_foods: 'Alternative Foods',
+  
+  // Settings
+  diet_preferences: 'Diet Preferences',
+  meal_timing: 'Meal Timing',
+  portion_control: 'Portion Control',
+  macro_flexibility: 'Macro Flexibility',
+  cheat_days: 'Cheat Days',
+  
+  // Database
+  food_database_offline: 'Offline Food Database',
+  food_database_online: 'Online Food Database',
+  sync_food_database: 'Sync Food Database',
+  last_sync: 'Last Sync',
+  database_updated: 'Database Updated',
+  
+  // Customization
+  customize_plan: 'Customize Plan',
+  adjust_macros: 'Adjust Macros',
+  modify_meals: 'Modify Meals',
+  change_timing: 'Change Timing',
+  personal_preferences: 'Personal Preferences',
+  
+  // Diet Screen Specific
+  rounding_calories: 'Remaining Calories',
+  tap_to_add_meal: 'Tap to track your meal',
+  calculating_diet: 'Calculating diet...',
+  diet_setup_required: 'Complete your profile to set up diet settings',
+  
+  // Diet Notifications
+  dietNotifications: 'Diet Reminders',
+  mealReminders: 'Meal Reminders',
+  mealRemindersDescription: 'Get reminded about your meals',
+  reminderTime: 'Reminder Time',
+  selectTime: 'Select Time',
+  vitaminReminders: 'Vitamin Reminders',
+  vitaminRemindersDescription: 'Get reminded to take your vitamins',
+  sleepReminders: 'Sleep Reminders',
+  sleepRemindersDescription: 'Get reminded about your sleep schedule',
+  waterReminders: 'Water Reminders',
+  waterRemindersDescription: 'Get reminded to drink water',
+  reminderInterval: 'Reminder Interval',
+  saveSettings: 'Save Settings',
+  
+  // Diet Plan Screen
+  diet_plan: 'Diet Plan',
+  weekly_meal_plan: 'Your weekly meal plan',
+  loading_plan: 'Loading plan...',
+  no_meal_plan: 'You don\'t have a meal plan yet',
+  create_meal_plan_desc: 'Start from settings to create a personalized diet plan',
+  go_to_settings: 'Go to Settings',
+  no_meals_planned: 'No meals planned for this day',
+  daily_summary: 'Daily Summary',
+  
+  // Add Food Screen
+  add_food: 'Add Food',
+  search_and_add_food: 'Search and add food to meal',
+  select_meal_type: 'Select Meal Type',
+  search_food: 'Search food...',
+  searching: 'Searching...',
+  no_food_found: 'No food found',
+  start_searching: 'Start searching for food',
+  
+  // Diet Settings Screen
+  customize_your_diet: 'Customize your diet plan',
+  basic_info: 'Basic Information',
+  save_settings: 'Save Settings',
+  saving: 'Saving...',
+  
+  // Days
+  monday: 'Monday',
+  tuesday: 'Tuesday',
+  wednesday: 'Wednesday',
+  thursday: 'Thursday',
+  friday: 'Friday',
+  saturday: 'Saturday',
+  sunday: 'Sunday',
 };

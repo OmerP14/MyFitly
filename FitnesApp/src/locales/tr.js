@@ -414,8 +414,6 @@ export default {
   workout_goal: 'Antrenman Hedefi',
   completed: 'tamamlandı',
   weekly_statistics: 'Haftalık İstatistikler',
-  focus_on_goal: 'Hedefine odaklan, sürekli ilerle 💪',
-  discipline_motivation: 'Disiplin > Motivasyon',
   today_total_sets: 'Bugün\ntoplam set',
   weight_change_label: 'Kilo Değişimi',
   
@@ -593,4 +591,316 @@ export default {
   name_email_required: 'Ad ve email alanları zorunludur',
   profile_photo_title: 'Profil Fotoğrafı',
   profile_photo_desc: 'Galeriden seç veya kameradan fotoğraf çek',
+
+  // Diyet Modülü
+  diet: 'Diyet',
+  diet_tab: 'Diyet',
+  diet_dashboard: 'Diyet Dashboard',
+  diet_subtitle: 'Sağlıklı beslenme ile hedefine ulaş',
+  daily_calories: 'Günlük Kalori',
+  remaining_calories: 'Kalan Kalori',
+  consumed_calories: 'Alınan Kalori',
+  target_calories: 'Hedef Kalori',
+  macros: 'Makrolar',
+  protein: 'Protein',
+  carbs: 'Karbonhidrat',
+  fat: 'Yağ',
+  fiber: 'Lif',
+  grams: 'g',
+  calories_unit: 'kcal',
+  
+  // BMR/TDEE Hesaplama
+  bmr_calculation: 'BMR Hesaplama',
+  tdee_calculation: 'TDEE Hesaplama',
+  mifflin_formula: 'Mifflin-St Jeor Formülü',
+  katch_formula: 'Katch-McArdle Formülü',
+  activity_level: 'Aktivite Seviyesi',
+  sedentary: 'Sedanter',
+  lightly_active: 'Hafif Aktif',
+  moderately_active: 'Orta Aktif',
+  very_active: 'Çok Aktif',
+  extremely_active: 'Son Derece Aktif',
+  
+  // Hedef Türleri
+  goal_type: 'Hedef Türü',
+  lose_weight: 'Kilo Verme',
+  maintain_weight: 'Kilo Koruma',
+  gain_weight: 'Kilo Alma',
+  goal_percentage: 'Hedef Yüzdesi',
+  aggressive_cut: 'Agresif Kesim (-25%)',
+  moderate_cut: 'Orta Kesim (-15%)',
+  mild_cut: 'Hafif Kesim (-10%)',
+  maintenance: 'Koruma (0%)',
+  mild_bulk: 'Hafif Artış (+5%)',
+  moderate_bulk: 'Orta Artış (+10%)',
+  aggressive_bulk: 'Agresif Artış (+20%)',
+  
+  // Diyet Türleri
+  diet_type: 'Diyet Türü',
+  balanced: 'Dengeli',
+  low_carb: 'Düşük Karbonhidrat',
+  high_protein: 'Yüksek Protein',
+  mediterranean: 'Akdeniz',
+  ketogenic: 'Ketojenik',
+  intermittent_fasting: 'Aralıklı Oruç',
+  
+  // Makro Dağılımı
+  macro_distribution: 'Makro Dağılımı',
+  protein_ratio: 'Protein Oranı',
+  carb_ratio: 'Karbonhidrat Oranı',
+  fat_ratio: 'Yağ Oranı',
+  fiber_target: 'Lif Hedefi',
+  protein_per_kg: 'Protein/kg',
+  fat_per_kg: 'Yağ/kg',
+  
+  // Öğünler
+  meals: 'Öğünler',
+  breakfast: 'Kahvaltı',
+  morning_snack: 'Sabah Atıştırması',
+  lunch: 'Öğle Yemeği',
+  afternoon_snack: 'Öğleden Sonra Atıştırması',
+  dinner: 'Akşam Yemeği',
+  evening_snack: 'Akşam Atıştırması',
+  meal_plan: 'Öğün Planı',
+  weekly_plan: 'Haftalık Plan',
+  daily_plan: 'Günlük Plan',
+  
+  // Besin Takibi
+  food_log: 'Besin Kaydı',
+  add_food: 'Besin Ekle',
+  search_food: 'Besin Ara',
+  scan_barcode: 'Barkod Tara',
+  food_database: 'Besin Veritabanı',
+  custom_food: 'Özel Besin',
+  portion_size: 'Porsiyon Boyutu',
+  serving_size: 'Porsiyon Boyutu',
+  amount: 'Miktar',
+  unit: 'Birim',
+  calories_per_100g: 'kcal/100g',
+  
+  // Su Takibi
+  water_tracking: 'Su Takibi',
+  water_tracking_subtitle: 'Günlük su tüketimini takip et',
+  water_intake: 'Su Alımı',
+  daily_water_goal: 'Günlük Su Hedefi',
+  add_water: 'Su Ekle',
+  water_reminder: 'Su Hatırlatıcısı',
+  water_history: 'Su Geçmişi',
+  no_water_logged: 'Henüz su kaydı yok. Yukarıdaki butonlardan su ekleyin.',
+  quick_add: 'Hızlı Ekle',
+  consumed: 'Tüketilen',
+  remaining: 'Kalan',
+  clear_all: 'Tümünü Temizle',
+  ml: 'ml',
+  liters: 'L',
+  
+  // Hedef ve Ayarlar
+  diet_goals: 'Diyet Hedefleri',
+  diet_settings: 'Diyet Ayarları',
+  target_weight: 'Hedef Kilo',
+  current_weight: 'Mevcut Kilo',
+  height: 'Boy',
+  age: 'Yaş',
+  gender: 'Cinsiyet',
+  male: 'Erkek',
+  female: 'Kadın',
+  body_fat_percentage: 'Vücut Yağ Oranı (%)',
+  
+  // Alerjiler ve Kısıtlamalar
+  allergies: 'Alerjiler',
+  restrictions: 'Kısıtlamalar',
+  lactose_free: 'Laktoz İçermez',
+  gluten_free: 'Glüten İçermez',
+  nut_free: 'Fındık İçermez',
+  vegetarian: 'Vejetaryen',
+  vegan: 'Vegan',
+  pescatarian: 'Peskataryen',
+  halal: 'Helal',
+  kosher: 'Kosher',
+  
+  // Bildirimler ve Hatırlatıcılar
+  meal_reminders: 'Öğün Hatırlatıcıları',
+  water_reminders: 'Su Hatırlatıcıları',
+  reminder_frequency: 'Hatırlatıcı Sıklığı',
+  every_2_hours: 'Her 2 Saatte',
+  every_3_hours: 'Her 3 Saatte',
+  every_4_hours: 'Her 4 Saatte',
+  custom_interval: 'Özel Aralık',
+  
+  // Raporlar ve İstatistikler
+  diet_reports: 'Diyet Raporları',
+  weekly_report: 'Haftalık Rapor',
+  monthly_report: 'Aylık Rapor',
+  progress_summary: 'İlerleme Özeti',
+  average_daily_calories: 'Ortalama Günlük Kalori',
+  average_daily_protein: 'Ortalama Günlük Protein',
+  average_daily_carbs: 'Ortalama Günlük Karbonhidrat',
+  average_daily_fat: 'Ortalama Günlük Yağ',
+  consistency_score: 'Tutarlılık Skoru',
+  adherence_rate: 'Uyum Oranı',
+  
+  // Motivasyon ve Başarılar
+  diet_achievements: 'Diyet Başarıları',
+  streak_days: 'Seri Günler',
+  goal_reached: 'Hedefe Ulaşıldı',
+  perfect_week: 'Mükemmel Hafta',
+  macro_master: 'Makro Ustası',
+  consistency_king: 'Tutarlılık Kralı',
+  
+  // Hata Mesajları
+  invalid_height: 'Geçersiz boy değeri (100-250 cm)',
+  invalid_weight: 'Geçersiz kilo değeri (30-300 kg)',
+  invalid_age: 'Geçersiz yaş değeri (10-100)',
+  invalid_body_fat: 'Geçersiz vücut yağ oranı (5-50%)',
+  bmr_calculation_error: 'BMR hesaplanamadı',
+  tdee_calculation_error: 'TDEE hesaplanamadı',
+  macro_calculation_error: 'Makro hesaplanamadı',
+  food_not_found: 'Besin bulunamadı',
+  barcode_not_found: 'Barkod bulunamadı',
+  portion_too_large: 'Porsiyon çok büyük',
+  portion_too_small: 'Porsiyon çok küçük',
+  
+  // Başarı Mesajları
+  goal_set_success: 'Hedef başarıyla ayarlandı!',
+  food_added_success: 'Besin başarıyla eklendi!',
+  water_added_success: 'Su başarıyla eklendi!',
+  meal_planned_success: 'Öğün başarıyla planlandı!',
+  bmr_calculated_success: 'BMR başarıyla hesaplandı!',
+  tdee_calculated_success: 'TDEE başarıyla hesaplandı!',
+  
+  // Form Validasyonları
+  please_enter_height: 'Lütfen boy değerini girin',
+  please_enter_weight: 'Lütfen kilo değerini girin',
+  please_enter_age: 'Lütfen yaş değerini girin',
+  please_select_gender: 'Lütfen cinsiyet seçin',
+  please_select_activity: 'Lütfen aktivite seviyesi seçin',
+  please_select_goal: 'Lütfen hedef türü seçin',
+  please_select_diet: 'Lütfen diyet türü seçin',
+  
+  // Örnek Değerler
+  height_placeholder: 'Örn: 175',
+  weight_placeholder: 'Örn: 70',
+  age_placeholder: 'Örn: 25',
+  body_fat_placeholder: 'Örn: 15',
+  food_search_placeholder: 'Besin ara...',
+  portion_placeholder: 'Örn: 100',
+  
+  // Birimler
+  kg: 'kg',
+  cm: 'cm',
+  years: 'yaş',
+  percent: '%',
+  g_per_kg: 'g/kg',
+  kcal_per_g: 'kcal/g',
+  
+  // Zaman
+  today: 'Bugün',
+  yesterday: 'Dün',
+  this_week: 'Bu Hafta',
+  last_week: 'Geçen Hafta',
+  this_month: 'Bu Ay',
+  last_month: 'Geçen Ay',
+  
+  // İstatistikler
+  total_calories: 'Toplam Kalori',
+  total_protein: 'Toplam Protein',
+  total_carbs: 'Toplam Karbonhidrat',
+  total_fat: 'Toplam Yağ',
+  total_fiber: 'Toplam Lif',
+  average_calories: 'Ortalama Kalori',
+  calories_burned: 'Yakılan Kalori',
+  net_calories: 'Net Kalori',
+  calorie_deficit: 'Kalori Açığı',
+  calorie_surplus: 'Kalori Fazlası',
+  
+  // Hedef Durumları
+  goal_exceeded: 'Hedef Aşıldı',
+  goal_reached: 'Hedefe Ulaşıldı',
+  goal_not_reached: 'Hedefe Ulaşılamadı',
+  under_target: 'Hedefin Altında',
+  over_target: 'Hedefin Üstünde',
+  on_target: 'Hedefte',
+  
+  // Öneriler
+  suggestions: 'Öneriler',
+  meal_suggestions: 'Öğün Önerileri',
+  snack_suggestions: 'Atıştırmalık Önerileri',
+  drink_suggestions: 'İçecek Önerileri',
+  alternative_foods: 'Alternatif Besinler',
+  
+  // Ayarlar
+  diet_preferences: 'Diyet Tercihleri',
+  meal_timing: 'Öğün Zamanlaması',
+  portion_control: 'Porsiyon Kontrolü',
+  macro_flexibility: 'Makro Esnekliği',
+  cheat_days: 'Kaçamak Günleri',
+  
+  // Veritabanı
+  food_database_offline: 'Çevrimdışı Besin Veritabanı',
+  food_database_online: 'Çevrimiçi Besin Veritabanı',
+  sync_food_database: 'Besin Veritabanını Senkronize Et',
+  last_sync: 'Son Senkronizasyon',
+  database_updated: 'Veritabanı Güncellendi',
+  
+  // Özelleştirme
+  customize_plan: 'Planı Özelleştir',
+  adjust_macros: 'Makroları Ayarla',
+  modify_meals: 'Öğünleri Değiştir',
+  change_timing: 'Zamanlamayı Değiştir',
+  personal_preferences: 'Kişisel Tercihler',
+  
+  // Diyet Ekranı Özel
+  rounding_calories: 'Kalan Kalori',
+  tap_to_add_meal: 'Öğününüzü takip etmek için dokunun',
+  calculating_diet: 'Diyet hesaplanıyor...',
+  diet_setup_required: 'Diyet ayarlarını yapmak için profilinizi tamamlayın',
+  
+  // Diyet Bildirimleri
+  dietNotifications: 'Diyet Hatırlatıcıları',
+  mealReminders: 'Yemek Hatırlatıcıları',
+  mealRemindersDescription: 'Yemekleriniz hakkında hatırlatma alın',
+  reminderTime: 'Hatırlatma Saati',
+  selectTime: 'Saat Seç',
+  vitaminReminders: 'Vitamin Hatırlatıcıları',
+  vitaminRemindersDescription: 'Vitamin almanız için hatırlatma alın',
+  sleepReminders: 'Uyku Hatırlatıcıları',
+  sleepRemindersDescription: 'Uyku programınız hakkında hatırlatma alın',
+  waterReminders: 'Su Hatırlatıcıları',
+  waterRemindersDescription: 'Su içmeniz için hatırlatma alın',
+  reminderInterval: 'Hatırlatma Aralığı',
+  saveSettings: 'Ayarları Kaydet',
+  
+  // Diyet Plan Ekranı
+  diet_plan: 'Diyet Planı',
+  weekly_meal_plan: 'Haftalık öğün planınız',
+  loading_plan: 'Plan yükleniyor...',
+  no_meal_plan: 'Henüz diyet planınız yok',
+  create_meal_plan_desc: 'Kişiselleştirilmiş diyet planı oluşturmak için ayarlardan başlayın',
+  go_to_settings: 'Ayarlara Git',
+  no_meals_planned: 'Bu gün için planlanmış öğün yok',
+  daily_summary: 'Günlük Özet',
+  
+  // Besin Ekleme Ekranı
+  add_food: 'Besin Ekle',
+  search_and_add_food: 'Besin ara ve öğüne ekle',
+  select_meal_type: 'Öğün Tipi Seç',
+  search_food: 'Besin ara...',
+  searching: 'Aranıyor...',
+  no_food_found: 'Besin bulunamadı',
+  start_searching: 'Besin aramaya başlayın',
+  
+  // Diyet Ayarları Ekranı
+  customize_your_diet: 'Diyet planınızı özelleştirin',
+  basic_info: 'Temel Bilgiler',
+  save_settings: 'Ayarları Kaydet',
+  saving: 'Kaydediliyor...',
+  
+  // Günler
+  monday: 'Pazartesi',
+  tuesday: 'Salı',
+  wednesday: 'Çarşamba',
+  thursday: 'Perşembe',
+  friday: 'Cuma',
+  saturday: 'Cumartesi',
+  sunday: 'Pazar',
 };

@@ -3,6 +3,11 @@
 -- Tüm egzersizler detaylı ve düzenli
 -- ============================================
 
+-- Önce eski kayıtları temizle
+DELETE FROM template_exercises;
+DELETE FROM template_program_days;
+DELETE FROM template_programs;
+
 -- Template tablolarını oluştur
 CREATE TABLE IF NOT EXISTS template_programs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

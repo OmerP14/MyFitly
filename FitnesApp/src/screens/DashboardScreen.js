@@ -181,6 +181,23 @@ export default function DashboardScreen({ navigation }) {
     }
   };
 
+  // Gün değişikliği takibi
+  const checkDayChange = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const savedLastDate = await AsyncStorage.getItem('last_dashboard_date');
+      
+      if (savedLastDate !== today) {
+        console.log('📅 Dashboard: Yeni gün tespit edildi, bugünkü antrenman güncelleniyor...');
+        await AsyncStorage.setItem('last_dashboard_date', today);
+        // Bugünkü antrenmanı yeniden yükle
+        loadTodayWorkout();
+      }
+    } catch (error) {
+      console.error('❌ Dashboard gün kontrolü hatası:', error);
+    }
+  };
+
   // Bugünkü antrenmanı yükle
   const loadTodayWorkout = async () => {
     try {
@@ -229,6 +246,8 @@ export default function DashboardScreen({ navigation }) {
   useEffect(() => {
     if (userData?.id) {
       loadAllData();
+      // Gün değişikliği kontrolü
+      checkDayChange();
     }
   }, [userData?.id, userData?.target_weight, userData?.current_weight]);
 
@@ -312,89 +331,6 @@ export default function DashboardScreen({ navigation }) {
         >
 
           {/* Hedef Kilo İlerlemesi - Büyük Kart */}
-          <Card style={{ 
-            marginBottom: spacing.lg, 
-            padding: spacing.xl,
-            alignItems: 'center'
-          }}>
-            <Text style={{ 
-              color: colors.text, 
-              fontSize: 18, 
-              fontWeight: '700',
-              marginBottom: spacing.lg
-            }}>
-              🎯 {t.goal_progress || 'Goal Progress'}
-            </Text>
-            
-            <View style={{ 
-              width: 160, 
-              height: 160, 
-              marginBottom: spacing.lg,
-              justifyContent: 'center',
-              alignItems: 'center'
-            }}>
-              <ProgressRing 
-                size={160} 
-                stroke={16} 
-                progress={weightProgress / 100} 
-                color={colors.success}
-              />
-              <View style={{
-                position: 'absolute',
-                justifyContent: 'center',
-                alignItems: 'center'
-              }}>
-                <Text style={{ 
-                  color: weightProgress > 0 ? colors.success : colors.primary, 
-                  fontSize: 42, 
-                  fontWeight: '900'
-                }}>
-                  %{Math.round(weightProgress)}
-                </Text>
-              </View>
-            </View>
-
-            {userData?.current_weight && userData?.target_weight ? (
-              <View style={{ alignItems: 'center', width: '100%' }}>
-                {Math.round(weightProgress) >= 100 ? (
-                  <Text style={{ 
-                    color: colors.textMuted, 
-                    fontSize: 14,
-                    marginBottom: spacing.md
-                  }}>
-                    {t.reached_goal || 'Reached goal'}
-                  </Text>
-                ) : null}
-
-                <View style={{ 
-                  flexDirection: 'row', 
-                  justifyContent: 'space-around',
-                  width: '100%',
-                  marginTop: spacing.md,
-                  paddingTop: spacing.md,
-                  borderTopWidth: 1,
-                  borderTopColor: colors.border
-                }}>
-                  <View style={{ alignItems: 'center' }}>
-                    <Text style={{ color: colors.textMuted, fontSize: 12 }}>{t.current_weight_label}</Text>
-                    <Text style={{ color: colors.primary, fontSize: 24, fontWeight: '700' }}>
-                      {getCurrentWeight()}kg
-                    </Text>
-                  </View>
-                  <View style={{ alignItems: 'center' }}>
-                    <Text style={{ color: colors.textMuted, fontSize: 12 }}>{t.target_weight_label}</Text>
-                    <Text style={{ color: colors.success, fontSize: 24, fontWeight: '700' }}>
-                      {userData.target_weight}kg
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            ) : (
-              <Text style={{ color: colors.textMuted, textAlign: 'center', paddingHorizontal: spacing.lg }}>
-                {t.add_weight_entry_from_tracking}
-              </Text>
-            )}
-          </Card>
 
           {/* Bugünkü Antrenman */}
           <Card style={{ marginBottom: spacing.lg, padding: spacing.lg }}>
@@ -598,52 +534,6 @@ export default function DashboardScreen({ navigation }) {
             </Card>
           </View>
 
-          {/* Kilo Değişimi */}
-          {weightData.length > 1 && (
-            <Card style={{ 
-              padding: spacing.lg,
-              marginBottom: spacing.lg
-            }}>
-              <View style={{ 
-                flexDirection: 'row', 
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <View>
-                  <Text style={{ 
-                    color: colors.textMuted, 
-                    fontSize: 14,
-                    marginBottom: spacing.xs
-                  }}>
-                    {t.weight_change_label}
-                  </Text>
-                  <Text style={{ 
-                    color: getWeightChange() >= 0 ? colors.success : colors.error, 
-                    fontSize: 32, 
-                    fontWeight: '900' 
-                  }}>
-                    {getWeightChange() >= 0 ? '+' : ''}{getWeightChange().toFixed(1)}kg
-                  </Text>
-                </View>
-                <View style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: 40,
-                  backgroundColor: getWeightChange() >= 0 
-                    ? 'rgba(0, 208, 132, 0.1)' 
-                    : 'rgba(255, 71, 87, 0.1)',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <Ionicons 
-                    name={getWeightChange() >= 0 ? "trending-up" : "trending-down"} 
-                    size={40} 
-                    color={getWeightChange() >= 0 ? colors.success : colors.error} 
-                  />
-                </View>
-              </View>
-            </Card>
-          )}
 
           {/* Hızlı Erişim */}
           <View style={{ 
@@ -749,175 +639,20 @@ export default function DashboardScreen({ navigation }) {
             <AdBanner />
           </View>
 
-          {/* Dashboard İstatistikleri - Güç Takibi */}
-          {(() => {
-            const exercises = getGroupedStrengthData();
-            console.log('📊 Dashboard İstatistikleri:', {
-              exerciseCount: exercises.length,
-              exercises: exercises.map(e => e.name),
-              allData: exercises
-            });
-            return exercises.length > 0;
-          })() && (
-            <View style={{ 
-              marginTop: spacing.lg,
-              marginBottom: spacing.lg
-            }}>
-              <Text style={{ 
-                color: colors.text, 
-                fontSize: 18, 
-                fontWeight: '700',
-                marginBottom: spacing.md,
-                paddingHorizontal: spacing.lg
-              }}>
-                📊 Dashboard İstatistikleri
-              </Text>
-              
-              {(() => {
-                const groupedExercises = getGroupedStrengthData();
-                
-                const renderExerciseCard = ({ item, index }) => {
-                  return (
-                    <View style={{
-                      width: screenWidth - 80,
-                      paddingHorizontal: spacing.sm,
-                      alignItems: 'center'
-                    }}>
-                      <View style={{
-                        width: '100%',
-                        backgroundColor: colors.card,
-                        borderRadius: 16,
-                        padding: spacing.lg,
-                        alignItems: 'center',
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.1,
-                        shadowRadius: 4,
-                        elevation: 3,
-                        borderWidth: 1,
-                        borderColor: colors.border
-                      }}>
-                        {/* Egzersiz Adı */}
-                        <Text style={{ 
-                          color: colors.text, 
-                          fontSize: 18, 
-                          fontWeight: '700',
-                          marginBottom: spacing.lg
-                        }}>
-                          🏋️ {item.name}
-                        </Text>
-                        
-                        {/* İstatistikler Grid */}
-                        <View style={{
-                          flexDirection: 'row',
-                          flexWrap: 'wrap',
-                          justifyContent: 'space-between',
-                          width: '100%',
-                          gap: spacing.sm
-                        }}>
-                          <View style={{ width: '48%', alignItems: 'center', marginBottom: spacing.sm }}>
-                            <Text style={{ color: colors.textMuted, fontSize: 11, marginBottom: 2 }}>En Yüksek</Text>
-                            <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '700' }}>
-                              {item.maxWeight}kg
-                            </Text>
-                          </View>
-                          
-                          <View style={{ width: '48%', alignItems: 'center', marginBottom: spacing.sm }}>
-                            <Text style={{ color: colors.textMuted, fontSize: 11, marginBottom: 2 }}>İlk Kayıt</Text>
-                            <Text style={{ color: colors.purple, fontSize: 16, fontWeight: '700' }}>
-                              {item.history[0]?.weight}kg
-                            </Text>
-                          </View>
-                          
-                          <View style={{ width: '48%', alignItems: 'center', marginBottom: spacing.sm }}>
-                            <Text style={{ color: colors.textMuted, fontSize: 11, marginBottom: 2 }}>Toplam Kayıt</Text>
-                            <Text style={{ color: colors.purple, fontSize: 16, fontWeight: '700' }}>
-                              {item.history.length}
-                            </Text>
-                          </View>
-                          
-                          <View style={{ width: '48%', alignItems: 'center', marginBottom: spacing.sm }}>
-                            <Text style={{ color: colors.textMuted, fontSize: 11, marginBottom: 2 }}>Değişim</Text>
-                            <Text style={{ 
-                              color: (item.history[item.history.length - 1]?.weight - item.history[0]?.weight) >= 0 
-                                ? colors.success : colors.error, 
-                              fontSize: 16, 
-                              fontWeight: '700' 
-                            }}>
-                              {(item.history[item.history.length - 1]?.weight - item.history[0]?.weight) >= 0 ? '+' : ''}
-                              {(item.history[item.history.length - 1]?.weight - item.history[0]?.weight).toFixed(1)}kg
-                            </Text>
-                          </View>
-                          
-                          <View style={{ width: '48%', alignItems: 'center', marginBottom: spacing.sm }}>
-                            <Text style={{ color: colors.textMuted, fontSize: 11, marginBottom: 2 }}>Son Ağırlık</Text>
-                            <Text style={{ color: colors.warning, fontSize: 16, fontWeight: '700' }}>
-                              {item.history[item.history.length - 1]?.weight}kg
-                            </Text>
-                          </View>
-                          
-                          <View style={{ width: '48%', alignItems: 'center', marginBottom: spacing.sm }}>
-                            <Text style={{ color: colors.textMuted, fontSize: 11, marginBottom: 2 }}>İlerleme</Text>
-                            <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '700' }}>
-                              {item.history.length > 1 ? 
-                                (((item.history[item.history.length - 1]?.weight - item.history[0]?.weight) / item.history[0]?.weight) * 100).toFixed(1) + '%' 
-                                : '0.0%'
-                              }
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    </View>
-                  );
-                };
-                
-                return (
-                  <FlatList
-                    data={groupedExercises}
-                    renderItem={renderExerciseCard}
-                    keyExtractor={(item, index) => `exercise-${index}`}
-                    horizontal
-                    showsHorizontalScrollIndicator={true}
-                    snapToInterval={screenWidth - 60}
-                    snapToAlignment="start"
-                    decelerationRate="fast"
-                    pagingEnabled={false}
-                    contentContainerStyle={{ paddingHorizontal: spacing.sm }}
-                    style={{ height: 280 }}
-                    ItemSeparatorComponent={() => <View style={{ width: spacing.md }} />}
-                  />
-                );
-              })()}
-            </View>
-          )}
-
-          {/* Motivasyon Sözü */}
-          <Card style={{ 
-            marginTop: spacing.lg,
-            padding: spacing.xl,
-            backgroundColor: colors.primary,
-            alignItems: 'center'
+          {/* Ekranın Sonu - Banner Reklamı */}
+          <View style={{
+            marginHorizontal: spacing.lg,
+            marginBottom: spacing.xl,
+            backgroundColor: colors.background,
+            borderRadius: 8,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.1,
+            shadowRadius: 2,
+            elevation: colors.background === '#FFFFFF' ? 2 : 0
           }}>
-            <Text style={{ 
-              color: colors.background, 
-              fontSize: 18, 
-              fontWeight: '700',
-              textAlign: 'center',
-              lineHeight: 28
-            }}>
-              "{t.discipline_motivation}"
-            </Text>
-            <Text style={{ 
-              color: colors.background, 
-              fontSize: 14,
-              textAlign: 'center',
-              marginTop: spacing.sm,
-              opacity: 0.9
-            }}>
-              {t.focus_on_goal}
-            </Text>
-          </Card>
-
+            <AdBanner />
+          </View>
 
         </ScrollView>
       </SafeAreaView>

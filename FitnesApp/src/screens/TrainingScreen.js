@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Header from '../components/Header';
 import Card from '../components/Card';
 import { spacing } from '../theme/colors';
@@ -78,6 +79,8 @@ export default function TrainingScreen({ navigation, route }) {
   useFocusEffect(
     useCallback(() => {
       loadTrainingData();
+      // Gün değişikliği kontrolü
+      checkDayChange();
     }, [])
   );
 
@@ -106,6 +109,27 @@ export default function TrainingScreen({ navigation, route }) {
     return () => clearInterval(interval);
   }, [isRunning, isPaused, elapsedTime]);
 
+
+  // Gün değişikliği takibi
+  const checkDayChange = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const savedLastDate = await AsyncStorage.getItem('last_training_date');
+      
+      if (savedLastDate !== today) {
+        console.log('📅 Training: Yeni gün tespit edildi, bugünkü egzersizler güncelleniyor...');
+        await AsyncStorage.setItem('last_training_date', today);
+        // Bugünkü egzersizleri yeniden yükle
+        const todayExercises = await programService.getExercises(userId, new Date().getDay());
+        setWorkoutData({ 
+          name: 'Today\'s Workout', 
+          exercises: todayExercises || [] 
+        });
+      }
+    } catch (error) {
+      console.error('❌ Training gün kontrolü hatası:', error);
+    }
+  };
 
   const loadTrainingData = async () => {
     try {
