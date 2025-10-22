@@ -5,59 +5,30 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import syncService from '../services/syncService';
-// Card component - Fitly uygulamasına uygun koyu card
-const Card = ({ children, style }) => (
-  <View style={[{
-    backgroundColor: '#161B22',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#30363D',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 5
-  }, style]}>
-    {children}
-  </View>
-);
-// Context imports - Fitly uygulamasına uygun koyu tema
-const useTheme = () => ({
-  colors: {
-    background: '#0D1117',
-    text: '#F0F6FC',
-    textSecondary: '#8B949E',
-    primary: '#FF6B35',
-    surface: '#161B22',
-    border: '#30363D',
-    accent: '#E94560'
-  },
-  spacing: {
-    xs: 4,
-    sm: 8,
-    md: 16,
-    lg: 24,
-    xl: 32
-  }
-});
+import { useTheme } from '../context/ThemeContext';
+import { useUser } from '../context/UserContext';
+import { useLanguage } from '../context/LanguageContext';
+import { supabase } from '../config/supabase';
+import Card from '../components/Card';
+// Gerçek context'ler import edildi, mock'lar kaldırıldı
 
-const useUser = () => ({
-  userData: {
-    id: '1',
-    meal_reminders: true,
-    water_reminders: true,
-    vitamin_reminders: true,
-    vitamin_reminder_time: '09:00',
-    sleep_reminders: true,
-    sleep_reminder_time: '22:00',
-    water_reminder_interval: 2
-  }
-});
+const scheduleNotification = async (id, title, body, type, time, interval) => {
+  console.log('📱 Bildirim planlandı:', { id, title, body, type, time, interval });
+  return Promise.resolve();
+};
 
-const useLanguage = () => ({
-  t: (key) => {
+const cancelNotification = async (id) => {
+  console.log('❌ Bildirim iptal edildi:', id);
+  return Promise.resolve();
+};
+
+export default function DietNotificationsScreen({ navigation }) {
+  const { colors, spacing, isDarkMode } = useTheme();
+  const { userData } = useUser();
+  const { language } = useLanguage();
+  
+  // Translation fonksiyonu
+  const t = (key) => {
     const translations = {
       'dietNotifications': 'Hatırlatıcı Ayarları',
       'mealReminders': 'Yemek Hatırlatıcıları',
@@ -73,31 +44,7 @@ const useLanguage = () => ({
       'saveSettings': 'Ayarları Kaydet'
     };
     return translations[key] || key;
-  }
-});
-// Mock services - gerçek servisler mevcut değilse
-const supabase = {
-  from: () => ({
-    update: () => ({
-      eq: () => Promise.resolve({ error: null })
-    })
-  })
-};
-
-const scheduleNotification = async (id, title, body, type, time, interval) => {
-  console.log('📱 Bildirim planlandı:', { id, title, body, type, time, interval });
-  return Promise.resolve();
-};
-
-const cancelNotification = async (id) => {
-  console.log('❌ Bildirim iptal edildi:', id);
-  return Promise.resolve();
-};
-
-export default function DietNotificationsScreen({ navigation }) {
-  const { colors, spacing } = useTheme();
-  const { userData } = useUser();
-  const { t } = useLanguage();
+  };
 
   const [settings, setSettings] = useState({
     mealReminders: userData?.meal_reminders || true,
@@ -109,7 +56,10 @@ export default function DietNotificationsScreen({ navigation }) {
     vitaminReminderTime: userData?.vitamin_reminder_time || '09:00',
     sleepReminders: userData?.sleep_reminders || true,
     sleepReminderTime: userData?.sleep_reminder_time || '22:00',
-    waterReminderInterval: userData?.water_reminder_interval || 2
+    waterReminderInterval: userData?.water_reminder_interval || 2,
+    // Tema ve bildirim tercihleri
+    isDarkMode: userData?.is_dark_mode !== undefined ? userData.is_dark_mode : true,
+    notificationsEnabled: userData?.notifications_enabled !== undefined ? userData.notifications_enabled : true
   });
 
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -171,7 +121,8 @@ export default function DietNotificationsScreen({ navigation }) {
     try {
       console.log('💾 Bildirim ayarları kaydediliyor...', settings);
 
-      const { error } = await supabase
+      // Bildirim ayarlarını veritabanında güncelle
+      const { error: notificationError } = await supabase
         .from('users')
         .update({
           meal_reminders: settings.mealReminders,
@@ -183,12 +134,17 @@ export default function DietNotificationsScreen({ navigation }) {
           vitamin_reminders: settings.vitaminReminders,
           vitamin_reminder_time: settings.vitaminReminderTime,
           sleep_reminders: settings.sleepReminders,
-          sleep_reminder_time: settings.sleepReminderTime
+          sleep_reminder_time: settings.sleepReminderTime,
+          // Tema tercihini de kaydet
+          is_dark_mode: isDarkMode,
+          // Bildirim izinlerini kaydet
+          notifications_enabled: true,
+          updated_at: new Date().toISOString()
         })
         .eq('id', userData.id);
 
-      if (error) {
-        console.error('❌ Bildirim ayarları kaydedilemedi:', error);
+      if (notificationError) {
+        console.error('❌ Bildirim ayarları kaydedilemedi:', notificationError);
         Alert.alert('Hata', 'Bildirim ayarları kaydedilemedi');
         return;
       }
@@ -678,87 +634,6 @@ export default function DietNotificationsScreen({ navigation }) {
           </TouchableOpacity>
         </Card>
 
-        {/* Test Butonları */}
-        <Card style={{ marginBottom: spacing.lg }}>
-          <Text style={{ 
-            fontSize: 18, 
-            fontWeight: '600', 
-            color: colors.text, 
-            marginBottom: spacing.md 
-          }}>
-            🧪 Test Bildirimleri
-          </Text>
-          
-          <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
-            <TouchableOpacity
-              onPress={async () => {
-                const { testAllNotifications, checkNotificationStatus } = await import('../services/notificationService');
-                const result = await testAllNotifications();
-                console.log('Test sonucu:', result);
-                Alert.alert('Test', result.success ? 'Test bildirimi gönderildi!' : 'Test başarısız!');
-              }}
-              style={{
-                flex: 1,
-                backgroundColor: colors.primary,
-                padding: spacing.md,
-                borderRadius: 8,
-                alignItems: 'center'
-              }}
-            >
-              <Text style={{ color: colors.background, fontWeight: '600' }}>
-                Test Gönder
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              onPress={async () => {
-                const { checkNotificationStatus } = await import('../services/notificationService');
-                const status = await checkNotificationStatus();
-                console.log('Bildirim durumu:', status);
-                Alert.alert(
-                  'Bildirim Durumu', 
-                  `Toplam: ${status.totalNotifications}\n` +
-                  `Su: ${status.notificationTypes.water}\n` +
-                  `Yemek: ${status.notificationTypes.meal}\n` +
-                  `Antrenman: ${status.notificationTypes.workout}\n` +
-                  `Vitamin: ${status.notificationTypes.vitamin}\n` +
-                  `Uyku: ${status.notificationTypes.sleep}`
-                );
-              }}
-              style={{
-                flex: 1,
-                backgroundColor: colors.surface,
-                padding: spacing.md,
-                borderRadius: 8,
-                alignItems: 'center',
-                borderWidth: 1,
-                borderColor: colors.border
-              }}
-            >
-              <Text style={{ color: colors.text, fontWeight: '600' }}>
-                Durum Kontrol
-              </Text>
-            </TouchableOpacity>
-          </View>
-          
-          <TouchableOpacity
-            onPress={async () => {
-              const { cancelAllNotifications } = await import('../services/notificationService');
-              const result = await cancelAllNotifications();
-              Alert.alert('Temizlik', result ? 'Tüm bildirimler iptal edildi!' : 'İptal başarısız!');
-            }}
-            style={{
-              backgroundColor: '#FF4444',
-              padding: spacing.md,
-              borderRadius: 8,
-              alignItems: 'center'
-            }}
-          >
-            <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>
-              Tüm Bildirimleri İptal Et
-            </Text>
-          </TouchableOpacity>
-        </Card>
 
         {/* Kaydet Butonu */}
         <TouchableOpacity
@@ -796,17 +671,21 @@ export default function DietNotificationsScreen({ navigation }) {
         >
           <View
             style={{
-              backgroundColor: colors.surface,
+              backgroundColor: isDarkMode 
+                ? 'rgba(0, 0, 0, 0.8)' // Koyu tema - koyu arka plan
+                : 'rgba(248, 249, 250, 0.9)', // Açık tema - çok hafif gri ton
               borderRadius: 20,
               padding: 0,
               width: '85%',
               maxWidth: 320,
-              shadowColor: '#000',
+              shadowColor: isDarkMode ? '#000' : '#FF6600',
               shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
+              shadowOpacity: isDarkMode ? 0.3 : 0.15,
               shadowRadius: 8,
               elevation: 8,
               overflow: 'hidden',
+              borderWidth: isDarkMode ? 0 : 1,
+              borderColor: isDarkMode ? 'transparent' : 'rgba(255, 102, 0, 0.15)',
             }}
           >
             {/* Header */}
@@ -838,7 +717,10 @@ export default function DietNotificationsScreen({ navigation }) {
             }}>
               {/* Gradient Overlays */}
               <LinearGradient
-                colors={[colors.surface, 'transparent']}
+                colors={isDarkMode 
+                  ? ['rgba(0, 0, 0, 0.5)', 'transparent'] 
+                  : ['rgba(248, 249, 250, 0.4)', 'transparent']
+                }
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -850,7 +732,10 @@ export default function DietNotificationsScreen({ navigation }) {
                 }}
               />
               <LinearGradient
-                colors={['transparent', colors.surface]}
+                colors={isDarkMode 
+                  ? ['transparent', 'rgba(0, 0, 0, 0.5)'] 
+                  : ['transparent', 'rgba(248, 249, 250, 0.4)']
+                }
                 style={{
                   position: 'absolute',
                   bottom: 0,
@@ -869,7 +754,9 @@ export default function DietNotificationsScreen({ navigation }) {
                 left: 0,
                 right: 0,
                 height: 40,
-                backgroundColor: 'rgba(255, 107, 53, 0.1)',
+                backgroundColor: isDarkMode 
+                  ? 'rgba(255, 107, 53, 0.1)' 
+                  : 'rgba(255, 102, 0, 0.08)',
                 borderTopWidth: 1,
                 borderBottomWidth: 1,
                 borderColor: colors.primary,

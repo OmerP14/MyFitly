@@ -1299,20 +1299,41 @@ export default function TrainingScreen({ navigation, route }) {
 
         {/* Selected Day Exercises */}
         <Card style={{ marginBottom: spacing.lg }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: spacing.md }}>
-            <TouchableOpacity
-              onPress={() => setShowAddModal(true)}
-              style={{
-                backgroundColor: colors.primary,
-                borderRadius: 20,
-                width: 40,
-                height: 40,
-                justifyContent: 'center',
-                alignItems: 'center'
-              }}
-            >
-              <Ionicons name="add" size={20} color={colors.background} />
-            </TouchableOpacity>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+            <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700' }}>
+              {language === 'tr' ? 'Bugünkü Egzersizler' : 'Today\'s Exercises'}
+            </Text>
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <TouchableOpacity
+                onPress={() => {
+                  // Active egzersiz sekmesine git
+                  setActiveTab('active');
+                }}
+                style={{
+                  backgroundColor: colors.success,
+                  borderRadius: 20,
+                  width: 40,
+                  height: 40,
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}
+              >
+                <Ionicons name="play" size={20} color={colors.background} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowAddModal(true)}
+                style={{
+                  backgroundColor: colors.primary,
+                  borderRadius: 20,
+                  width: 40,
+                  height: 40,
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}
+              >
+                <Ionicons name="add" size={20} color={colors.background} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {selectedDayExercises.length > 0 ? (
@@ -1321,102 +1342,154 @@ export default function TrainingScreen({ navigation, route }) {
                 <View
                   key={index}
                   style={{
+                    backgroundColor: exercise.completed ? colors.success : colors.card,
+                    borderRadius: 16,
+                    marginBottom: spacing.sm,
+                    padding: spacing.lg,
                     flexDirection: 'row',
                     alignItems: 'center',
-                    padding: spacing.md,
-                    backgroundColor: exercise.completed ? 'rgba(34, 197, 94, 0.1)' : colors.card,
-                    borderRadius: 8,
-                    marginBottom: spacing.sm,
-                    borderLeftWidth: 4,
-                    borderLeftColor: exercise.completed ? colors.success : colors.primary
+                    justifyContent: 'space-between',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 8,
+                    elevation: 3
                   }}
                 >
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ 
-                      color: colors.text, 
-                      fontSize: 16, 
-                      fontWeight: '600',
-                      textDecorationLine: exercise.completed ? 'line-through' : 'none'
+                  {/* Sol taraf - Egzersiz bilgileri */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    {/* Egzersiz numarası - Büyük sayı */}
+                    <View style={{
+                      width: 50,
+                      height: 50,
+                      borderRadius: 25,
+                      backgroundColor: exercise.completed ? colors.background : colors.primary,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: spacing.md
                     }}>
-                      {translateExerciseName(exercise.name, language)}
-                    </Text>
-                    <Text style={{ color: colors.textMuted, fontSize: 14, marginTop: 2 }}>
-                      {exercise.sets} {t.sets || 'sets'} × {exercise.reps} {t.reps || 'reps'} {exercise.weight > 0 && `@ ${exercise.weight}kg`}
-                    </Text>
+                      <Text style={{ 
+                        color: exercise.completed ? colors.success : colors.background,
+                        fontSize: 20,
+                        fontWeight: '800'
+                      }}>
+                        {index + 1}
+                      </Text>
+                    </View>
+                    
+                    {/* Egzersiz adı ve detaylar */}
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ 
+                        color: exercise.completed ? colors.background : colors.text, 
+                        fontSize: 18, 
+                        fontWeight: '700',
+                        marginBottom: 4
+                      }}>
+                        {translateExerciseName(exercise.name, language)}
+                      </Text>
+                      <Text style={{ 
+                        color: exercise.completed ? 'rgba(255,255,255,0.8)' : colors.textMuted, 
+                        fontSize: 14,
+                        fontWeight: '500'
+                      }}>
+                        {exercise.sets} × {exercise.reps} {exercise.weight > 0 && `• ${exercise.weight}kg`}
+                      </Text>
+                    </View>
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    {/* Tamamlama Butonu */}
-                    <TouchableOpacity
-                      onPress={async () => {
-                        try {
-                          console.log('🔄 Egzersiz durumu değiştiriliyor:', exercise.name, !exercise.completed);
-                          
-                          const result = await programService.toggleExerciseCompletion(exercise.id, !exercise.completed);
-                          console.log('✅ Egzersiz durumu güncellendi:', result);
-                          
-                          await loadTrainingData();
-                        } catch (error) {
-                          console.error('❌ Toggle completion error:', error);
-                          Alert.alert(
-                            t.error || 'Error',
-                            t.exercise_toggle_error || 'Failed to update exercise status'
-                          );
-                        }
-                      }}
-                      style={{
-                        backgroundColor: exercise.completed ? colors.success : 'transparent',
-                        borderRadius: 20,
-                        width: 24,
-                        height: 24,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        borderWidth: 1.5,
-                        borderColor: exercise.completed ? colors.success : colors.textMuted
-                      }}
-                    >
-                      {exercise.completed && (
-                        <Ionicons name="checkmark" size={14} color={colors.background} />
-                      )}
-                    </TouchableOpacity>
-
-                    {/* Düzenle Butonu */}
-                    <TouchableOpacity
-                      onPress={() => setEditingExercise(exercise)}
-                      style={{
-                        backgroundColor: 'transparent',
-                        borderRadius: 6,
-                        paddingHorizontal: 8,
-                        paddingVertical: 6,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        borderWidth: 1,
-                        borderColor: colors.border
-                      }}
-                    >
-                      <Ionicons name="create-outline" size={14} color={colors.textMuted} />
-                    </TouchableOpacity>
-                  </View>
+                  
+                  {/* Sağ taraf - Edit butonu */}
+                  <TouchableOpacity
+                    onPress={() => setEditingExercise(exercise)}
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: 'transparent',
+                      borderWidth: 1.5,
+                      borderColor: exercise.completed ? colors.background : colors.textMuted,
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <Ionicons 
+                      name="create-outline" 
+                      size={16} 
+                      color={exercise.completed ? colors.background : colors.textMuted} 
+                    />
+                  </TouchableOpacity>
                 </View>
               ))}
             </View>
           ) : (
-            <View style={{ alignItems: 'center', padding: spacing.xl }}>
-              <Ionicons name="barbell-outline" size={48} color={colors.textMuted} />
-              <Text style={{ color: colors.textMuted, fontSize: 16, marginTop: spacing.md, textAlign: 'center' }}>
-                {t.no_exercises || 'No exercises for this day'}
+            <View style={{ 
+              alignItems: 'center', 
+              padding: spacing.xl,
+              backgroundColor: colors.card,
+              borderRadius: 16,
+              marginTop: spacing.md,
+              borderWidth: 1,
+              borderColor: colors.border,
+              borderStyle: 'dashed'
+            }}>
+              <View style={{
+                width: 64,
+                height: 64,
+                borderRadius: 32,
+                backgroundColor: colors.backgroundAlt,
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: spacing.lg
+              }}>
+                <Ionicons name="barbell-outline" size={32} color={colors.textMuted} />
+              </View>
+              
+              <Text style={{ 
+                color: colors.text, 
+                fontSize: 18, 
+                fontWeight: '700',
+                marginBottom: spacing.sm,
+                textAlign: 'center'
+              }}>
+                {language === 'tr' ? 'Bugün için egzersiz yok' : 'No exercises for today'}
               </Text>
+              
+              <Text style={{ 
+                color: colors.textMuted, 
+                fontSize: 14, 
+                textAlign: 'center',
+                marginBottom: spacing.lg,
+                lineHeight: 20
+              }}>
+                {language === 'tr' 
+                  ? 'Bu gün için planlanmış egzersiz bulunmuyor' 
+                  : 'No exercises planned for this day'
+                }
+              </Text>
+              
               <TouchableOpacity
                 onPress={() => setShowAddModal(true)}
                 style={{
                   backgroundColor: colors.primary,
                   borderRadius: 12,
-                  paddingHorizontal: spacing.lg,
-                  paddingVertical: spacing.sm,
-                  marginTop: spacing.md
+                  paddingHorizontal: spacing.xl,
+                  paddingVertical: spacing.md,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.sm,
+                  shadowColor: colors.primary,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                  elevation: 5
                 }}
               >
-                <Text style={{ color: colors.background, fontSize: 14, fontWeight: '600' }}>
-                  {t.add_exercise || 'Add Exercise'}
+                <Ionicons name="add-circle" size={20} color={colors.background} />
+                <Text style={{ 
+                  color: colors.background, 
+                  fontSize: 16, 
+                  fontWeight: '700' 
+                }}>
+                  {language === 'tr' ? 'Egzersiz Ekle' : 'Add Exercise'}
                 </Text>
               </TouchableOpacity>
             </View>

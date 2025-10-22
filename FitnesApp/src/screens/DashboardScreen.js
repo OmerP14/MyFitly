@@ -333,7 +333,7 @@ export default function DashboardScreen({ navigation }) {
           {/* Hedef Kilo İlerlemesi - Büyük Kart */}
 
           {/* Bugünkü Antrenman */}
-          <Card style={{ marginBottom: spacing.lg, padding: spacing.lg }}>
+          <Card variant="highlighted" style={{ marginBottom: spacing.lg, padding: spacing.lg }}>
             <View style={{ 
               flexDirection: 'row', 
               justifyContent: 'space-between',
@@ -487,7 +487,7 @@ export default function DashboardScreen({ navigation }) {
             gap: spacing.md,
             marginBottom: spacing.lg 
           }}>
-            <Card style={{ 
+            <Card variant="secondary" style={{ 
               flex: 1, 
               padding: spacing.lg,
               alignItems: 'center'
@@ -510,7 +510,7 @@ export default function DashboardScreen({ navigation }) {
               </Text>
             </Card>
 
-            <Card style={{ 
+            <Card variant="secondary" style={{ 
               flex: 1, 
               padding: spacing.lg,
               alignItems: 'center'
@@ -548,11 +548,13 @@ export default function DashboardScreen({ navigation }) {
                 borderRadius: 16,
                 padding: spacing.lg,
                 alignItems: 'center',
-                shadowColor: '#000',
+                borderWidth: 1,
+                borderColor: colors.cardBorder,
+                shadowColor: colors.cardShadow,
                 shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: colors.background === '#FFFFFF' ? 0.1 : 0,
-                shadowRadius: 4,
-                elevation: colors.background === '#FFFFFF' ? 2 : 0
+                shadowOpacity: 0.1,
+                shadowRadius: 8,
+                elevation: 3
               }}
             >
               <Ionicons name="analytics" size={32} color={colors.info} />
@@ -575,11 +577,13 @@ export default function DashboardScreen({ navigation }) {
                 borderRadius: 16,
                 padding: spacing.lg,
                 alignItems: 'center',
-                shadowColor: '#000',
+                borderWidth: 1,
+                borderColor: colors.cardBorder,
+                shadowColor: colors.cardShadow,
                 shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: colors.background === '#FFFFFF' ? 0.1 : 0,
-                shadowRadius: 4,
-                elevation: colors.background === '#FFFFFF' ? 2 : 0
+                shadowOpacity: 0.1,
+                shadowRadius: 8,
+                elevation: 3
               }}
             >
               <Ionicons name="list" size={32} color={colors.warning} />
@@ -602,11 +606,13 @@ export default function DashboardScreen({ navigation }) {
                 borderRadius: 16,
                 padding: spacing.lg,
                 alignItems: 'center',
-                shadowColor: '#000',
+                borderWidth: 1,
+                borderColor: colors.cardBorder,
+                shadowColor: colors.cardShadow,
                 shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: colors.background === '#FFFFFF' ? 0.1 : 0,
-                shadowRadius: 4,
-                elevation: colors.background === '#FFFFFF' ? 2 : 0
+                shadowOpacity: 0.1,
+                shadowRadius: 8,
+                elevation: 3
               }}
             >
               <Ionicons name="person" size={32} color={colors.purple} />
@@ -639,20 +645,6 @@ export default function DashboardScreen({ navigation }) {
             <AdBanner />
           </View>
 
-          {/* Ekranın Sonu - Banner Reklamı */}
-          <View style={{
-            marginHorizontal: spacing.lg,
-            marginBottom: spacing.xl,
-            backgroundColor: colors.background,
-            borderRadius: 8,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.1,
-            shadowRadius: 2,
-            elevation: colors.background === '#FFFFFF' ? 2 : 0
-          }}>
-            <AdBanner />
-          </View>
 
         </ScrollView>
       </SafeAreaView>
