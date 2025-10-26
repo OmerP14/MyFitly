@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "FitnesApp",
-    "slug": "FitnesApp",
+    "name": "Fitly",
+    "slug": "fitly",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -15,14 +15,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fitnesapp.app",
+      "bundleIdentifier": "com.fitly.app",
       "infoPlist": {
         "UIBackgroundModes": ["remote-notification"],
         "NSPhotoLibraryUsageDescription": "Profil fotoğrafınızı galeri den seçmek için erişim gerekiyor.",
         "NSCameraUsageDescription": "Profil fotoğrafınızı kamera ile çekmek için erişim gerekiyor.",
         "NSLocationWhenInUseUsageDescription": "Konumunuza göre hava durumu bilgisi göstermek için konum erişimi gerekiyor.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Konumunuza göre hava durumu bilgisi göstermek için konum erişimi gerekiyor.",
-        "GADApplicationIdentifier": "ca-app-pub-3940256099942544~1458002511",
+        "GADApplicationIdentifier": "ca-app-pub-9412101969627220~2576667269",
         "SKAdNetworkItems": [
           {
             "SKAdNetworkIdentifier": "cstr6suwn9.skadnetwork"
@@ -31,7 +31,7 @@
       }
     },
     "android": {
-      "package": "com.fitnesapp.app",
+      "package": "com.fitly.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -56,7 +56,7 @@
       "color": "#FF7A00",
       "iosDisplayInForeground": true,
       "androidMode": "default",
-      "androidCollapsedTitle": "FitnesApp Hatırlatıcı"
+      "androidCollapsedTitle": "Fitly Hatırlatıcı"
     },
     "plugins": [
       [
@@ -79,8 +79,8 @@
       [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
-          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+          "androidAppId": "ca-app-pub-9412101969627220~2576667269",
+          "iosAppId": "ca-app-pub-9412101969627220~2576667269"
         }
       ],
       [

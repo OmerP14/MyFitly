@@ -63,3 +63,5 @@ SELECT '🎉 Motivation temizliği tamamlandı!' AS info;
 
 
 
+
+

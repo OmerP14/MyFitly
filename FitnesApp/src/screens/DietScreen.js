@@ -18,10 +18,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Card from '../components/Card';
 import Header from '../components/Header';
 import ProgressRing from '../components/ProgressRing';
+import Paywall, { PaywallInline } from '../components/Paywall';
 import { spacing } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useSubscription } from '../context/SubscriptionContext';
 import { getTranslations } from '../utils/translations';
 import { calculateDietPlan, testDietCalculations } from '../services/dietService';
 import { supabase } from '../config/supabase';
@@ -33,6 +35,12 @@ export default function DietScreen({ navigation, route }) {
   const { userData } = useUser();
   const { language } = useLanguage();
   const t = getTranslations(language);
+  
+  // ABONELİK KONTROLÜ - DİYET EKRANI SADECE PRO KULLANICILARA AÇIK
+  const { isPro, isLoading: subscriptionLoading, purchaseSubscription, restorePurchases } = useSubscription();
+  const [showFullPaywall, setShowFullPaywall] = useState(false);
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
+  const [loadingType, setLoadingType] = useState(null);
   
   // State variables
   const [dietPlan, setDietPlan] = useState(null);
@@ -483,6 +491,99 @@ export default function DietScreen({ navigation, route }) {
     { key: 'evening_snack', icon: '🥛', name: t.evening_snack }
   ];
 
+  // Satın alma fonksiyonu
+  const handlePurchase = async () => {
+    setPurchaseLoading(true);
+    setLoadingType('purchase');
+    const success = await purchaseSubscription();
+    setPurchaseLoading(false);
+    setLoadingType(null);
+    
+    if (success) {
+      setShowFullPaywall(false);
+    }
+  };
+
+  // Geri yükleme fonksiyonu
+  const handleRestore = async () => {
+    setPurchaseLoading(true);
+    setLoadingType('restore');
+    await restorePurchases();
+    setPurchaseLoading(false);
+    setLoadingType(null);
+  };
+
+  // ABONELİK KONTROLÜ: Eğer kullanıcı Pro değilse Paywall göster
+  if (subscriptionLoading) {
+    // Abonelik durumu yüklenirken loading göster
+    return (
+      <LinearGradient colors={[colors.background, colors.backgroundAlt]} style={{ flex: 1 }}>
+        <Header 
+          title={t.diet_dashboard}
+          subtitle={t.diet_subtitle}
+          showProfile={false}
+        />
+        <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={{ color: colors.textMuted, marginTop: spacing.md }}>
+            {language === 'tr' ? 'Abonelik kontrol ediliyor...' : 'Checking subscription...'}
+          </Text>
+        </SafeAreaView>
+      </LinearGradient>
+    );
+  }
+
+  if (!isPro) {
+    // Kullanıcı Pro değil - Paywall göster
+    return (
+      <LinearGradient colors={[colors.background, colors.backgroundAlt]} style={{ flex: 1 }}>
+        <Header 
+          title={t.diet_dashboard}
+          subtitle={language === 'tr' ? 'Pro Özellik 🌟' : 'Pro Feature 🌟'}
+          showProfile={false}
+        />
+        <SafeAreaView style={{ flex: 1 }} edges={["left", "right"]}>
+          {showFullPaywall ? (
+            <>
+              {/* Full Paywall Modal */}
+              <ScrollView>
+                <Paywall 
+                  onPurchase={handlePurchase}
+                  onRestore={handleRestore}
+                  isLoading={purchaseLoading}
+                  loadingType={loadingType}
+                />
+              </ScrollView>
+              {/* Geri butonu */}
+              <TouchableOpacity
+                onPress={() => setShowFullPaywall(false)}
+                style={{
+                  position: 'absolute',
+                  top: spacing.md,
+                  left: spacing.md,
+                  backgroundColor: colors.card,
+                  borderRadius: 20,
+                  padding: spacing.sm,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}
+              >
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </>
+          ) : (
+            /* Inline Paywall - Kilitleme ekranı */
+            <PaywallInline onOpenFull={() => setShowFullPaywall(true)} />
+          )}
+        </SafeAreaView>
+      </LinearGradient>
+    );
+  }
+
+  // KULLANICI PRO - DİYET İÇERİĞİNİ GÖSTER
   return (
     <LinearGradient colors={[colors.background, colors.backgroundAlt]} style={{ flex: 1 }}>
       <Header 

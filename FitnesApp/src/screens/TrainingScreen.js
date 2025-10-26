@@ -11,6 +11,7 @@ import { spacing } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useSubscription } from '../context/SubscriptionContext';
 import { getTranslations, translateExerciseName, translateProgramName, translateProgramDescription, translateDayName, translateDayDescription } from '../utils/translations';
 import * as programService from '../services/programService';
 import useRewardedAd from '../hooks/useRewardedAd';
@@ -22,6 +23,7 @@ export default function TrainingScreen({ navigation, route }) {
   const { colors } = useTheme();
   const { userData, userId } = useUser();
   const { language } = useLanguage();
+  const { isPro } = useSubscription();
   const t = getTranslations(language);
 
   // State management
@@ -67,13 +69,15 @@ export default function TrainingScreen({ navigation, route }) {
   const [completedExercises, setCompletedExercises] = useState([]);
   const [workoutData, setWorkoutData] = useState({ name: '', exercises: [] });
 
-  // Rewarded Ad hook
+  // Rewarded Ad hook - Premium kullanıcılara gösterilmez
   const { loaded: adLoaded, loading: adLoading, showAd, loadAd } = useRewardedAd();
   
-  // Reklam durumunu logla
+  // Reklam durumunu logla (sadece Free kullanıcılar için)
   useEffect(() => {
-    console.log('📺 Reklam durumu değişti:', { adLoaded, adLoading });
-  }, [adLoaded, adLoading]);
+    if (!isPro) {
+      console.log('📺 Reklam durumu değişti:', { adLoaded, adLoading });
+    }
+  }, [adLoaded, adLoading, isPro]);
 
   // Load data when screen focuses
   useFocusEffect(
@@ -222,21 +226,26 @@ export default function TrainingScreen({ navigation, route }) {
               try {
                 console.log('🗑️ Program kaldırılıyor:', program.name);
                 
-                // Önce reklam göster - ZORLA GÖSTER
-                console.log('📺 Program silme için reklam gösteriliyor...');
-                console.log('🔍 Reklam durumu:', { adLoaded, adLoading });
-                
-                // Reklamı zorla göster
-                try {
-                  console.log('📺 Reklam zorla gösteriliyor...');
-                  await showAd();
-                  console.log('✅ Reklam izlendi, program siliniyor...');
-                } catch (adError) {
-                  console.warn('⚠️ Reklam gösterilemedi:', adError);
-                  console.log('⚠️ Reklam hatası detayı:', adError.message);
+                // Premium kullanıcılara reklam gösterilmez
+                if (!isPro) {
+                  // Önce reklam göster - ZORLA GÖSTER
+                  console.log('📺 Program silme için reklam gösteriliyor...');
+                  console.log('🔍 Reklam durumu:', { adLoaded, adLoading });
                   
-                  // Reklam gösterilemezse de devam et
-                  console.log('⚠️ Reklam gösterilemedi, program direkt siliniyor...');
+                  // Reklamı zorla göster
+                  try {
+                    console.log('📺 Reklam zorla gösteriliyor...');
+                    await showAd();
+                    console.log('✅ Reklam izlendi, program siliniyor...');
+                  } catch (adError) {
+                    console.warn('⚠️ Reklam gösterilemedi:', adError);
+                    console.log('⚠️ Reklam hatası detayı:', adError.message);
+                    
+                    // Reklam gösterilemezse de devam et
+                    console.log('⚠️ Reklam gösterilemedi, program direkt siliniyor...');
+                  }
+                } else {
+                  console.log('✨ Premium kullanıcı - reklam atlandı');
                 }
                 
                 // Reklam sonrası kısa bekleme
@@ -297,34 +306,39 @@ export default function TrainingScreen({ navigation, route }) {
       console.log('🔍 Mevcut user programs:', currentUserPrograms);
       console.log('🔍 Program sayısı:', currentUserPrograms ? currentUserPrograms.length : 0);
 
-      // Önce reklam göster
-      console.log('📺 Reklam kontrolü:', { adLoaded, adLoading });
-      
-      if (adLoaded) {
-        console.log('📺 Reklam gösteriliyor...');
-        try {
-          await showAd();
-          console.log('✅ Reklam izlendi, program ekleniyor...');
-        } catch (adError) {
-          console.warn('⚠️ Reklam gösterilemedi:', adError);
-          // Reklam gösterilemezse de devam et
+      // Premium kullanıcılara reklam gösterilmez
+      if (!isPro) {
+        // Önce reklam göster
+        console.log('📺 Reklam kontrolü:', { adLoaded, adLoading });
+        
+        if (adLoaded) {
+          console.log('📺 Reklam gösteriliyor...');
+          try {
+            await showAd();
+            console.log('✅ Reklam izlendi, program ekleniyor...');
+          } catch (adError) {
+            console.warn('⚠️ Reklam gösterilemedi:', adError);
+            // Reklam gösterilemezse de devam et
+          }
+        } else {
+          console.log('⚠️ Reklam durumu:', { adLoaded, adLoading });
+          console.log('⚠️ Reklam hazır değil, program direkt ekleniyor...');
+          
+          // Reklam hazır değilse yeni reklam yüklemeye çalış
+          console.log('🔄 Yeni reklam yükleniyor...');
+          try {
+            if (loadAd) {
+              loadAd();
+              console.log('✅ Reklam yükleme başlatıldı');
+            } else {
+              console.log('⚠️ loadAd fonksiyonu mevcut değil');
+            }
+          } catch (loadError) {
+            console.warn('⚠️ Reklam yükleme hatası:', loadError);
+          }
         }
       } else {
-        console.log('⚠️ Reklam durumu:', { adLoaded, adLoading });
-        console.log('⚠️ Reklam hazır değil, program direkt ekleniyor...');
-        
-        // Reklam hazır değilse yeni reklam yüklemeye çalış
-        console.log('🔄 Yeni reklam yükleniyor...');
-        try {
-          if (loadAd) {
-            loadAd();
-            console.log('✅ Reklam yükleme başlatıldı');
-          } else {
-            console.log('⚠️ loadAd fonksiyonu mevcut değil');
-          }
-        } catch (loadError) {
-          console.warn('⚠️ Reklam yükleme hatası:', loadError);
-        }
+        console.log('✨ Premium kullanıcı - reklam atlandı, program direkt ekleniyor');
       }
 
       // Reklam işleminden sonra daha uzun bekleme ekle
@@ -504,7 +518,13 @@ export default function TrainingScreen({ navigation, route }) {
   // Get today's exercises
   const getTodayExercises = () => {
     const today = new Date().getDay();
-    return (exercises && exercises[today]) ? exercises[today] : [];
+    const todayExercises = (exercises && exercises[today]) ? exercises[today] : [];
+    
+    // Debug log'ları ekle
+    console.log('📊 Training - Bugünkü egzersizler:', todayExercises.length);
+    console.log('📊 Training - Egzersiz detayları:', todayExercises.map(ex => ({ name: ex.name, sets: ex.sets, reps: ex.reps })));
+    
+    return todayExercises;
   };
 
   // Get exercise count for today
@@ -833,10 +853,11 @@ export default function TrainingScreen({ navigation, route }) {
                         </Card>
                       </TouchableOpacity>
 
-                      {/* Her 3 programdan sonra reklam ekle */}
-                      {(index + 1) % 3 === 0 && index < templatePrograms.length - 1 && (
+                      {/* Her 3 programdan sonra reklam ekle - Premium kullanıcılara gösterilmez */}
+                      {(index + 1) % 3 === 0 && index < templatePrograms.length - 1 && !isPro && (
                         <View style={{ marginBottom: spacing.md }}>
                           <AdBanner 
+                            isPro={isPro}
                             style={{ 
                               alignSelf: 'center',
                               backgroundColor: colors.card,
@@ -863,10 +884,11 @@ export default function TrainingScreen({ navigation, route }) {
                   </View>
                 )}
 
-                {/* Liste sonunda banner reklam */}
-                {templatePrograms.length > 0 && (
+                {/* Liste sonunda banner reklam - Premium kullanıcılara gösterilmez */}
+                {templatePrograms.length > 0 && !isPro && (
                   <View style={{ marginTop: spacing.lg, marginBottom: spacing.md }}>
                     <AdBanner 
+                      isPro={isPro}
                       style={{ 
                         alignSelf: 'center',
                         backgroundColor: colors.card,

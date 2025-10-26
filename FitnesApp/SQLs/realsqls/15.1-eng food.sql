@@ -2,8 +2,8 @@
 -- This file contains only English food names for English language users
 -- Total foods: 339
 
--- Clear existing data first
-DELETE FROM foods WHERE created_at > NOW() - INTERVAL '1 day';
+-- Clear existing data first (only English foods)
+DELETE FROM foods WHERE name_en IS NOT NULL AND name_en != '' AND name_tr = '';
 
 -- Insert English food data
 INSERT INTO foods (name, name_tr, name_en, calories_per_100g, protein_g_per_100g, carb_g_per_100g, fat_g_per_100g, fiber_g_per_100g, category, is_active, created_at, updated_at)

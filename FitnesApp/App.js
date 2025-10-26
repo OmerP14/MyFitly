@@ -8,6 +8,7 @@ import { Tabs, RootStack } from './src/navigation/Tabs';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { UserProvider, useUser } from './src/context/UserContext';
 import { LanguageProvider } from './src/context/LanguageContext';
+import { SubscriptionProvider } from './src/context/SubscriptionContext';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import ProfileSetupScreen from './src/screens/ProfileSetupScreen';
@@ -20,6 +21,7 @@ import { colors } from './src/theme/colors';
 import * as Notifications from 'expo-notifications';
 import { initializeAds } from './src/services/adService';
 import { checkPermissionStatus } from './src/services/notificationService';
+import { runTestCleanup } from './src/utils/cleanupUtils';
 
 const AuthStack = createNativeStackNavigator();
 
@@ -130,6 +132,12 @@ function AppContent() {
 export default function App() {
   useEffect(() => {
     const initializeApp = async () => {
+      // Test verilerini temizle (sadece development modunda)
+      if (__DEV__) {
+        console.log('🧹 Test verileri temizleniyor...');
+        await runTestCleanup();
+      }
+      
       // Reklamları başlat
       initializeAds();
       
@@ -151,7 +159,9 @@ export default function App() {
       <LanguageProvider>
         <ThemeProvider>
           <UserProvider>
-            <AppContent />
+            <SubscriptionProvider>
+              <AppContent />
+            </SubscriptionProvider>
           </UserProvider>
         </ThemeProvider>
       </LanguageProvider>

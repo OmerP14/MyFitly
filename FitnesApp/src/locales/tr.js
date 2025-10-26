@@ -370,6 +370,16 @@ export default {
   development_mode: 'Development Mod',
   ad_dev_message: 'AdMob reklamları sadece production build\'de çalışır.\n\nBu butona tıklamaya devam edebilirsin - program direkt eklenecek! 🎁',
   continue: 'Devam Et',
+
+  // Weight Goal Progress
+  weight_goal_progress: 'Kilo Hedef İlerlemesi',
+  current_weight: 'Mevcut Kilo',
+  target_weight: 'Hedef Kilo',
+  goal_achieved: 'Hedef Başarıldı! 🎉',
+  goal_remaining: 'Hedefe Kalan',
+
+  // Today Meals
+  today_meals: 'Bugünkü Yemekler',
   
   // Ad Messages
   ad_closed_early: 'Reklam tamamlanmadan kapatıldı',
@@ -569,7 +579,7 @@ export default {
   progress_report_title: 'FitnesApp İlerleme Raporu',
   progress_report_header: '🏋️ FitnesApp İlerleme Raporu',
   about_app_title: 'FitnesApp v1.0.0',
-  about_app_message: '🏋️ Modern fitness tracking uygulaması\n\n👨‍💻 Geliştirici: Ömer Pehriz\n\n📱 React Native ile geliştirildi\n🔐 Supabase ile güvenli veri depolama\n\n© 2024 FitnesApp. Tüm hakları saklıdır.',
+  about_app_message: '🏋️ Modern fitness tracking uygulaması\n\n© 2025 Fitly. Tüm hakları saklıdır.\n\n✨ Yeni güncellemeler çok yakında!',
   share_name_label: 'Ad',
   share_current_weight_label: 'Mevcut Kilo',
   share_target_weight_label: 'Hedef Kilo',

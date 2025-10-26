@@ -31,17 +31,17 @@ try {
   console.log('⚠️ AdMob yüklenemedi:', error.message);
 }
 
-// Ad Unit ID'leri - Test ID'leri kullanıyoruz, gerçek uygulama için değiştirin
+// Ad Unit ID'leri - Production ID'leri
 const AD_UNIT_IDS = {
-  // Test ID'leri
-  BANNER: TestIds ? TestIds.BANNER : 'ca-app-pub-3940256099942544/6300978111',
-  INTERSTITIAL: TestIds ? TestIds.INTERSTITIAL : 'ca-app-pub-3940256099942544/1033173712',
-  REWARDED: TestIds ? TestIds.REWARDED : 'ca-app-pub-3940256099942544/5224354917',
+  // Production ID'leri - AdMob hesabınızda oluşturduğunuz gerçek ID'leri buraya ekleyin
+  BANNER: 'ca-app-pub-9412101969627220/9541708477', // Banner reklam ID'niz
+  INTERSTITIAL: 'ca-app-pub-9412101969627220/9505323100', // Interstitial reklam ID'niz
+  REWARDED: 'ca-app-pub-9412101969627220/7390010244', // Rewarded reklam ID'niz
   
-  // Gerçek ID'ler (uygulama yayınlandığında buraya ekleyin)
-  // BANNER: 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
-  // INTERSTITIAL: 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
-  // REWARDED: 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX',
+  // Test ID'leri (development için)
+  // BANNER: TestIds ? TestIds.BANNER : 'ca-app-pub-3940256099942544/6300978111',
+  // INTERSTITIAL: TestIds ? TestIds.INTERSTITIAL : 'ca-app-pub-3940256099942544/1033173712',
+  // REWARDED: TestIds ? TestIds.REWARDED : 'ca-app-pub-3940256099942544/5224354917',
 };
 
 // Reklam durumları
@@ -63,6 +63,10 @@ export const loadInterstitialAd = () => {
 
     interstitialAd.addAdEventListener(AdEventType.ERROR, (error) => {
       console.log('❌ Interstitial ad error:', error);
+      // No-fill hatası normal bir durumdur, sadece log'la
+      if (error.message && error.message.includes('no-fill')) {
+        console.log('ℹ️ No ad available to show (normal in production)');
+      }
     });
 
     interstitialAd.addAdEventListener(AdEventType.OPENED, () => {
@@ -90,8 +94,17 @@ export const loadRewardedAd = () => {
       requestNonPersonalizedAdsOnly: true,
     });
 
-    // Event listener'ları geçici olarak kaldır - sadece yükleme yap
-    console.log('🔍 RewardedAd event listener\'lar geçici olarak devre dışı');
+    rewardedAd.addAdEventListener(AdEventType.LOADED, () => {
+      console.log('✅ Rewarded ad loaded');
+    });
+
+    rewardedAd.addAdEventListener(AdEventType.ERROR, (error) => {
+      console.log('❌ Rewarded ad error:', error);
+      // No-fill hatası normal bir durumdur, sadece log'la
+      if (error.message && error.message.includes('no-fill')) {
+        console.log('ℹ️ No rewarded ad available to show (normal in production)');
+      }
+    });
 
     rewardedAd.load();
   } catch (error) {
@@ -99,9 +112,17 @@ export const loadRewardedAd = () => {
   }
 };
 
-// Interstitial Ad göster
-export const showInterstitialAd = (onAdClosed = null) => {
+// Interstitial Ad göster - Abonelik kontrolü ile
+export const showInterstitialAd = (onAdClosed = null, isPro = false) => {
   return new Promise((resolve, reject) => {
+    // ABONELİK KONTROLÜ: Pro kullanıcılara reklam gösterme
+    if (isPro) {
+      console.log('✨ Pro kullanıcı - interstitial reklam atlandı');
+      if (onAdClosed) onAdClosed();
+      resolve();
+      return;
+    }
+
     if (!interstitialAd) {
       console.log('⚠️ Interstitial ad not loaded');
       if (onAdClosed) onAdClosed();
@@ -117,6 +138,14 @@ export const showInterstitialAd = (onAdClosed = null) => {
         if (onAdClosed) onAdClosed();
         resolve();
       });
+
+      // Error listener ekle (no-fill için)
+      const errorUnsubscribe = interstitialAd.addAdEventListener(AdEventType.ERROR, (error) => {
+        console.log('❌ Interstitial ad show error:', error);
+        errorUnsubscribe(); // Event listener'ı temizle
+        if (onAdClosed) onAdClosed();
+        resolve(); // Error durumunda da resolve et
+      });
       
       interstitialAd.show();
     } catch (error) {
@@ -127,7 +156,7 @@ export const showInterstitialAd = (onAdClosed = null) => {
   });
 };
 
-// Rewarded Ad göster
+// Rewarded Ad göster - Abonelik kontrolü YOK (ödüllü reklam her zaman izlenebilir)
 export const showRewardedAd = () => {
   if (!rewardedAd) {
     console.log('⚠️ Rewarded ad not loaded');
@@ -141,8 +170,14 @@ export const showRewardedAd = () => {
   }
 };
 
-// Banner Ad bileşeni
-export const AdBanner = ({ style, onAdFailedToLoad }) => {
+// Banner Ad bileşeni - Abonelik kontrolü ile
+export const AdBanner = ({ style, onAdFailedToLoad, isPro = false }) => {
+  // ABONELİK KONTROLÜ: Pro kullanıcılara reklam gösterme
+  if (isPro) {
+    console.log('✨ Pro kullanıcı - reklam gösterilmiyor');
+    return null;
+  }
+
   if (!BannerAd || !BannerAdSize) {
     return null;
   }

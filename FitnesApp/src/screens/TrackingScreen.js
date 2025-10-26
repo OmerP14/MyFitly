@@ -12,6 +12,7 @@ import { spacing } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useSubscription } from '../context/SubscriptionContext';
 import { getTranslations } from '../utils/translations';
 import { AdBanner, showInterstitialAd } from '../services/adService';
 
@@ -33,6 +34,7 @@ export default function TrackingScreen() {
   const { colors, isDarkMode } = useTheme();
   const { userData, isLoading: userLoading, updateUserData } = useUser();
   const { language } = useLanguage();
+  const { isPro } = useSubscription();
   const t = getTranslations(language);
   const userUUID = userData?.id;
 
@@ -564,7 +566,7 @@ export default function TrackingScreen() {
     
     try {
       if (selectedTracking === 'weight') {
-        // Önce tam ekran reklam göster
+        // Önce tam ekran reklam göster (Pro kullanıcılara gösterilmez)
         console.log('🎬 Kilo girişi yapılıyor - tam ekran reklam gösteriliyor...');
         showInterstitialAd(async () => {
           // Reklam kapandığında kilo verisini kaydet
@@ -577,7 +579,7 @@ export default function TrackingScreen() {
           } finally {
             setSaving(false);
           }
-        });
+        }, isPro);
       } else {
         // Ağırlık takibi için normal işlem
         await saveStrengthData();
@@ -2114,7 +2116,7 @@ export default function TrackingScreen() {
           shadowRadius: 4,
           elevation: colors.background === '#FFFFFF' ? 2 : 0
         }}>
-          <AdBanner />
+          <AdBanner isPro={isPro} />
         </View>
       </SafeAreaView>
     </LinearGradient>

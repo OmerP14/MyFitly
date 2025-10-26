@@ -4,6 +4,7 @@ import { Text, View, ScrollView, TouchableOpacity, Dimensions, Platform, FlatLis
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import Card from '../components/Card';
 import ProgressRing from '../components/ProgressRing';
 import Header from '../components/Header';
@@ -11,6 +12,7 @@ import { spacing } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useUser } from '../context/UserContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useSubscription } from '../context/SubscriptionContext';
 import { getTranslations } from '../utils/translations';
 import { supabase } from '../config/supabase';
 import * as programService from '../services/programService';
@@ -24,6 +26,7 @@ export default function DashboardScreen({ navigation }) {
   const { colors } = useTheme();
   const { userData } = useUser();
   const { language } = useLanguage();
+  const { isPro } = useSubscription();
   const t = getTranslations(language);
   
   // State variables
@@ -33,6 +36,7 @@ export default function DashboardScreen({ navigation }) {
   const [todayWorkout, setTodayWorkout] = useState([]);
   const [weeklyStats, setWeeklyStats] = useState({ workoutDays: 0, totalSets: 0 });
   const [strengthData, setStrengthData] = useState([]);
+  const [todayMeals, setTodayMeals] = useState([]);
 
   // Güç takibi verilerini yükle
   const loadStrengthData = async () => {
@@ -45,6 +49,42 @@ export default function DashboardScreen({ navigation }) {
       }
     } catch (error) {
       console.error('❌ Güç takibi verileri yüklenemedi:', error);
+    }
+  };
+
+  // Bugünkü yemekleri yükle
+  const loadTodayMeals = async () => {
+    if (!userData?.id) return;
+    
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Bugünkü food logs'ları al
+      const { data: foodLogs, error } = await supabase
+        .from('food_logs')
+        .select('*')
+        .eq('user_id', userData.id)
+        .eq('log_date', today)
+        .order('meal_type', { ascending: true });
+
+      if (error) throw error;
+
+      // Yemekleri öğün türüne göre grupla
+      const groupedMeals = {};
+      if (foodLogs && foodLogs.length > 0) {
+        foodLogs.forEach(log => {
+          const mealType = log.meal_type || 'other';
+          if (!groupedMeals[mealType]) {
+            groupedMeals[mealType] = [];
+          }
+          groupedMeals[mealType].push(log);
+        });
+      }
+
+      setTodayMeals(groupedMeals);
+      console.log('🍽️ Bugünkü yemekler yüklendi:', groupedMeals);
+    } catch (error) {
+      console.error('❌ Bugünkü yemekler yüklenemedi:', error);
     }
   };
 
@@ -198,35 +238,38 @@ export default function DashboardScreen({ navigation }) {
     }
   };
 
-  // Bugünkü antrenmanı yükle
+  // Bugünkü antrenmanı yükle - TrainingScreen ile TAM AYNI mantık
   const loadTodayWorkout = async () => {
     try {
       if (!userData?.id) return;
 
       const today = new Date().getDay();
-      const weeklyStats = await programService.getWeeklyStats(userData.id);
       
-      if (weeklyStats && weeklyStats[today]) {
-        const todayExercises = weeklyStats[today].exercises || [];
-        setTodayWorkout(todayExercises);
-        
-        // Haftalık antrenman günlerini say
-        let weeklyCount = 0;
-        for (let day = 0; day < 7; day++) {
-          const dayStats = weeklyStats[day];
-          if (dayStats && dayStats.total > 0) {
-            weeklyCount++;
-          }
+      // TrainingScreen ile TAM AYNI veri kaynağını kullan
+      const exercises = await programService.getExercises(userData.id);
+      
+      // TrainingScreen'deki getTodayExercises() ile TAM AYNI mantık
+      const todayExercises = (exercises && exercises[today]) ? exercises[today] : [];
+      
+      setTodayWorkout(todayExercises);
+      
+      // Haftalık antrenman günlerini say
+      let weeklyCount = 0;
+      for (let day = 0; day < 7; day++) {
+        const dayExercises = exercises[day];
+        if (dayExercises && dayExercises.length > 0) {
+          weeklyCount++;
         }
-        
-        // Sadece bugünün toplam setlerini hesapla
-        const todayTotalSets = todayExercises.reduce((sum, ex) => sum + (ex.sets || 0), 0);
-        
-        setWeeklyStats({ workoutDays: weeklyCount, totalSets: todayTotalSets });
-      } else {
-        setTodayWorkout([]);
-        setWeeklyStats({ workoutDays: 0, totalSets: 0 });
       }
+      
+      // Sadece bugünün toplam setlerini hesapla
+      const todayTotalSets = todayExercises.reduce((sum, ex) => sum + (ex.sets || 0), 0);
+      
+      setWeeklyStats({ workoutDays: weeklyCount, totalSets: todayTotalSets });
+      
+      console.log('📊 Dashboard - Bugünkü egzersizler:', todayExercises.length);
+      console.log('📊 Dashboard - Haftalık antrenman günleri:', weeklyCount);
+      console.log('📊 Dashboard - Egzersiz detayları:', todayExercises.map(ex => ({ name: ex.name, sets: ex.sets, reps: ex.reps })));
     } catch (error) {
       console.error('Antrenman verileri yüklenemedi:', error);
       setTodayWorkout([]);
@@ -246,10 +289,22 @@ export default function DashboardScreen({ navigation }) {
   useEffect(() => {
     if (userData?.id) {
       loadAllData();
+      loadTodayMeals();
       // Gün değişikliği kontrolü
       checkDayChange();
     }
   }, [userData?.id, userData?.target_weight, userData?.current_weight]);
+
+  // Ekran focus olduğunda verileri yenile (hazır program eklendikten sonra)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (userData?.id) {
+        console.log('🔄 Dashboard focus - veriler yenileniyor...');
+        loadTodayWorkout();
+        loadTodayMeals();
+      }
+    }, [userData?.id])
+  );
 
   // Load baseline saved by TrackingScreen so dashboard matches
   useEffect(() => {
@@ -417,7 +472,7 @@ export default function DashboardScreen({ navigation }) {
 
                 <TouchableOpacity
                   onPress={() => {
-                    // Tam ekran reklam göster
+                    // Tam ekran reklam göster (Pro kullanıcılara gösterilmez)
                     console.log('🎬 Antrenman başlatılıyor - tam ekran reklam gösteriliyor...');
                     showInterstitialAd(() => {
                       // Reklam kapandığında Training ekranına git ve Workout tab'ını aç
@@ -425,7 +480,7 @@ export default function DashboardScreen({ navigation }) {
                       navigation.navigate('Training', { 
                         autoStartWorkout: true
                       });
-                    });
+                    }, isPro);
                   }}
                   style={{
                     backgroundColor: colors.success,
@@ -535,98 +590,119 @@ export default function DashboardScreen({ navigation }) {
           </View>
 
 
-          {/* Hızlı Erişim */}
-          <View style={{ 
-            flexDirection: 'row', 
-            gap: spacing.md 
-          }}>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Tracking')}
-              style={{
-                flex: 1,
-                backgroundColor: colors.card,
-                borderRadius: 16,
-                padding: spacing.lg,
-                alignItems: 'center',
-                borderWidth: 1,
-                borderColor: colors.cardBorder,
-                shadowColor: colors.cardShadow,
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 8,
-                elevation: 3
-              }}
-            >
-              <Ionicons name="analytics" size={32} color={colors.info} />
+          {/* Kilo Hedef İlerlemesi */}
+          {weightData.length > 0 && goalBaseline.weight && (
+            <Card style={{ marginBottom: spacing.lg, padding: spacing.lg }}>
               <Text style={{ 
                 color: colors.text, 
-                fontSize: 14, 
-                fontWeight: '600',
-                marginTop: spacing.sm,
+                fontSize: 18, 
+                fontWeight: '700',
+                marginBottom: spacing.md,
                 textAlign: 'center'
               }}>
-                {t.tracking}
+                🎯 {t.weight_goal_progress}
               </Text>
-            </TouchableOpacity>
+              
+              <View style={{ alignItems: 'center' }}>
+                <View style={{ 
+                  width: 120, 
+                  height: 120, 
+                  marginBottom: spacing.md,
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}>
+                  <ProgressRing 
+                    size={120} 
+                    stroke={12} 
+                    progress={weightProgress / 100} 
+                    color={weightProgress >= 100 ? colors.success : colors.primary}
+                  />
+                  <View style={{
+                    position: 'absolute',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }}>
+                    <Text style={{ 
+                      color: weightProgress >= 100 ? colors.success : colors.primary, 
+                      fontSize: 24, 
+                      fontWeight: '900'
+                    }}>
+                      {Math.round(weightProgress)}%
+                    </Text>
+                  </View>
+                </View>
 
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Training')}
-              style={{
-                flex: 1,
-                backgroundColor: colors.card,
-                borderRadius: 16,
-                padding: spacing.lg,
-                alignItems: 'center',
-                borderWidth: 1,
-                borderColor: colors.cardBorder,
-                shadowColor: colors.cardShadow,
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 8,
-                elevation: 3
-              }}
-            >
-              <Ionicons name="list" size={32} color={colors.warning} />
-              <Text style={{ 
-                color: colors.text, 
-                fontSize: 14, 
-                fontWeight: '600',
-                marginTop: spacing.sm,
-                textAlign: 'center'
-              }}>
-                {t.program}
-              </Text>
-            </TouchableOpacity>
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: spacing.sm }}>
+                    {t.current_weight}: {weightData[weightData.length - 1]?.weight}kg
+                  </Text>
+                  <Text style={{ color: colors.textMuted, fontSize: 14, marginBottom: spacing.sm }}>
+                    {t.target_weight}: {goalBaseline.weight}kg
+                  </Text>
+                  <Text style={{ 
+                    color: weightProgress >= 100 ? colors.success : colors.primary, 
+                    fontSize: 16, 
+                    fontWeight: '700' 
+                  }}>
+                    {weightProgress >= 100 ? t.goal_achieved : t.goal_remaining}
+                  </Text>
+                </View>
+              </View>
+            </Card>
+          )}
 
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Profile')}
-              style={{
-                flex: 1,
-                backgroundColor: colors.card,
-                borderRadius: 16,
-                padding: spacing.lg,
-                alignItems: 'center',
-                borderWidth: 1,
-                borderColor: colors.cardBorder,
-                shadowColor: colors.cardShadow,
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 8,
-                elevation: 3
-              }}
-            >
-              <Ionicons name="person" size={32} color={colors.purple} />
+          {/* Bugünkü Yemek Listesi */}
+          {Object.keys(todayMeals).length > 0 && (
+            <Card style={{ marginBottom: spacing.lg, padding: spacing.lg }}>
               <Text style={{ 
                 color: colors.text, 
-                fontSize: 14, 
-                fontWeight: '600',
-                marginTop: spacing.sm,
+                fontSize: 18, 
+                fontWeight: '700',
+                marginBottom: spacing.md,
                 textAlign: 'center'
               }}>
-                {t.profile}
+                🍽️ {t.today_meals}
               </Text>
-            </TouchableOpacity>
-          </View>
+              
+              <View style={{ gap: spacing.md }}>
+                {Object.entries(todayMeals).map(([mealType, meals]) => (
+                  <View key={mealType} style={{ marginBottom: spacing.sm }}>
+                    <Text style={{ 
+                      color: colors.primary, 
+                      fontSize: 16, 
+                      fontWeight: '600',
+                      marginBottom: spacing.xs
+                    }}>
+                      {mealType === 'breakfast' ? '🌅 Kahvaltı' :
+                       mealType === 'morning_snack' ? '☕ Kuşluk' :
+                       mealType === 'lunch' ? '🍽️ Öğle' :
+                       mealType === 'afternoon_snack' ? '🍎 İkindi' :
+                       mealType === 'dinner' ? '🌙 Akşam' :
+                       mealType === 'evening_snack' ? '🌃 Gece' :
+                       '🍽️ ' + mealType}
+                    </Text>
+                    {meals.map((meal, index) => (
+                      <View key={index} style={{ 
+                        flexDirection: 'row', 
+                        alignItems: 'center',
+                        marginLeft: spacing.md,
+                        marginBottom: spacing.xs
+                      }}>
+                        <Text style={{ color: colors.textMuted, marginRight: spacing.sm }}>•</Text>
+                        <Text style={{ 
+                          color: colors.text, 
+                          fontSize: 14,
+                          flex: 1
+                        }}>
+                          {meal.food_name} ({meal.calories} kcal)
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </View>
+            </Card>
+          )}
 
           {/* Banner Reklam */}
           <View style={{ 
@@ -642,7 +718,7 @@ export default function DashboardScreen({ navigation }) {
             shadowRadius: 4,
             elevation: colors.background === '#FFFFFF' ? 2 : 0
           }}>
-            <AdBanner />
+            <AdBanner isPro={isPro} />
           </View>
 
 
