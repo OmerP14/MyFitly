@@ -1,0 +1,122 @@
+{
+  "expo": {
+    "name": "MyFitly",
+    "slug": "myfitly",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.myfitly.app",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification",
+          "remote-notification"
+        ],
+        "NSPhotoLibraryUsageDescription": "Profil fotoğrafınızı galeri den seçmek için erişim gerekiyor.",
+        "NSCameraUsageDescription": "Profil fotoğrafınızı kamera ile çekmek için erişim gerekiyor.",
+        "NSLocationWhenInUseUsageDescription": "Konumunuza göre hava durumu bilgisi göstermek için konum erişimi gerekiyor.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Konumunuza göre hava durumu bilgisi göstermek için konum erişimi gerekiyor.",
+        "GADApplicationIdentifier": "ca-app-pub-9412101969627220~2576667269",
+        "GADIsAdManagerApp": true,
+        "SKAdNetworkItems": [
+          {
+            "SKAdNetworkIdentifier": "cstr6suwn9.skadnetwork"
+          },
+          {
+            "SKAdNetworkIdentifier": "cstr6suwn9.skadnetwork"
+          }
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.myfitly.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "edgeToEdgeEnabled": true
+    },
+    "notification": {
+      "icon": "./assets/icon.png",
+      "color": "#FF7A00",
+      "iosDisplayInForeground": true,
+      "androidMode": "default",
+      "androidCollapsedTitle": "MyFitly Hatırlatıcı"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#FF7A00"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Konumunuza göre hava durumu bilgisi göstermek için konum erişimi gerekiyor.",
+          "locationAlwaysPermission": "Konumunuza göre hava durumu bilgisi göstermek için konum erişimi gerekiyor.",
+          "locationWhenInUsePermission": "Konumunuza göre hava durumu bilgisi göstermek için konum erişimi gerekiyor.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-9412101969627220~2576667269",
+          "iosAppId": "ca-app-pub-9412101969627220~2576667269"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0",
+            "minSdkVersion": 23,
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "enableMinifyInReleaseBuilds": true
+          },
+          "ios": {
+            "deploymentTarget": "15.1",
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      "expo-font"
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "9b7a0da0-73c1-4660-8091-dbfed4a3bf3b"
+      }
+    }
+  }
+}
