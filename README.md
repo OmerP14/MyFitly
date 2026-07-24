@@ -14,9 +14,9 @@ A fitness & diet tracking mobile app built with **React Native (Expo)** and **Su
 |---|---|---|
 | ![Training](MyFitly/screenshots/02_training.png) | ![Tracking](MyFitly/screenshots/03_tracking.png) | ![Diet](MyFitly/screenshots/04_diet.png) |
 
-| Profile |
-|---|
-| ![Profile](MyFitly/screenshots/05_profile.png) |
+| Profile | Diet — Water & Meals | Diet — Meal Slots |
+|---|---|---|
+| ![Profile](MyFitly/screenshots/05_profile.png) | ![Diet water tracking](MyFitly/screenshots/08_diet_water.png) | ![Diet meal slots](MyFitly/screenshots/09_diet_meals.png) |
 
 ## Features
 

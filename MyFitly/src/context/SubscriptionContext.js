@@ -51,9 +51,11 @@ export const SubscriptionProvider = ({ children }) => {
       setIsSubscribed(true);
       // Show success message
       alert('MyFitly Pro aboneliğiniz başarıyla aktifleştirildi! (demo)');
+      return true;
     } catch (error) {
       console.error('Error activating subscription:', error);
       alert('Abonelik aktifleştirilirken bir hata oluştu.');
+      return false;
     }
   };
 
@@ -66,10 +68,19 @@ export const SubscriptionProvider = ({ children }) => {
     }
   };
 
+  // DEMO ONLY: no real IAP/store to restore purchases from - just re-reads
+  // the locally stored flag.
+  const restorePurchases = async () => {
+    await loadSubscriptionStatus();
+  };
+
   const value = {
     isSubscribed,
+    isPro: isSubscribed,
     isLoading,
     activateSubscription,
+    purchaseSubscription: activateSubscription,
+    restorePurchases,
     deactivateSubscription,
   };
 
