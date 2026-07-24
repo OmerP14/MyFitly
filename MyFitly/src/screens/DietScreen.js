@@ -69,7 +69,6 @@ export default function DietScreen({ navigation, route }) {
       
       // Eğer bugünün tarihi son sıfırlama tarihinden farklıysa, yeni gün demektir
       if (savedLastResetDate !== today) {
-        console.log('📅 Yeni gün tespit edildi, günlük veriler sıfırlanıyor...');
         await resetDailyData();
         
         // Son sıfırlama tarihini güncelle
@@ -84,7 +83,6 @@ export default function DietScreen({ navigation, route }) {
   // Günlük verileri sıfırla
   const resetDailyData = async () => {
     try {
-      console.log('🔄 Günlük veriler sıfırlanıyor...');
       
       // Günlük intake'i tamamen sıfırla
       setDailyIntake({
@@ -108,7 +106,6 @@ export default function DietScreen({ navigation, route }) {
       await AsyncStorage.removeItem(`daily_intake_${today}`);
       await AsyncStorage.removeItem(`today_meals_${today}`);
       
-      console.log('✅ Günlük veriler başarıyla sıfırlandı');
     } catch (error) {
       console.error('❌ Günlük sıfırlama hatası:', error);
     }
@@ -149,7 +146,6 @@ export default function DietScreen({ navigation, route }) {
       // AsyncStorage'a kaydet
       await AsyncStorage.setItem('diet_plan', JSON.stringify(plan));
       
-      console.log('🍎 Diet plan calculated:', plan);
     } catch (error) {
       console.error('❌ Diet calculation error:', error);
       Alert.alert(t.error, t.bmr_calculation_error);
@@ -220,7 +216,6 @@ export default function DietScreen({ navigation, route }) {
       // AsyncStorage'a da kaydet (sadece bugünkü tarih için)
       await AsyncStorage.setItem(`daily_intake_${today}`, JSON.stringify(newIntake));
       
-      console.log('📊 Bugünkü alım yüklendi:', newIntake);
     } catch (error) {
       console.error('❌ Daily intake load error:', error);
     }
@@ -296,7 +291,6 @@ export default function DietScreen({ navigation, route }) {
         water: amount
       }));
 
-      console.log('💧 Su alımı kaydedildi:', amount + 'ml');
     } catch (error) {
       console.error('❌ Su alımı kaydetme hatası:', error);
     }
@@ -322,7 +316,6 @@ export default function DietScreen({ navigation, route }) {
       setSelectedMealType(mealType);
       setShowMealModal(true);
 
-      console.log('🍽️ Bugünün öğünleri yüklendi:', plannedMeals);
     } catch (error) {
       console.error('❌ Öğün yükleme hatası:', error);
     }
@@ -404,7 +397,6 @@ export default function DietScreen({ navigation, route }) {
 
       if (error) throw error;
 
-      console.log('✅ Tamamlanan öğün kaydedildi:', meal.food_name);
     } catch (error) {
       console.error('❌ Tamamlanan öğün kaydetme hatası:', error);
     }
@@ -438,7 +430,6 @@ export default function DietScreen({ navigation, route }) {
   useFocusEffect(
     React.useCallback(() => {
       if (userData?.id) {
-        console.log('🔄 Diet ekranı focus oldu, yeniden hesaplanıyor...');
         
         // Önce gün değişikliği kontrolü yap
         checkDayChange().then(() => {
@@ -452,7 +443,6 @@ export default function DietScreen({ navigation, route }) {
   // Route parametresi değiştiğinde verileri yenile
   useEffect(() => {
     if (route.params?.refresh && userData?.id) {
-      console.log('🔄 Route parametresi değişti, veriler yenileniyor...');
       loadDailyIntake();
     }
   }, [route.params?.refresh, userData?.id]);

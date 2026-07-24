@@ -1,5 +1,5 @@
 // src/screens/WaterTrackingScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Text, View, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';

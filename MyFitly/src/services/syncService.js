@@ -11,7 +11,6 @@ class SyncService {
   // Real-time subscription başlat
   async startRealtimeSync(userId) {
     try {
-      console.log('🔄 Real-time senkronizasyon başlatılıyor...', userId);
 
       // Users tablosu için subscription
       const userSubscription = supabase
@@ -24,7 +23,6 @@ class SyncService {
             filter: `id=eq.${userId}`
           }, 
           (payload) => {
-            console.log('👤 Kullanıcı verisi değişti:', payload);
             this.handleUserDataChange(payload);
           }
         )
@@ -41,7 +39,6 @@ class SyncService {
             filter: `user_id=eq.${userId}`
           }, 
           (payload) => {
-            console.log('🍎 Yemek kaydı değişti:', payload);
             this.handleFoodLogChange(payload);
           }
         )
@@ -58,7 +55,6 @@ class SyncService {
             filter: `user_id=eq.${userId}`
           }, 
           (payload) => {
-            console.log('💧 Su kaydı değişti:', payload);
             this.handleWaterLogChange(payload);
           }
         )
@@ -75,7 +71,6 @@ class SyncService {
             filter: `user_id=eq.${userId}`
           }, 
           (payload) => {
-            console.log('🎯 Diyet hedefi değişti:', payload);
             this.handleDietGoalChange(payload);
           }
         )
@@ -92,7 +87,6 @@ class SyncService {
             filter: `user_id=eq.${userId}`
           }, 
           (payload) => {
-            console.log('📅 Haftalık plan değişti:', payload);
             this.handleMealPlanChange(payload);
           }
         )
@@ -108,7 +102,6 @@ class SyncService {
             table: 'planned_meals'
           }, 
           (payload) => {
-            console.log('🍽️ Planlı öğün değişti:', payload);
             this.handlePlannedMealChange(payload);
           }
         )
@@ -122,7 +115,6 @@ class SyncService {
       this.subscriptions.set('meal_plans', mealPlansSubscription);
       this.subscriptions.set('planned_meals', plannedMealsSubscription);
 
-      console.log('✅ Real-time senkronizasyon başlatıldı');
       return true;
     } catch (error) {
       console.error('❌ Real-time senkronizasyon hatası:', error);
@@ -133,15 +125,12 @@ class SyncService {
   // Real-time subscription'ları durdur
   async stopRealtimeSync() {
     try {
-      console.log('🛑 Real-time senkronizasyon durduruluyor...');
       
       for (const [key, subscription] of this.subscriptions) {
         await supabase.removeChannel(subscription);
-        console.log(`✅ ${key} subscription durduruldu`);
       }
       
       this.subscriptions.clear();
-      console.log('✅ Tüm real-time subscription\'lar durduruldu');
       return true;
     } catch (error) {
       console.error('❌ Real-time senkronizasyon durdurma hatası:', error);
@@ -152,7 +141,6 @@ class SyncService {
   // Kullanıcı verilerini tam senkronize et
   async fullSync(userId) {
     try {
-      console.log('🔄 Tam senkronizasyon başlatılıyor...', userId);
 
       const { data, error } = await supabase
         .rpc('sync_user_data', { user_uuid: userId });
@@ -163,7 +151,6 @@ class SyncService {
       }
 
       this.lastSyncTime = new Date();
-      console.log('✅ Tam senkronizasyon tamamlandı:', data);
       return data;
     } catch (error) {
       console.error('❌ Tam senkronizasyon hatası:', error);
@@ -174,24 +161,20 @@ class SyncService {
   // Offline değişiklikleri senkronize et
   async syncOfflineChanges() {
     try {
-      console.log('🔄 Offline değişiklikler senkronize ediliyor...');
 
       if (this.syncQueue.length === 0) {
-        console.log('ℹ️ Senkronize edilecek değişiklik yok');
         return true;
       }
 
       for (const change of this.syncQueue) {
         try {
           await this.applyChange(change);
-          console.log('✅ Değişiklik senkronize edildi:', change);
         } catch (error) {
           console.error('❌ Değişiklik senkronize edilemedi:', change, error);
         }
       }
 
       this.syncQueue = [];
-      console.log('✅ Tüm offline değişiklikler senkronize edildi');
       return true;
     } catch (error) {
       console.error('❌ Offline senkronizasyon hatası:', error);
@@ -201,40 +184,33 @@ class SyncService {
 
   // Değişiklikleri işle
   handleUserDataChange(payload) {
-    console.log('👤 Kullanıcı verisi güncellendi:', payload);
     // Bildirim ayarları değişti, uygulamayı güncelle
     this.notifyDataChange('user', payload);
   }
 
   handleFoodLogChange(payload) {
-    console.log('🍎 Yemek kaydı güncellendi:', payload);
     this.notifyDataChange('food_logs', payload);
   }
 
   handleWaterLogChange(payload) {
-    console.log('💧 Su kaydı güncellendi:', payload);
     this.notifyDataChange('water_logs', payload);
   }
 
   handleDietGoalChange(payload) {
-    console.log('🎯 Diyet hedefi güncellendi:', payload);
     this.notifyDataChange('diet_goals', payload);
   }
 
   handleMealPlanChange(payload) {
-    console.log('📅 Haftalık plan güncellendi:', payload);
     this.notifyDataChange('meal_plans', payload);
   }
 
   handlePlannedMealChange(payload) {
-    console.log('🍽️ Planlı öğün güncellendi:', payload);
     this.notifyDataChange('planned_meals', payload);
   }
 
   // Veri değişikliğini bildir
   notifyDataChange(type, payload) {
     // Event emitter veya callback ile uygulamayı bilgilendir
-    console.log(`📢 ${type} verisi değişti:`, payload);
     
     // Burada uygulamanın state'ini güncelleyebilirsiniz
     // Örneğin: Context API, Redux, veya local state güncellemesi
@@ -267,7 +243,6 @@ class SyncService {
     };
     
     this.syncQueue.push(change);
-    console.log('📝 Offline değişiklik eklendi:', change);
   }
 
   // Bağlantı durumunu kontrol et

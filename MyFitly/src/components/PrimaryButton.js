@@ -1,7 +1,6 @@
 import React from 'react';
-import { Text, View, TouchableOpacity } from 'react-native';
+import { Text, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import { colors, radii } from '../theme/colors';
 
 export default function PrimaryButton({ title, icon, onPress, style, variant = 'primary' }) {

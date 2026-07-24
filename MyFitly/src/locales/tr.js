@@ -4,22 +4,18 @@ export default {
   loading: 'Yükleniyor...',
   error: 'Hata',
   success: 'Başarılı',
-  cancel: 'İptal',
   save: 'Kaydet',
-  delete: 'Sil',
   edit: 'Düzenle',
   add: 'Ekle',
   confirm: 'Onayla',
   back: 'Geri',
   next: 'İleri',
   finish: 'Tamamla',
-  close: 'Kapat',
   retry: 'Tekrar Dene',
   refresh: 'Yenile',
   search: 'Ara',
   filter: 'Filtrele',
   info: 'Bilgi',
-  great: 'Harika!',
   test: 'Test Et',
   all: 'Tümü',
 
@@ -30,30 +26,18 @@ export default {
   password: 'Şifre',
   confirm_password: 'Şifre Tekrar',
   forgot_password: 'Şifremi Unuttum',
-  dont_have_account: 'Hesabınız yok mu?',
-  already_have_account: 'Zaten hesabınız var mı?',
   sign_up_here: 'Buradan kayıt olun',
   sign_in_here: 'Buradan giriş yapın',
   login_success: 'Giriş başarılı!',
   register_success: 'Kayıt başarılı!',
   invalid_credentials: 'E-posta veya şifre hatalı',
-  fill_all_fields: 'Lütfen tüm alanları doldurun',
-  password_mismatch: 'Şifreler eşleşmiyor',
 
   // Profil
   profile: 'Profil',
   profile_setup: 'Profil Kurulumu',
   name: 'Ad Soyad',
-  age: 'Yaş',
-  height: 'Boy (cm)',
-  current_weight: 'Mevcut Kilo (kg)',
-  target_weight: 'Hedef Kilo (kg)',
-  profile_completed: 'Profil tamamlandı!',
   profile_updated: 'Profil güncellendi!',
   complete_profile_message: 'Fitness yolculuğuna başlamak için profilinizi tamamlayın',
-  valid_age: 'Lütfen geçerli bir yaş girin (10-100)',
-  valid_height: 'Lütfen geçerli bir boy girin (100-250 cm)',
-  valid_weight: 'Lütfen geçerli bir kilo girin (30-300 kg)',
 
   // Ana Ekran
   dashboard: 'Ana Ekran',
@@ -98,7 +82,6 @@ export default {
   exercise_name_placeholder: 'Egzersiz adı girin',
   sets_placeholder: '3',
   reps_placeholder: '10-12',
-  weight_placeholder: '20kg',
   select_category: 'Kategori Seçin',
   save_exercise: 'Egzersizi Kaydet',
   cancel: 'İptal',
@@ -110,7 +93,6 @@ export default {
   program_description: 'Program Açıklaması',
   program_name_placeholder: 'Örn: Kişisel Antrenman Programı',
   select_days: 'Günleri Seçin',
-  create_program: 'Program Oluştur',
   save_program: 'Programı Kaydet',
   run_sql_setup: 'Hazır programları yüklemek için SQL kurulum dosyalarını çalıştırın',
   complete_profile: 'Profilini Tamamla',
@@ -120,41 +102,25 @@ export default {
   your_height: 'Boyun',
   your_current_weight: 'Mevcut Kilom',
   your_target_weight: 'Hedef Kilom',
-  name_placeholder: 'Örn: Ahmet Yılmaz',
-  age_placeholder: 'Örn: 25',
-  height_placeholder: 'Örn: 175',
-  weight_placeholder: 'Örn: 75',
   target_weight_placeholder: 'Örn: 70',
   years_old: 'yaş',
   cm_unit: 'cm',
   kg_unit: 'kg',
   lets_start: 'Başlayalım!',
-  fill_all_fields: 'Lütfen tüm alanları doldurun',
   valid_age: 'Lütfen geçerli bir yaş girin (10-100)',
   valid_height: 'Lütfen geçerli bir boy girin (100-250 cm)',
   valid_weight: 'Lütfen geçerli bir kilo girin (30-300 kg)',
   valid_target_weight: 'Lütfen geçerli bir hedef kilo girin (30-300 kg)',
-  congratulations: 'Tebrikler!',
   profile_completed: 'Profilin tamamlandı! Artık fitness yolculuğuna başlayabilirsin.',
   profile_completion_error: 'Profil tamamlanırken bir hata oluştu',
   apply_weekly_program: 'Haftalık Programı Uygula',
-  apply_program: 'Programı Uygula',
   program_created: 'Program oluşturuldu!',
   program_applied_success: 'Program başarıyla uygulandı!',
   select_exercise_category: 'Egzersiz kategorisi seçin',
-  this_week: 'Bu Hafta',
   next_week: 'Gelecek Hafta',
   previous_week: 'Geçen Hafta',
-  today: 'Bugün',
   week: 'Hafta',
   // Days (very short for UI)
-  sunday: 'P',
-  monday: 'P',
-  tuesday: 'S',
-  wednesday: 'Ç',
-  thursday: 'P',
-  friday: 'C',
-  saturday: 'C',
   // Full day names
   monday_full: 'Pazartesi',
   tuesday_full: 'Salı',
@@ -175,13 +141,10 @@ export default {
   total_sets: 'Toplam Set',
   completed_sets: 'Tamamlanan Set',
   remaining_sets: 'Kalan Set',
-  monthly: 'Aylık',
   exercises_completed: 'egzersiz tamamlandı',
   program_created_message: 'programı 1 aylık takvim için oluşturuldu',
   selected_days: 'Seçili günler',
-  total_exercises: 'Toplam egzersiz',
   program_applied_message: 'programı başarıyla eklendi ve programınıza yüklendi',
-  great: 'Harika!',
   program_error: 'Program eklenirken bir hata oluştu',
   fill_program_fields: 'Lütfen program adı girin ve en az bir gün seçin',
   repeat_program_weekly: 'Bu program her hafta otomatik tekrarlanacak',
@@ -196,7 +159,6 @@ export default {
   calories: 'Kalori',
   exercise: 'Egzersiz',
   workout_progress: 'Antrenman İlerlemesi',
-  continue: 'Devam Et',
   ad_loading: 'Reklam Yükleniyor',
   ad_not_ready: 'Reklam henüz hazır değil. Lütfen birkaç saniye bekleyin ve tekrar deneyin! 🎬',
   select_from_ready_programs: 'Hazır Programlar sekmesinden bir program seçebilirsiniz',
@@ -204,9 +166,6 @@ export default {
   professional_trainer_programs: 'Profesyonel antrenörler tarafından hazırlanmış programlar',
   
   // Program levels
-  beginner: 'Başlangıç',
-  intermediate: 'Orta',
-  advanced: 'İleri',
   
   // Time and units
   days_per_week: 'gün/hafta',
@@ -221,19 +180,15 @@ export default {
   no_exercise_today: 'Bugün için egzersiz yok',
   program_details: 'Program Detayları',
   apply_this_program: 'Bu Programı Uygula',
-  workout_completed: 'Antrenman Tamamlandı! 🎉',
   congratulations: 'Tebrikler!',
-  exercises_completed: 'egzersiz tamamladınız',
-  calories_burned: 'Yakılan Kalori',
-  ok: 'Tamam',
   program_added_and_loaded: 'programı eklendi ve programınıza yüklendi!',
   unknown_error: 'Bilinmeyen hata',
   warning: 'Uyarı',
   no_exercise_found_apply_program: 'Bugün için egzersiz bulunamadı. Önce hazır programlardan bir program uygulayın!',
   set: 'set',
-  reps: 'tekrar',
+  reps_unit: 'tekrar', // inline count suffix, e.g. "12 tekrar" (lowercase form of `reps`)
   seconds: 'sn',
-  body_weight: 'Vücut Ağırlığı',
+  body_weight: 'Kilo', // vücut ağırlığı etiketi (DietSettings/Tracking), egzersiz `weight`'ten farklı
 
   // Antrenman
   workout: 'Antrenman',
@@ -245,7 +200,6 @@ export default {
   finish_workout: 'Antrenmanı Bitir',
   workout_completed: 'Antrenman tamamlandı!',
   elapsed_time: 'Geçen Süre',
-  calories_burned: 'Yakılan Kalori',
 
   // Takip
   tracking: 'Takip',
@@ -283,13 +237,6 @@ export default {
   logout_confirm: 'Çıkış yapmak istediğinizden emin misiniz?',
 
   // Hafta Günleri
-  monday: 'Pazartesi',
-  tuesday: 'Salı',
-  wednesday: 'Çarşamba',
-  thursday: 'Perşembe',
-  friday: 'Cuma',
-  saturday: 'Cumartesi',
-  sunday: 'Pazar',
 
   // Hazır Programlar
   template_programs: 'Hazır Programlar',
@@ -357,7 +304,6 @@ export default {
   create_account: 'Hesap Oluştur',
   start_journey: 'Fitness yolculuğuna başla',
   full_name: 'Ad Soyad',
-  password_min_length: 'Şifre en az 6 karakter olmalıdır',
   registration_error: 'Kayıt Hatası',
   
   // ProfileSetupScreen Özel
@@ -373,8 +319,6 @@ export default {
 
   // Weight Goal Progress
   weight_goal_progress: 'Kilo Hedef İlerlemesi',
-  current_weight: 'Mevcut Kilo',
-  target_weight: 'Hedef Kilo',
   goal_achieved: 'Hedef Başarıldı! 🎉',
   goal_remaining: 'Hedefe Kalan',
 
@@ -392,7 +336,6 @@ export default {
   great: 'Harika!',
   
   // Congratulations
-  congratulations: 'Tebrikler! 🎉',
   profile_complete_message: 'Profilin tamamlandı! Artık fitness yolculuğuna başlayabilirsin.',
   
   // Validation Messages
@@ -408,7 +351,7 @@ export default {
   
   // Exercise Categories
   chest: 'Göğüs',
-  back: 'Sırt',
+  back_muscle: 'Sırt', // egzersiz kategorisi (kas grubu), navigasyon `back`'ten farklı
   shoulders: 'Omuz',
   arms: 'Kol',
   legs: 'Bacak',
@@ -468,14 +411,13 @@ export default {
   recent_records: 'Son Kayıtlar',
   add_weight: 'Kilo Ekle',
   add_strength: 'Ağırlık Ekle',
-  weight_placeholder: 'Kilo (kg) - Örn: 73.2',
+  weight_entry_placeholder: 'Kilo (kg) - Örn: 73.2', // TrackingScreen kilo ekleme modalı
   exercise_selection: 'Egzersiz Seçimi',
   custom_exercise_placeholder: 'Özel egzersiz adı - Örn: Custom Exercise',
   reps_weight_placeholder: 'Tekrar x Ağırlık - Örn: 8x65kg',
   weight_only_placeholder: 'Ağırlık - Örn: 65',
   no_enough_data: 'Grafik için daha fazla veri gerekli',
   single_record: 'Tek kayıt',
-  saving: 'Kaydediliyor...',
   set_target_weight: 'Hedef Kilo Belirle',
   set_target_strength: 'Hedef Ağırlık Belirle',
   weight_example: 'Örn: 65.0',
@@ -510,7 +452,6 @@ export default {
   please_enter_target_weight: 'Lütfen hedef kilo girin',
   please_select_exercise_target: 'Lütfen egzersiz seçin ve hedef ağırlık girin',
   target: 'Hedef',
-  weight: 'kilo',
   strength: 'ağırlık',
   saved: 'kaydedildi',
   target_save_failed: 'Hedef kaydedilemedi',
@@ -677,8 +618,6 @@ export default {
   
   // Besin Takibi
   food_log: 'Besin Kaydı',
-  add_food: 'Besin Ekle',
-  search_food: 'Besin Ara',
   scan_barcode: 'Barkod Tara',
   food_database: 'Besin Veritabanı',
   custom_food: 'Özel Besin',
@@ -752,7 +691,6 @@ export default {
   // Motivasyon ve Başarılar
   diet_achievements: 'Diyet Başarıları',
   streak_days: 'Seri Günler',
-  goal_reached: 'Hedefe Ulaşıldı',
   perfect_week: 'Mükemmel Hafta',
   macro_master: 'Makro Ustası',
   consistency_king: 'Tutarlılık Kralı',
@@ -780,7 +718,6 @@ export default {
   
   // Form Validasyonları
   please_enter_height: 'Lütfen boy değerini girin',
-  please_enter_weight: 'Lütfen kilo değerini girin',
   please_enter_age: 'Lütfen yaş değerini girin',
   please_select_gender: 'Lütfen cinsiyet seçin',
   please_select_activity: 'Lütfen aktivite seviyesi seçin',

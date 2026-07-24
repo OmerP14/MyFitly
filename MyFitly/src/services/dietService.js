@@ -338,22 +338,16 @@ export function getExampleCalculation() {
 
 // Test fonksiyonu
 export function testDietCalculations() {
-  console.log('🧮 Diet Service Test Results:');
   
   const result = getExampleCalculation();
-  console.log('📊 Example Calculation:', result);
   
   const bmr = calculateBMR_Mifflin('male', 75, 178, 24);
-  console.log('🔥 BMR (Mifflin):', bmr);
   
   const tdee = calculateTDEE(bmr, 'moderately_active');
-  console.log('⚡ TDEE:', tdee);
   
   const targetCal = calculateTargetCalories(tdee, 'lose_weight', -15);
-  console.log('🎯 Target Calories:', targetCal);
   
   const macros = calculateMacros(targetCal, 75, 'balanced');
-  console.log('🥗 Macros:', macros);
   
   return result;
 }

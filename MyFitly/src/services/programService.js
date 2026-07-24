@@ -48,7 +48,6 @@ export const getExercises = async (userId, dayOfWeek = null) => {
 // Egzersiz ekle
 export const addExercise = async (userId, exerciseData) => {
   try {
-    console.log('➕ Egzersiz ekleniyor:', exerciseData);
     
     // dayOfWeek kontrolü
     if (exerciseData.dayOfWeek === null || exerciseData.dayOfWeek === undefined) {
@@ -73,8 +72,6 @@ export const addExercise = async (userId, exerciseData) => {
       exercisePayload.program_id = exerciseData.program_id;
     }
 
-    console.log('📤 Supabase\'e gönderilen veri:', exercisePayload);
-    console.log('📤 Program ID kontrolü:', exercisePayload.program_id);
 
     const { data, error } = await supabase
       .from('exercises')
@@ -88,8 +85,6 @@ export const addExercise = async (userId, exerciseData) => {
       throw error;
     }
     
-    console.log('✅ Egzersiz başarıyla eklendi:', data);
-    console.log('✅ Eklenen program_id:', data.program_id);
     
     // completed property'si ekle (uyumluluk için)
     return { ...data, completed: data.is_completed };
@@ -102,7 +97,6 @@ export const addExercise = async (userId, exerciseData) => {
 // Egzersiz güncelle
 export const updateExercise = async (exerciseId, exerciseData) => {
   try {
-    console.log('✏️ Egzersiz güncelleniyor:', exerciseId, exerciseData);
     
     const updatePayload = {
       name: exerciseData.name,
@@ -135,7 +129,6 @@ export const updateExercise = async (exerciseId, exerciseData) => {
       throw error;
     }
     
-    console.log('✅ Egzersiz başarıyla güncellendi:', data);
     // completed property'si ekle (uyumluluk için)
     return { ...data, completed: data.is_completed };
   } catch (error) {
@@ -164,7 +157,6 @@ export const deleteExercise = async (exerciseId) => {
 // Egzersiz tamamlama durumunu değiştir
 export const toggleExerciseCompletion = async (exerciseId, completed) => {
   try {
-    console.log('🔄 Egzersiz durumu değiştiriliyor:', exerciseId, completed);
     
     // Önce egzersizin var olup olmadığını kontrol et
     const { data: existingExercise, error: checkError } = await supabase
@@ -210,7 +202,6 @@ export const toggleExerciseCompletion = async (exerciseId, completed) => {
       return { id: exerciseId, is_completed: completed, completed: completed };
     }
     
-    console.log('✅ Egzersiz durumu başarıyla güncellendi:', data[0]);
     return { ...data[0], completed: data[0].is_completed };
   } catch (error) {
     console.error('❌ Egzersiz durumu güncelleme hatası:', error);
@@ -280,7 +271,6 @@ export const createWeeklyProgram = async (userId, programData) => {
 // Kullanıcının programlarını getir
 export const getUserPrograms = async (userId) => {
   try {
-    console.log('👤 Kullanıcı programları getiriliyor, userId:', userId);
     
     const { data, error } = await supabase
       .from('workout_programs')
@@ -291,8 +281,6 @@ export const getUserPrograms = async (userId) => {
 
     if (error) throw error;
     
-    console.log('📊 Kullanıcının ham program verisi:', data);
-    console.log('📊 Program sayısı:', data ? data.length : 0);
     
     // Çoğaltılmış programları temizle (aynı isimde olanları birleştir)
     const uniquePrograms = [];
@@ -304,7 +292,6 @@ export const getUserPrograms = async (userId) => {
         seenNames.add(normalizedName);
         uniquePrograms.push(program);
       } else {
-        console.log('⚠️ Kullanıcıda çoğaltılmış program tespit edildi:', program.name);
       }
     });
     
@@ -336,7 +323,6 @@ export const getActiveProgram = async (userId) => {
     if (error) {
       if (error.code === 'PGRST116') {
         // Hiç aktif program yok
-        console.log('⚠️ Kullanıcının aktif programı yok');
         return null;
       }
       throw error;
@@ -352,7 +338,6 @@ export const getActiveProgram = async (userId) => {
 // Varsayılan program oluştur
 export const createDefaultProgram = async (userId) => {
   try {
-    console.log('🆕 Varsayılan program oluşturuluyor, userId:', userId);
     
     const { data, error } = await supabase
       .from('workout_programs')
@@ -375,7 +360,6 @@ export const createDefaultProgram = async (userId) => {
       throw error;
     }
     
-    console.log('✅ Varsayılan program oluşturuldu:', data);
     return data;
   } catch (error) {
     console.error('❌ Varsayılan program oluşturma hatası:', error);
@@ -417,7 +401,6 @@ export const getDailyStats = async (userId, dayOfWeek) => {
 // Haftalık istatistikleri getir (sadece BU HAFTA için tamamlanma durumu)
 export const getWeeklyStats = async (userId, weekOffset = 0) => {
   try {
-    console.log('📊 Haftalık istatistikler getiriliyor, userId:', userId, 'weekOffset:', weekOffset);
     
     const { data, error } = await supabase
       .from('exercises')
@@ -429,7 +412,6 @@ export const getWeeklyStats = async (userId, weekOffset = 0) => {
       throw error;
     }
     
-    console.log('📊 Supabase\'den gelen veri:', data);
     
     // Bu haftanın başlangıç ve bitiş tarihlerini hesapla
     const today = new Date();
@@ -444,7 +426,6 @@ export const getWeeklyStats = async (userId, weekOffset = 0) => {
     weekEnd.setDate(weekStart.getDate() + 6);
     weekEnd.setHours(23, 59, 59, 999);
     
-    console.log('📅 Hafta aralığı:', weekStart.toDateString(), '-', weekEnd.toDateString());
     
     const weeklyStats = {};
     
@@ -475,7 +456,6 @@ export const getWeeklyStats = async (userId, weekOffset = 0) => {
       };
     }
     
-    console.log('📊 Haftalık istatistikler hazırlandı:', weeklyStats);
     return weeklyStats;
   } catch (error) {
     console.error('Haftalık istatistik hatası:', error);
@@ -495,7 +475,6 @@ export const getWeeklyStats = async (userId, weekOffset = 0) => {
 // Tüm hazır programları getir
 export const getTemplatePrograms = async () => {
   try {
-    console.log('📋 Hazır programlar getiriliyor...');
     
     // Önce tabloyu kontrol et
     const { data: tableCheck, error: tableError } = await supabase
@@ -505,11 +484,9 @@ export const getTemplatePrograms = async () => {
     
     if (tableError) {
       console.error('❌ template_programs tablosu bulunamadı:', tableError);
-      console.log('💡 SQL dosyalarını çalıştırmanız gerekiyor: 01.sql, 02.sql, 03.sql, 04.sql, 07_detailed_programs.sql');
       return [];
     }
     
-    console.log('✅ template_programs tablosu mevcut');
     
     const { data, error } = await supabase
       .from('template_programs')
@@ -529,8 +506,6 @@ export const getTemplatePrograms = async () => {
       throw error;
     }
     
-    console.log('📊 Veritabanından gelen ham veri:', data);
-    console.log('📊 Veri sayısı:', data ? data.length : 0);
     
     // Çoğaltılmış programları temizle (aynı isimde olanları birleştir)
     const uniquePrograms = [];
@@ -542,7 +517,6 @@ export const getTemplatePrograms = async () => {
         seenNames.add(normalizedName);
         uniquePrograms.push(program);
       } else {
-        console.log('⚠️ Çoğaltılmış program tespit edildi:', program.name);
       }
     });
     
@@ -583,8 +557,6 @@ export const getTemplatePrograms = async () => {
       return orderA - orderB;
     });
     
-    console.log('✅ Hazır programlar getirildi ve sıralandı:', sortedData);
-    console.log('✅ Sıralanmış veri sayısı:', sortedData.length);
     return sortedData;
   } catch (error) {
     console.error('❌ Hazır programlar getirme hatası:', error);
@@ -595,7 +567,6 @@ export const getTemplatePrograms = async () => {
 // Belirli bir programın günlerini ve egzersizlerini getir
 export const getTemplateProgramDetails = async (programId) => {
   try {
-    console.log('📋 Program detayları getiriliyor, programId:', programId);
     
     // Program günlerini getir
     const { data: days, error: daysError } = await supabase
@@ -609,7 +580,6 @@ export const getTemplateProgramDetails = async (programId) => {
       throw daysError;
     }
 
-    console.log('📅 Program günleri sayısı:', days?.length || 0);
     if (!days || days.length === 0) {
       console.error('⚠️ Program günü bulunamadı! Template program doğru kurulmamış olabilir.');
       return [];
@@ -618,7 +588,6 @@ export const getTemplateProgramDetails = async (programId) => {
     // Her gün için egzersizleri getir
     const daysWithExercises = await Promise.all(
       (days || []).map(async (day) => {
-        console.log(`  📅 ${day.day_name} (Gün ${day.day_number}) için egzersizler getiriliyor...`);
         
         const { data: exercises, error: exercisesError } = await supabase
           .from('template_exercises')
@@ -631,12 +600,10 @@ export const getTemplateProgramDetails = async (programId) => {
           return { ...day, exercises: [] };
         }
 
-        console.log(`    ✅ ${exercises?.length || 0} egzersiz bulundu`);
         return { ...day, exercises: exercises || [] };
       })
     );
 
-    console.log('✅ Program detayları getirildi. Toplam gün:', daysWithExercises.length);
     return daysWithExercises;
   } catch (error) {
     console.error('❌ Program detayları getirme hatası:', error);
@@ -648,7 +615,6 @@ export const getTemplateProgramDetails = async (programId) => {
 // Hazır programı kullanıcıya kopyala (aktif programa dönüştür)
 export const copyTemplateProgramToUser = async (userId, templateProgramId) => {
   try {
-    console.log('📋 Hazır program kullanıcıya kopyalanıyor...');
     
     // Önce programın detaylarını al
     const { data: templateProgram, error: programError } = await supabase
@@ -660,7 +626,6 @@ export const copyTemplateProgramToUser = async (userId, templateProgramId) => {
     if (programError) throw programError;
 
     // Aynı template program zaten eklenmiş mi kontrol et (çok daha kapsamlı)
-    console.log('🔍 Program kontrolü yapılıyor:', templateProgram.name);
     
     const { data: existingPrograms, error: checkError } = await supabase
       .from('workout_programs')
@@ -673,7 +638,6 @@ export const copyTemplateProgramToUser = async (userId, templateProgramId) => {
     if (checkError) {
       console.warn('⚠️ Mevcut program kontrol hatası:', checkError);
     } else if (existingPrograms && existingPrograms.length > 0) {
-      console.log('📋 Mevcut programlar:', existingPrograms.map(p => p.name));
       
       // Tam isim eşleşmesi var mı kontrol et
       const exactMatch = existingPrograms.find(p => 
@@ -681,7 +645,6 @@ export const copyTemplateProgramToUser = async (userId, templateProgramId) => {
       );
       
       if (exactMatch) {
-        console.log('⚠️ Bu program zaten eklenmiş:', exactMatch.name);
         throw new Error('Bu program zaten listenizde mevcut!');
       }
       
@@ -710,11 +673,9 @@ export const copyTemplateProgramToUser = async (userId, templateProgramId) => {
       });
       
       if (similarPrograms.length > 0) {
-        console.log('⚠️ Benzer program zaten mevcut:', similarPrograms[0].name);
         throw new Error(`Benzer bir program zaten listenizde mevcut: "${similarPrograms[0].name}"`);
       }
       
-      console.log('✅ Program benzersiz, eklenebilir');
     }
 
     // Kullanıcının eski aktif programlarını pasif yap
@@ -744,17 +705,11 @@ export const copyTemplateProgramToUser = async (userId, templateProgramId) => {
     if (newProgramError) throw newProgramError;
 
     // Program günlerini ve egzersizlerini kopyala
-    console.log('📥 Program detayları getiriliyor...');
-    console.log('🔑 User ID:', userId);
-    console.log('📋 Template Program ID:', templateProgramId);
     
     const programDays = await getTemplateProgramDetails(templateProgramId);
-    console.log('📋 Program günleri:', programDays.length, 'gün');
-    console.log('📋 Program Days Data:', JSON.stringify(programDays, null, 2));
     
     const exercisesToInsert = [];
     programDays.forEach((day) => {
-      console.log(`  📅 ${day.day_name} (Gün ${day.day_number}): ${day.exercises?.length || 0} egzersiz`);
       if (day.exercises && day.exercises.length > 0) {
         day.exercises.forEach((exercise, idx) => {
           const exerciseData = {
@@ -769,17 +724,14 @@ export const copyTemplateProgramToUser = async (userId, templateProgramId) => {
             is_completed: false,
             is_deleted: false
           };
-          console.log(`    ${idx + 1}. ${exercise.name} - Gün: ${day.day_number}`);
           exercisesToInsert.push(exerciseData);
         });
       }
     });
 
-    console.log('💾 Toplam eklenecek egzersiz sayısı:', exercisesToInsert.length);
     console.log('📦 Exercises to insert:', JSON.stringify(exercisesToInsert.slice(0, 2), null, 2)); // İlk 2 egzersizi göster
 
     if (exercisesToInsert.length > 0) {
-      console.log('⏳ Egzersizler Supabase\'e ekleniyor...');
       const { data: insertedExercises, error: exerciseError } = await supabase
         .from('exercises')
         .insert(exercisesToInsert)
@@ -791,17 +743,13 @@ export const copyTemplateProgramToUser = async (userId, templateProgramId) => {
         throw exerciseError;
       }
       
-      console.log('✅ Eklenen egzersiz sayısı:', insertedExercises?.length || 0);
-      console.log('✅ İlk eklenen egzersiz:', insertedExercises?.[0]);
     } else {
       console.warn('⚠️ Eklenecek egzersiz bulunamadı!');
       console.warn('⚠️ Program Days:', programDays);
     }
 
-    console.log('✅ Hazır program başarıyla kopyalandı:', newProgram);
     
     // SON KONTROL: Gerçekten eklendi mi?
-    console.log('🔍 Son kontrol: Eklenen egzersizleri doğrulama...');
     const { data: verifyData, error: verifyError } = await supabase
       .from('exercises')
       .select('*')
@@ -811,11 +759,8 @@ export const copyTemplateProgramToUser = async (userId, templateProgramId) => {
     if (verifyError) {
       console.error('❌ Doğrulama hatası:', verifyError);
     } else {
-      console.log('✅ Doğrulama: Veritabanında', verifyData?.length || 0, 'egzersiz bulundu');
       if (verifyData && verifyData.length > 0) {
-        console.log('📋 İlk 3 egzersiz:');
         verifyData.slice(0, 3).forEach((ex, idx) => {
-          console.log(`  ${idx + 1}. ${ex.name} - Gün ${ex.day_of_week}`);
         });
       }
     }
@@ -829,14 +774,12 @@ export const copyTemplateProgramToUser = async (userId, templateProgramId) => {
 
 // Hazır programı kullanıcıya ekle (alias fonksiyon)
 export const addTemplateProgramToUser = async (userId, templateProgramId) => {
-  console.log('📋 addTemplateProgramToUser çağrıldı - copyTemplateProgramToUser\'a yönlendiriliyor...');
   return await copyTemplateProgramToUser(userId, templateProgramId);
 };
 
 // Kullanıcı programını kaldır (soft delete - deleted olarak işaretle)
 export const removeUserProgram = async (programId) => {
   try {
-    console.log('🗑️ Program kullanıcıdan kaldırılıyor, programId:', programId);
     
     // Önce programın egzersizlerini deleted olarak işaretle
     const { error: exercisesError } = await supabase
@@ -849,7 +792,6 @@ export const removeUserProgram = async (programId) => {
       throw exercisesError;
     }
     
-    console.log('✅ Program egzersizleri deleted olarak işaretlendi');
     
     // Sonra programı deleted olarak işaretle
     const { error: programError } = await supabase
@@ -862,7 +804,6 @@ export const removeUserProgram = async (programId) => {
       throw programError;
     }
     
-    console.log('✅ Program başarıyla deleted olarak işaretlendi');
     return true;
   } catch (error) {
     console.error('❌ Program kaldırma hatası:', error);

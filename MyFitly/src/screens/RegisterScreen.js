@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Text, View, TextInput, TouchableOpacity, Alert, Image } from 'react-native';
+import { Text, View, TextInput, TouchableOpacity, Alert, Image, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -69,7 +69,6 @@ export default function RegisterScreen({ navigation }) {
         console.warn('profile insert failed', insertError);
       }
 
-      console.log('✅ Kayıt başarılı!');
       await refreshUser();
       
       Alert.alert(
@@ -79,7 +78,6 @@ export default function RegisterScreen({ navigation }) {
           {
             text: 'Tamam',
             onPress: () => {
-              console.log('✅ Alert kapatıldı');
             }
           }
         ]
@@ -95,8 +93,15 @@ export default function RegisterScreen({ navigation }) {
   return (
     <LinearGradient colors={[colors.background, colors.backgroundAlt]} style={{ flex: 1 }}>
       <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
-        <View style={{ flex: 1, padding: spacing.xl }}>
-          
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, padding: spacing.xl }}
+          keyboardShouldPersistTaps="handled"
+        >
+
           {/* Logo */}
           <View style={{ alignItems: 'center', marginBottom: spacing.xl }}>
             <Image 
@@ -365,7 +370,8 @@ export default function RegisterScreen({ navigation }) {
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </LinearGradient>
   );

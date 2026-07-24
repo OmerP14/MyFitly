@@ -1,5 +1,3 @@
-import { Platform } from 'react-native';
-
 // AdMob'u güvenli şekilde import et
 let BannerAd, BannerAdSize, InterstitialAd, RewardedAd, TestIds, mobileAds, AdEventType, RewardedAdEventType;
 
@@ -28,7 +26,6 @@ try {
       .catch((error) => console.error('❌ AdMob initialization error:', error));
   }
 } catch (error) {
-  console.log('⚠️ AdMob yüklenemedi:', error.message);
 }
 
 // Ad Unit ID'leri - Production ID'leri
@@ -58,30 +55,24 @@ export const loadInterstitialAd = () => {
     });
 
     interstitialAd.addAdEventListener(AdEventType.LOADED, () => {
-      console.log('✅ Interstitial ad loaded');
     });
 
     interstitialAd.addAdEventListener(AdEventType.ERROR, (error) => {
-      console.log('❌ Interstitial ad error:', error);
       // No-fill hatası normal bir durumdur, sadece log'la
       if (error.message && error.message.includes('no-fill')) {
-        console.log('ℹ️ No ad available to show (normal in production)');
       }
     });
 
     interstitialAd.addAdEventListener(AdEventType.OPENED, () => {
-      console.log('📱 Interstitial ad opened');
     });
 
     interstitialAd.addAdEventListener(AdEventType.CLOSED, () => {
-      console.log('❌ Interstitial ad closed');
       // Reklam kapandıktan sonra yeni bir tane yükle
       loadInterstitialAd();
     });
 
     interstitialAd.load();
   } catch (error) {
-    console.log('❌ Interstitial ad load error:', error);
   }
 };
 
@@ -95,20 +86,16 @@ export const loadRewardedAd = () => {
     });
 
     rewardedAd.addAdEventListener(AdEventType.LOADED, () => {
-      console.log('✅ Rewarded ad loaded');
     });
 
     rewardedAd.addAdEventListener(AdEventType.ERROR, (error) => {
-      console.log('❌ Rewarded ad error:', error);
       // No-fill hatası normal bir durumdur, sadece log'la
       if (error.message && error.message.includes('no-fill')) {
-        console.log('ℹ️ No rewarded ad available to show (normal in production)');
       }
     });
 
     rewardedAd.load();
   } catch (error) {
-    console.log('❌ Rewarded ad load error:', error);
   }
 };
 
@@ -117,14 +104,12 @@ export const showInterstitialAd = (onAdClosed = null, isPro = false) => {
   return new Promise((resolve, reject) => {
     // ABONELİK KONTROLÜ: Pro kullanıcılara reklam gösterme
     if (isPro) {
-      console.log('✨ Pro kullanıcı - interstitial reklam atlandı');
       if (onAdClosed) onAdClosed();
       resolve();
       return;
     }
 
     if (!interstitialAd) {
-      console.log('⚠️ Interstitial ad not loaded');
       if (onAdClosed) onAdClosed();
       resolve();
       return;
@@ -133,7 +118,6 @@ export const showInterstitialAd = (onAdClosed = null, isPro = false) => {
     try {
       // Reklam kapandığında callback çalıştır
       const unsubscribe = interstitialAd.addAdEventListener(AdEventType.CLOSED, () => {
-        console.log('❌ Interstitial ad closed - callback triggered');
         unsubscribe(); // Event listener'ı temizle
         if (onAdClosed) onAdClosed();
         resolve();
@@ -141,7 +125,6 @@ export const showInterstitialAd = (onAdClosed = null, isPro = false) => {
 
       // Error listener ekle (no-fill için)
       const errorUnsubscribe = interstitialAd.addAdEventListener(AdEventType.ERROR, (error) => {
-        console.log('❌ Interstitial ad show error:', error);
         errorUnsubscribe(); // Event listener'ı temizle
         if (onAdClosed) onAdClosed();
         resolve(); // Error durumunda da resolve et
@@ -149,7 +132,6 @@ export const showInterstitialAd = (onAdClosed = null, isPro = false) => {
       
       interstitialAd.show();
     } catch (error) {
-      console.log('❌ Interstitial ad show error:', error);
       if (onAdClosed) onAdClosed();
       resolve();
     }
@@ -159,14 +141,12 @@ export const showInterstitialAd = (onAdClosed = null, isPro = false) => {
 // Rewarded Ad göster - Abonelik kontrolü YOK (ödüllü reklam her zaman izlenebilir)
 export const showRewardedAd = () => {
   if (!rewardedAd) {
-    console.log('⚠️ Rewarded ad not loaded');
     return;
   }
 
   try {
     rewardedAd.show();
   } catch (error) {
-    console.log('❌ Rewarded ad show error:', error);
   }
 };
 
@@ -174,7 +154,6 @@ export const showRewardedAd = () => {
 export const AdBanner = ({ style, onAdFailedToLoad, isPro = false }) => {
   // ABONELİK KONTROLÜ: Pro kullanıcılara reklam gösterme
   if (isPro) {
-    console.log('✨ Pro kullanıcı - reklam gösterilmiyor');
     return null;
   }
 
@@ -190,7 +169,6 @@ export const AdBanner = ({ style, onAdFailedToLoad, isPro = false }) => {
         requestNonPersonalizedAdsOnly: true,
       }}
       onAdFailedToLoad={(error) => {
-        console.log('Banner reklam yüklenemedi:', error);
         if (onAdFailedToLoad) {
           onAdFailedToLoad(error);
         }

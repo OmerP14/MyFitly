@@ -17,7 +17,6 @@
       "bundleIdentifier": "com.myfitly.app",
       "infoPlist": {
         "UIBackgroundModes": [
-          "remote-notification",
           "remote-notification"
         ],
         "NSPhotoLibraryUsageDescription": "Profil fotoğrafınızı galeri den seçmek için erişim gerekiyor.",
@@ -27,9 +26,6 @@
         "GADApplicationIdentifier": "ca-app-pub-9412101969627220~2576667269",
         "GADIsAdManagerApp": true,
         "SKAdNetworkItems": [
-          {
-            "SKAdNetworkIdentifier": "cstr6suwn9.skadnetwork"
-          },
           {
             "SKAdNetworkIdentifier": "cstr6suwn9.skadnetwork"
           }

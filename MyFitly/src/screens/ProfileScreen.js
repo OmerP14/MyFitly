@@ -5,7 +5,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import Card from '../components/Card';
-import SectionHeader from '../components/SectionHeader';
 import Header from '../components/Header';
 import { spacing } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
@@ -441,7 +440,6 @@ export default function ProfileScreen() {
                       const hasPermission = await notificationService.requestNotificationPermissions();
                       
                       if (hasPermission) {
-                        console.log('✅ Bildirim izni verildi, hatırlatıcılar ayarlanıyor...');
                         
                         // Egzersiz verilerini al
                         try {
@@ -461,7 +459,6 @@ export default function ProfileScreen() {
                           // Su hatırlatıcısını da ayarla (eğer diyet ayarlarında aktifse)
                           if (userData?.water_reminders_enabled !== false) {
                             const waterInterval = userData?.reminder_frequency_hours || 2;
-                            console.log('💧 Su hatırlatıcısı ayarlanıyor:', waterInterval, 'saat');
                             await scheduleWaterReminder(waterInterval);
                           }
                           

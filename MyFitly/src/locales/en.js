@@ -4,23 +4,19 @@ export default {
   loading: 'Loading...',
   error: 'Error',
   success: 'Success',
-  cancel: 'Cancel',
   save: 'Save',
-  delete: 'Delete',
   edit: 'Edit',
   add: 'Add',
   confirm: 'Confirm',
   back: 'Back',
   next: 'Next',
   finish: 'Finish',
-  close: 'Close',
   retry: 'Retry',
   refresh: 'Refresh',
   search: 'Search',
   filter: 'Filter',
   all: 'All',
   info: 'Info',
-  great: 'Great!',
   test: 'Test',
 
   // Login/Register
@@ -30,30 +26,18 @@ export default {
   password: 'Password',
   confirm_password: 'Confirm Password',
   forgot_password: 'Forgot Password?',
-  dont_have_account: "Don't have an account?",
-  already_have_account: 'Already have an account?',
   sign_up_here: 'Sign up here',
   sign_in_here: 'Sign in here',
   login_success: 'Login successful!',
   register_success: 'Registration successful!',
   invalid_credentials: 'Invalid email or password',
-  fill_all_fields: 'Please fill in all fields',
-  password_mismatch: 'Passwords do not match',
 
   // Profile
   profile: 'Profile',
   profile_setup: 'Profile Setup',
   name: 'Full Name',
-  age: 'Age',
-  height: 'Height (cm)',
-  current_weight: 'Current Weight (kg)',
-  target_weight: 'Target Weight (kg)',
-  profile_completed: 'Profile completed!',
   profile_updated: 'Profile updated!',
   complete_profile_message: 'Start Today, Shine Tomorrow',
-  valid_age: 'Please enter a valid age (10-100)',
-  valid_height: 'Please enter a valid height (100-250 cm)',
-  valid_weight: 'Please enter a valid weight (30-300 kg)',
 
   // Dashboard
   dashboard: 'Dashboard',
@@ -67,7 +51,6 @@ export default {
   view_programs: 'View Programs',
   today_workout: "Today's Workout",
   weekly_progress: 'Weekly Progress',
-  achievements: 'Achievements',
   dashboard_subtitle: 'Start Today, Shine Tomorrow',
 
   // Program
@@ -99,7 +82,6 @@ export default {
   exercise_name_placeholder: 'Enter exercise name',
   sets_placeholder: '3',
   reps_placeholder: '10-12',
-  weight_placeholder: '20kg',
   select_category: 'Select Category',
   save_exercise: 'Save Exercise',
   cancel: 'Cancel',
@@ -111,7 +93,6 @@ export default {
   program_description: 'Program Description',
   program_name_placeholder: 'E.g: Personal Training Program',
   select_days: 'Select Days',
-  create_program: 'Create Program',
   save_program: 'Save Program',
   run_sql_setup: 'Please run SQL setup files to load template programs',
   complete_profile: 'Complete Your Profile',
@@ -121,41 +102,25 @@ export default {
   your_height: 'Your Height',
   your_current_weight: 'Current Weight',
   your_target_weight: 'Target Weight',
-  name_placeholder: 'E.g: John Smith',
-  age_placeholder: 'E.g: 25',
-  height_placeholder: 'E.g: 175',
-  weight_placeholder: 'E.g: 75',
   target_weight_placeholder: 'E.g: 70',
   years_old: 'years',
   cm_unit: 'cm',
   kg_unit: 'kg',
   lets_start: 'Let\'s Start!',
-  fill_all_fields: 'Please fill in all fields',
   valid_age: 'Please enter a valid age (10-100)',
   valid_height: 'Please enter a valid height (100-250 cm)',
   valid_weight: 'Please enter a valid weight (30-300 kg)',
   valid_target_weight: 'Please enter a valid target weight (30-300 kg)',
-  congratulations: 'Congratulations!',
   profile_completed: 'Your profile has been completed! You can now start your fitness journey.',
   profile_completion_error: 'An error occurred while completing your profile',
   apply_weekly_program: 'Apply Weekly Program',
-  apply_program: 'Apply Program',
   program_created: 'Program created!',
   program_applied_success: 'Program successfully applied!',
   select_exercise_category: 'Select exercise category',
-  this_week: 'This Week',
   next_week: 'Next Week',
   previous_week: 'Previous Week',
-  today: 'Today',
   week: 'Week',
   // Days (very short for UI)
-  sunday: 'S',
-  monday: 'M',
-  tuesday: 'T',
-  wednesday: 'W',
-  thursday: 'T',
-  friday: 'F',
-  saturday: 'S',
   // Full day names
   monday_full: 'Monday',
   tuesday_full: 'Tuesday',
@@ -176,13 +141,9 @@ export default {
   total_sets: 'Total Sets',
   completed_sets: 'Completed Sets',
   remaining_sets: 'Remaining Sets',
-  monthly: 'Monthly',
-  exercises_completed: 'exercises completed',
   program_created_message: 'program created for 1 month calendar',
   selected_days: 'Selected days',
-  total_exercises: 'Total exercises',
   program_applied_message: 'program successfully added and loaded to your program',
-  great: 'Great!',
   program_error: 'An error occurred while adding the program',
   fill_program_fields: 'Please enter program name and select at least one day',
   repeat_program_weekly: 'This workout will be repeated automatically every week',
@@ -197,17 +158,11 @@ export default {
   calories: 'Calories',
   exercise: 'Exercise',
   workout_progress: 'Workout Progress',
-  continue: 'Continue',
-  ad_loading: 'Ad Loading',
-  ad_not_ready: 'Ad is not ready yet. Please wait a few seconds and try again! 🎬',
   select_from_ready_programs: 'You can select a program from the Pre-made Programs tab',
   ready_workout_programs: 'Ready Workout Programs',
   professional_trainer_programs: 'Programs prepared by professional trainers',
   
   // Program levels
-  beginner: 'Beginner',
-  intermediate: 'Intermediate',
-  advanced: 'Advanced',
   
   // Time and units
   days_per_week: 'days/week',
@@ -222,19 +177,15 @@ export default {
   no_exercise_today: 'No exercise for today',
   program_details: 'Program Details',
   apply_this_program: 'Apply This Program',
-  workout_completed: 'Workout Completed! 🎉',
-  congratulations: 'Congratulations!',
   exercises_completed: 'exercises completed',
-  calories_burned: 'Calories Burned',
-  ok: 'OK',
   program_added_and_loaded: 'program has been added and loaded to your program!',
   unknown_error: 'Unknown error',
   warning: 'Warning',
   no_exercise_found_apply_program: 'No exercise found for today. First apply a program from ready programs!',
   set: 'set',
-  reps: 'reps',
+  reps_unit: 'reps', // inline count suffix, e.g. "12 reps" (lowercase form of `reps`)
   seconds: 'sec',
-  body_weight: 'Body Weight',
+  body_weight: 'Weight', // body-weight label (DietSettings/Tracking), distinct from exercise `weight`
 
   // Workout
   workout: 'Workout',
@@ -246,7 +197,6 @@ export default {
   finish_workout: 'Finish Workout',
   workout_completed: 'Workout completed!',
   elapsed_time: 'Elapsed Time',
-  calories_burned: 'Calories Burned',
 
   // Tracking
   tracking: 'Tracking',
@@ -287,13 +237,6 @@ export default {
   logout_confirm: 'Are you sure you want to sign out?',
 
   // Week Days
-  monday: 'Monday',
-  tuesday: 'Tuesday',
-  wednesday: 'Wednesday',
-  thursday: 'Thursday',
-  friday: 'Friday',
-  saturday: 'Saturday',
-  sunday: 'Sunday',
 
   // Template Programs
   template_programs: 'Template Programs',
@@ -328,7 +271,6 @@ export default {
   total_workouts: 'Total Workouts',
   current_streak: 'Current Streak',
   total_exercises: 'Total Exercises',
-  days: 'days',
   workouts: 'workouts',
   exercises: 'exercises',
   settings: 'Settings',
@@ -361,7 +303,6 @@ export default {
   create_account: 'Create Account',
   start_journey: 'Start your fitness journey',
   full_name: 'Full Name',
-  password_min_length: 'Password must be at least 6 characters',
   registration_error: 'Registration Error',
   
   // ProfileSetupScreen Specific
@@ -377,8 +318,6 @@ export default {
 
   // Weight Goal Progress
   weight_goal_progress: 'Weight Goal Progress',
-  current_weight: 'Current Weight',
-  target_weight: 'Target Weight',
   goal_achieved: 'Goal Achieved! 🎉',
   goal_remaining: 'Remaining to Goal',
 
@@ -396,7 +335,6 @@ export default {
   great: 'Great!',
   
   // Congratulations
-  congratulations: 'Congratulations! 🎉',
   profile_complete_message: 'Your profile is complete! You can now start your fitness journey.',
   
   // Validation Messages
@@ -412,7 +350,7 @@ export default {
   
   // Exercise Categories
   chest: 'Chest',
-  back: 'Back',
+  back_muscle: 'Back', // exercise category (muscle group), distinct from navigation `back`
   shoulders: 'Shoulders',
   arms: 'Arms',
   legs: 'Legs',
@@ -472,14 +410,13 @@ export default {
   recent_records: 'Recent Records',
   add_weight: 'Add Weight',
   add_strength: 'Add Strength',
-  weight_placeholder: 'Weight (kg) - E.g: 73.2',
+  weight_entry_placeholder: 'Weight (kg) - E.g: 73.2', // TrackingScreen add-weight modal
   exercise_selection: 'Exercise Selection',
   custom_exercise_placeholder: 'Custom exercise name - E.g: Custom Exercise',
   reps_weight_placeholder: 'Reps x Weight - E.g: 8x65kg',
   weight_only_placeholder: 'Weight - E.g: 65',
   no_enough_data: 'More data needed for chart',
   single_record: 'Single record',
-  saving: 'Saving...',
   set_target_weight: 'Set Target Weight',
   set_target_strength: 'Set Target Strength',
   weight_example: 'E.g: 65.0',
@@ -494,7 +431,6 @@ export default {
   no_backend_connection: 'No Backend Connection',
   please_upload_sql: 'Please upload SUPABASE_MASTER_SETUP.sql to Supabase.',
   tracking_service_error: 'Tracking service could not be loaded.',
-  please_enter_weight: 'Please enter weight value',
   target_weight_required: 'Target Weight Required',
   target_weight_required_message: 'You need to set a target weight first to add weight data.',
   please_enter_exercise_weight: 'Please enter exercise name and weight information',
@@ -514,7 +450,6 @@ export default {
   please_enter_target_weight: 'Please enter target weight',
   please_select_exercise_target: 'Please select exercise and enter target weight',
   target: 'Target',
-  weight: 'weight',
   strength: 'strength',
   saved: 'saved',
   target_save_failed: 'Target could not be saved',
@@ -565,7 +500,6 @@ export default {
   be_consistent_not_perfect: 'You don\'t have to be perfect, be consistent',
   congratulations: 'Congratulations!',
   achievements: 'Achievements',
-  this_week: 'This Week',
 
   // Achievement Titles and Descriptions
   achievement_three_day_streak_title: '3-Day Starter',
@@ -839,8 +773,6 @@ export default {
   
   // Food Tracking
   food_log: 'Food Log',
-  add_food: 'Add Food',
-  search_food: 'Search Food',
   scan_barcode: 'Scan Barcode',
   food_database: 'Food Database',
   custom_food: 'Custom Food',
@@ -914,7 +846,6 @@ export default {
   // Motivation and Achievements
   diet_achievements: 'Diet Achievements',
   streak_days: 'Streak Days',
-  goal_reached: 'Goal Reached',
   perfect_week: 'Perfect Week',
   macro_master: 'Macro Master',
   consistency_king: 'Consistency King',

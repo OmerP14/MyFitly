@@ -1,12 +1,11 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Text, View, ScrollView, TouchableOpacity, Modal, TextInput, Dimensions, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, FlatList } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { LineChart, BarChart } from 'react-native-chart-kit';
+import { LineChart } from 'react-native-chart-kit';
 import Card from '../components/Card';
-import SectionHeader from '../components/SectionHeader';
 import Header from '../components/Header';
 import { spacing } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
@@ -24,9 +23,6 @@ try {
   console.warn('Tracking service yüklenemedi:', error.message);
 }
 
-
-// supabase'i import et
-import { supabase } from '../config/supabase';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -143,6 +139,24 @@ export default function TrackingScreen() {
     return '#FF7A00'; // Başlangıç - primary turuncu
   };
 
+  // Kilo hedefi ilerlemesini hesapla. Bir baseline kaydedilmişse (handleSaveGoal'da
+  // hedef güncellendiğinde ayarlanır) ilerleme o andaki kilodan itibaren hesaplanır;
+  // aksi halde en eski kilo kaydı baseline olarak kullanılır (önceki davranış).
+  const calculateWeightProgress = () => {
+    const targetWeight = userData?.target_weight || 0;
+    const normalizedWeightData = normalizeWeightData(weightData);
+
+    if (!targetWeight || !normalizedWeightData || normalizedWeightData.length === 0) {
+      return { percent: 0, color: colors.textMuted };
+    }
+
+    const firstWeight = goalBaseline?.weight || normalizedWeightData[0]?.weight || 0;
+    const lastWeight = normalizedWeightData[normalizedWeightData.length - 1]?.weight || 0;
+    const percent = calculateProgress(targetWeight, firstWeight, lastWeight);
+
+    return { percent, color: getProgressColor(percent) };
+  };
+
   const getWeightChangeColor = (change, targetWeight, currentWeight) => {
     // Kilo verme hedefi mi, alma hedefi mi?
     const isWeightLoss = targetWeight < currentWeight;
@@ -197,6 +211,8 @@ export default function TrackingScreen() {
   const [strengthGoal, setStrengthGoal] = useState('');
   const [selectedExerciseForGoal, setSelectedExerciseForGoal] = useState('');
   const [exerciseTargets, setExerciseTargets] = useState({});
+  // Kilo hedefi belirlendiği andaki başlangıç noktası (hedef ilerlemesi buna göre hesaplanır)
+  const [goalBaseline, setGoalBaseline] = useState(null); // { weight, date }
   
   // Data states
   const [dashboardStats, setDashboardStats] = useState(null);
@@ -271,17 +287,14 @@ export default function TrackingScreen() {
           maxWeight: weight,
           history: [{ weight, date }]
         };
-        console.log('✅ Yeni egzersiz grubu oluşturuldu:', normalizedKey);
       } else {
         if (weight > exerciseGroups[normalizedKey].maxWeight) {
           exerciseGroups[normalizedKey].maxWeight = weight;
         }
         exerciseGroups[normalizedKey].history.push({ weight, date });
-        console.log('➕ Mevcut gruba eklendi:', normalizedKey, 'Toplam kayıt:', exerciseGroups[normalizedKey].history.length);
       }
     });
     
-    console.log('📊 Toplam egzersiz grupları:', Object.keys(exerciseGroups));
     
     // En yüksek değerlerine göre sırala ve history'yi tarihe göre sırala (YENİ → ESKİ)
     return Object.values(exerciseGroups)
@@ -409,11 +422,30 @@ export default function TrackingScreen() {
         }
         setExerciseTargets(targets);
       } catch (error) {
-        console.log('Hedef değerleri yüklenemedi:', error);
       }
     };
     
     loadExerciseTargets();
+  }, []);
+
+  // Load weight goal baseline from AsyncStorage (bkz. handleSaveGoal)
+  useEffect(() => {
+    const loadGoalBaseline = async () => {
+      try {
+        const pairs = await AsyncStorage.multiGet([
+          'weight_goal_baseline_weight',
+          'weight_goal_baseline_date'
+        ]);
+        const weightStr = pairs[0]?.[1];
+        const date = pairs[1]?.[1];
+        if (weightStr) {
+          setGoalBaseline({ weight: parseFloat(weightStr), date });
+        }
+      } catch (error) {
+      }
+    };
+
+    loadGoalBaseline();
   }, []);
 
   // Load data when component mounts or dependencies change
@@ -425,21 +457,17 @@ export default function TrackingScreen() {
 
   const loadData = async () => {
     if (!userUUID || !trackingService || userData?.isOffline) {
-      console.log('⚠️ Veri yüklenemedi - User:', !!userUUID, 'Service:', !!trackingService, 'Offline:', userData?.isOffline);
       return;
     }
     
     setLoading(true);
-    console.log('🔄 Veriler yükleniyor...', { userUUID, selectedPeriod, selectedTracking });
     
     try {
       const period = periodMapping[selectedPeriod];
       
       // Dashboard stats
       try {
-        console.log('📊 Dashboard istatistikleri getiriliyor...');
         const stats = await trackingService.getTrackingDashboardStats(userUUID);
-        console.log('📊 Dashboard stats sonucu:', stats);
         
         if (stats && (stats.success || stats.stats)) {
           setDashboardStats(stats.stats || stats);
@@ -455,7 +483,6 @@ export default function TrackingScreen() {
           });
         }
       } catch (statsError) {
-        console.log('⚠️ Dashboard stats hatası:', statsError.message);
         setDashboardStats({
           total_weight_loss: 0,
           total_strength_gain: 0,
@@ -470,9 +497,7 @@ export default function TrackingScreen() {
       // Load tracking data
       if (selectedTracking === 'weight') {
         try {
-          console.log('⚖️ Kilo verileri getiriliyor...', { userUUID, period });
           const wData = await trackingService.getWeightData(userUUID, period);
-          console.log('⚖️ Kilo verileri sonucu:', wData);
           
           if (wData && (wData.success || wData.data)) {
             setWeightData(wData.data || wData);
@@ -480,14 +505,11 @@ export default function TrackingScreen() {
             setWeightData([]);
           }
         } catch (weightError) {
-          console.log('⚠️ Kilo verileri hatası:', weightError.message);
           setWeightData([]);
         }
       } else {
         try {
-          console.log('🏋️ Ağırlık verileri getiriliyor...', { userUUID, period });
           const sData = await trackingService.getStrengthData(userUUID, period);
-          console.log('🏋️ Ağırlık verileri sonucu:', sData);
           
           if (sData && (sData.success || sData.data)) {
             // Ağırlık verilerini tarihe göre sırala (YENİ → ESKİ)
@@ -506,15 +528,12 @@ export default function TrackingScreen() {
             setStrengthData([]);
           }
         } catch (strengthError) {
-          console.log('⚠️ Ağırlık verileri hatası:', strengthError.message);
           setStrengthData([]);
         }
       }
     } catch (error) {
-      console.log('❌ Genel veri yükleme hatası:', error.message);
     } finally {
       setLoading(false);
-      console.log('🏁 Veri yükleme tamamlandı');
     }
   };
 
@@ -567,10 +586,8 @@ export default function TrackingScreen() {
     try {
       if (selectedTracking === 'weight') {
         // Önce tam ekran reklam göster (Pro kullanıcılara gösterilmez)
-        console.log('🎬 Kilo girişi yapılıyor - tam ekran reklam gösteriliyor...');
         showInterstitialAd(async () => {
           // Reklam kapandığında kilo verisini kaydet
-          console.log('✅ Reklam kapandı - kilo verisi kaydediliyor...');
           try {
             await saveWeightData();
           } catch (error) {
@@ -755,9 +772,6 @@ export default function TrackingScreen() {
     setSaving(true);
     
     try {
-      // Kullanıcının hedef bilgilerini güncelle
-      let updateData = { updated_at: new Date().toISOString() };
-
       if (selectedTracking === 'weight') {
         // 1) UserContext üzerinden güncelle ki UI hemen güncellensin
         await updateUserData({ target_weight: parseFloat(weightGoal) });
@@ -773,7 +787,6 @@ export default function TrackingScreen() {
             [selectedExerciseForGoal]: parseFloat(strengthGoal)
           }));
         } catch (error) {
-          console.log('Egzersiz hedefi kaydedilemedi:', error);
         }
       }
 
@@ -792,7 +805,7 @@ export default function TrackingScreen() {
         } catch (e) {}
       }
 
-      Alert.alert(t.success || 'Başarılı', `${t.target || 'Hedef'} ${selectedTracking === 'weight' ? (t.weight || 'kilo') : (t.strength || 'ağırlık')} ${t.saved || 'kaydedildi'}!`);
+      Alert.alert(t.success || 'Başarılı', `${t.target || 'Hedef'} ${selectedTracking === 'weight' ? (t.body_weight || 'kilo') : (t.strength || 'ağırlık')} ${t.saved || 'kaydedildi'}!`);
       setShowGoalModal(false);
       setWeightGoal('');
       setStrengthGoal('');
@@ -946,41 +959,13 @@ export default function TrackingScreen() {
                       paddingHorizontal: spacing.xs
                     }}>
                       <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center' }}>{t.target_progress || 'Hedef İlerleme'}</Text>
-                      <Text style={{ 
-                        color: (() => {
-                          const targetWeight = userData?.target_weight || 0;
-                          const normalizedWeightData = normalizeWeightData(weightData);
-                          
-                          // Veri yoksa veya hedef yoksa gri göster
-                          if (!targetWeight || !normalizedWeightData || normalizedWeightData.length === 0) {
-                            return colors.textMuted;
-                          }
-                          
-                          const firstWeight = normalizedWeightData[0]?.weight || 0; // En eski
-                          const lastWeight = normalizedWeightData[normalizedWeightData.length - 1]?.weight || 0; // En yeni
-                          
-                          const progress = calculateProgress(targetWeight, firstWeight, lastWeight);
-                          return getProgressColor(progress);
-                        })(), 
-                        fontSize: 20, 
+                      <Text style={{
+                        color: calculateWeightProgress().color,
+                        fontSize: 20,
                         fontWeight: '700',
                         textAlign: 'center'
                       }}>
-                        {(() => {
-                          const targetWeight = userData?.target_weight || 0;
-                          const normalizedWeightData = normalizeWeightData(weightData);
-                          
-                          // Veri yoksa veya hedef yoksa 0% göster
-                          if (!targetWeight || !normalizedWeightData || normalizedWeightData.length === 0) {
-                            return '0%';
-                          }
-                          
-                          const firstWeight = normalizedWeightData[0]?.weight || 0; // En eski
-                          const lastWeight = normalizedWeightData[normalizedWeightData.length - 1]?.weight || 0; // En yeni
-                          
-                          const progress = calculateProgress(targetWeight, firstWeight, lastWeight);
-                          return Math.round(progress) + '%';
-                        })()}
+                        {Math.round(calculateWeightProgress().percent)}%
                       </Text>
                     </View>
                   </View>
@@ -1429,7 +1414,6 @@ export default function TrackingScreen() {
                         alignItems: 'center'
                       }}
                       onPress={() => {
-                        console.log('Egzersiz kartına tıklandı:', item.exerciseName);
                       }}
                       activeOpacity={0.7}
                     >
@@ -1690,7 +1674,7 @@ export default function TrackingScreen() {
                     borderBottomColor: colors.border
                   }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.text, fontWeight: '600' }}>⚖️ {t.weight || 'Kilo'}</Text>
+                      <Text style={{ color: colors.text, fontWeight: '600' }}>⚖️ {t.body_weight || 'Kilo'}</Text>
                       <Text style={{ color: colors.textMuted, fontSize: 12 }}>
                         {new Date(entry.measurement_date || entry.date).toLocaleDateString(language === 'en' ? 'en-US' : 'tr-TR')}
                       </Text>
@@ -1790,7 +1774,7 @@ export default function TrackingScreen() {
                   <TextInput
                     value={newWeight}
                     onChangeText={setNewWeight}
-                    placeholder={t.weight_placeholder || "Kilo (kg) - Örn: 73.2"}
+                    placeholder={t.weight_entry_placeholder || "Kilo (kg) - Örn: 73.2"}
                     placeholderTextColor={colors.textMuted}
                     style={{
                       backgroundColor: colors.background,

@@ -58,8 +58,9 @@ BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'meal_plans') THEN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'meal_plans' AND column_name = 'user_id') THEN
       ALTER TABLE meal_plans ADD COLUMN user_id UUID REFERENCES users(id) ON DELETE CASCADE;
-      -- Mevcut meal planları kullanıcıya bağla
-      UPDATE meal_plans SET user_id = '9eaf7cbf-97f9-46c3-8712-8d197aeacfc5' WHERE user_id IS NULL;
+      -- Mevcut meal planları kullanıcıya bağla (kendi ortamınızdaki gerçek bir
+      -- kullanıcı UUID'si ile değiştirin)
+      UPDATE meal_plans SET user_id = '<YOUR_USER_UUID>' WHERE user_id IS NULL;
     END IF;
   END IF;
 END $$;

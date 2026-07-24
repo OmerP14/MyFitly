@@ -12,6 +12,10 @@ import { useLanguage } from '../context/LanguageContext';
 import { useSubscription } from '../context/SubscriptionContext';
 import { getTranslations } from '../utils/translations';
 
+// PORTFOLIO / DEMO NOTICE: this paywall is a UI demo. Pressing "Subscribe"
+// does not charge a card, contact an app store, or validate a receipt - it
+// just sets a local flag via SubscriptionContext. See the notice at the top
+// of src/context/SubscriptionContext.js for details.
 const Paywall = ({ onClose }) => {
   const { colors } = useTheme();
   const { language } = useLanguage();
@@ -22,7 +26,7 @@ const Paywall = ({ onClose }) => {
   const handleSubscribe = async () => {
     setIsLoading(true);
     try {
-      // Simulate subscription process
+      // Simulate subscription processing delay (demo only - no real purchase)
       await new Promise(resolve => setTimeout(resolve, 2000));
       await activateSubscription();
       onClose();

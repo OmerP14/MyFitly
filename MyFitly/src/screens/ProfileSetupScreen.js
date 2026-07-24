@@ -72,13 +72,11 @@ export default function ProfileSetupScreen() {
 
     try {
       setLoading(true);
-      console.log('📝 Profil tamamlanıyor...');
 
       // Eğer userData yoksa veya eksikse, profil oluştur/güncelle
       if ((!userData || !userData.age || !userData.height || !userData.current_weight || !userData.target_weight) && session?.user) {
         const { supabase } = require('../config/supabase');
         
-        console.log('🔄 Profil oluşturuluyor, userId:', session.user.id);
         
         // Önce auth.users tablosunda kullanıcının varlığını kontrol et
         const { data: authUser, error: authError } = await supabase.auth.getUser();
@@ -90,7 +88,6 @@ export default function ProfileSetupScreen() {
         }
         
         // Önce kullanıcının var olup olmadığını kontrol et
-        console.log('🔍 Kullanıcı kontrol ediliyor...');
         const { data: existingUser } = await supabase
           .from('users')
           .select('id')
@@ -102,7 +99,6 @@ export default function ProfileSetupScreen() {
 
         if (existingUser) {
           // Kullanıcı zaten varsa UPDATE yap
-          console.log('🔄 Kullanıcı mevcut, profil güncelleniyor...');
           const { data: updatedUser, error: updateError } = await supabase
             .from('users')
             .update({
@@ -123,7 +119,6 @@ export default function ProfileSetupScreen() {
           insertError = updateError;
         } else {
           // Kullanıcı yoksa INSERT yap
-          console.log('➕ Yeni kullanıcı oluşturuluyor...');
           const { data: newUser, error: newUserError } = await supabase
             .from('users')
             .insert({
@@ -149,7 +144,6 @@ export default function ProfileSetupScreen() {
           Alert.alert('Hata', 'Profil işlemi sırasında bir hata oluştu');
           return;
         }
-        console.log('✅ Profil başarıyla oluşturuldu/güncellendi');
       } else {
         // Mevcut profili güncelle
         await updateUserData({
@@ -166,7 +160,6 @@ export default function ProfileSetupScreen() {
       // Kullanıcı bağlamını yenile ki needsProfileCompletion false olsun
       await refreshUser();
 
-      console.log('✅ Profil tamamlandı!');
       Alert.alert(`${t.congratulations} 🎉`, t.profile_completed);
 
     } catch (error) {

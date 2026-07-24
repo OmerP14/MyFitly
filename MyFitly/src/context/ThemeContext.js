@@ -80,7 +80,6 @@ export const ThemeProvider = ({ children }) => {
     highlightBg: 'rgba(255,102,0,0.1)', // Vurgu arka planı
     // Metin tonları
     textPrimary: '#FFFFFF', // Ana metin
-    textSecondary: '#CCCCCC', // İkincil metin
     textTertiary: '#999999' // Üçüncül metin
   };
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Text, View, ScrollView, TouchableOpacity, Dimensions, Platform, FlatList } from 'react-native';
+import { Text, View, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -82,7 +82,6 @@ export default function DashboardScreen({ navigation }) {
       }
 
       setTodayMeals(groupedMeals);
-      console.log('🍽️ Bugünkü yemekler yüklendi:', groupedMeals);
     } catch (error) {
       console.error('❌ Bugünkü yemekler yüklenemedi:', error);
     }
@@ -228,7 +227,6 @@ export default function DashboardScreen({ navigation }) {
       const savedLastDate = await AsyncStorage.getItem('last_dashboard_date');
       
       if (savedLastDate !== today) {
-        console.log('📅 Dashboard: Yeni gün tespit edildi, bugünkü antrenman güncelleniyor...');
         await AsyncStorage.setItem('last_dashboard_date', today);
         // Bugünkü antrenmanı yeniden yükle
         loadTodayWorkout();
@@ -267,9 +265,6 @@ export default function DashboardScreen({ navigation }) {
       
       setWeeklyStats({ workoutDays: weeklyCount, totalSets: todayTotalSets });
       
-      console.log('📊 Dashboard - Bugünkü egzersizler:', todayExercises.length);
-      console.log('📊 Dashboard - Haftalık antrenman günleri:', weeklyCount);
-      console.log('📊 Dashboard - Egzersiz detayları:', todayExercises.map(ex => ({ name: ex.name, sets: ex.sets, reps: ex.reps })));
     } catch (error) {
       console.error('Antrenman verileri yüklenemedi:', error);
       setTodayWorkout([]);
@@ -299,7 +294,6 @@ export default function DashboardScreen({ navigation }) {
   useFocusEffect(
     React.useCallback(() => {
       if (userData?.id) {
-        console.log('🔄 Dashboard focus - veriler yenileniyor...');
         loadTodayWorkout();
         loadTodayMeals();
       }
@@ -341,7 +335,6 @@ export default function DashboardScreen({ navigation }) {
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       if (userData?.id) {
-        console.log('🔄 Ana ekran açıldı, veriler yenileniyor...');
         loadAllData();
       }
     });
@@ -463,7 +456,7 @@ export default function DashboardScreen({ navigation }) {
                         color: colors.textMuted, 
                         fontSize: 12 
                       }}>
-                        {exercise.sets} {t.set} × {exercise.reps} {t.reps}
+                        {exercise.sets} {t.set} × {exercise.reps} {t.reps_unit}
                       </Text>
                     </View>
                     <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
@@ -473,10 +466,8 @@ export default function DashboardScreen({ navigation }) {
                 <TouchableOpacity
                   onPress={() => {
                     // Tam ekran reklam göster (Pro kullanıcılara gösterilmez)
-                    console.log('🎬 Antrenman başlatılıyor - tam ekran reklam gösteriliyor...');
                     showInterstitialAd(() => {
                       // Reklam kapandığında Training ekranına git ve Workout tab'ını aç
-                      console.log('✅ Reklam kapandı - Training ekranına yönlendiriliyor...');
                       navigation.navigate('Training', { 
                         autoStartWorkout: true
                       });

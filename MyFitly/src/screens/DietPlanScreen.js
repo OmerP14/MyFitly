@@ -104,7 +104,6 @@ export default function DietPlanScreen({ navigation }) {
   // selectedDay değiştiğinde meal plan'ı yeniden yükle
   useEffect(() => {
     if (mealPlan) {
-      console.log('📝 Selected day changed to:', selectedDay);
       loadMealPlan();
     }
   }, [selectedDay]);
@@ -303,7 +302,6 @@ export default function DietPlanScreen({ navigation }) {
       if (createError) {
         // Raised key constraint hatası ise mevcut planı bul
         if (createError.code === '23505') {
-          console.log('📝 Meal plan zaten mevcut, mevcut planı buluyor...');
           const { data: existingPlans, error: findError } = await supabase
             .from('meal_plans')
             .select('id')
@@ -505,7 +503,6 @@ export default function DietPlanScreen({ navigation }) {
       const existingPlan = existingPlans && existingPlans.length > 0 ? existingPlans[0] : null;
 
       if (planError || !existingPlan) {
-        console.log('📝 Meal plan bulunamadı, oluşturuluyor...');
         
         // Meal plan oluştur
         const { data: newPlan, error: createError } = await supabase
@@ -523,7 +520,6 @@ export default function DietPlanScreen({ navigation }) {
         if (createError) {
           // Raised key constraint hatası ise mevcut planı bul
           if (createError.code === '23505') {
-            console.log('📝 Meal plan zaten mevcut, mevcut planı buluyor...');
             const { data: existingPlans, error: findError } = await supabase
               .from('meal_plans')
               .select('*')
@@ -558,7 +554,6 @@ export default function DietPlanScreen({ navigation }) {
 
       if (mealsError) throw mealsError;
 
-      console.log('📝 Yüklenen öğünler:', mealsData);
       setPlannedMeals(mealsData || []);
     } catch (error) {
       console.error('🔴 Meal plan yükleme hatası:', error);
@@ -569,8 +564,6 @@ export default function DietPlanScreen({ navigation }) {
 
   const getMealsForDay = (dayId) => {
     const meals = plannedMeals.filter(meal => meal.day_of_week === dayId);
-    console.log(`📝 Day ${dayId} meals:`, meals);
-    console.log('📝 All planned meals:', plannedMeals);
     return meals;
   };
 

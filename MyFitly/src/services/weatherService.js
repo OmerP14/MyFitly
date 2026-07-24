@@ -8,7 +8,9 @@ const WEATHER_SOURCES = {
 };
 
 // OpenWeatherMap API - Ücretsiz API key almak için: https://openweathermap.org/api
-const API_KEY = 'd0490481340339e9a3f10f53d35b2f56'; // Gerçek API key
+// Key, EXPO_PUBLIC_OPENWEATHER_API_KEY ortam değişkeninden okunur (bkz. .env.example).
+// Tanımlı değilse aşağıdaki fonksiyonlar otomatik olarak demo veriye düşer.
+const API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY || '';
 const BASE_URL = 'https://api.openweathermap.org/data/2.5/weather';
 
 // Demo veriler - Konum izni olmadığında veya API hatası durumunda
@@ -74,9 +76,7 @@ const getWeatherIcon = (condition) => {
 // Konum izni iste
 const requestLocationPermission = async () => {
   try {
-    console.log('🔐 Konum izni isteniyor...');
     const { status } = await Location.requestForegroundPermissionsAsync();
-    console.log('🔐 Konum izni durumu:', status);
     return status === 'granted';
   } catch (error) {
     console.error('❌ Konum izni hatası:', error);
@@ -90,11 +90,9 @@ const getUserLocation = async () => {
     const hasPermission = await requestLocationPermission();
     
     if (!hasPermission) {
-      console.log('⚠️ Konum izni verilmedi');
       return null;
     }
 
-    console.log('📍 GPS konumu alınıyor...');
     const location = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.Balanced,
       timeout: 10000, // 10 saniye timeout
@@ -122,7 +120,6 @@ export const getWeatherByCoordinates = async (latitude, longitude, language = 't
   try {
     // API key kontrolü
     if (!API_KEY || API_KEY === 'your_api_key_here') {
-      console.log('⚠️ API key yok, demo veri döndürülüyor');
       return getDemoWeather(language);
     }
 
@@ -162,7 +159,6 @@ export const getWeatherByCity = async (city = 'Istanbul', language = 'tr') => {
   try {
     // API key kontrolü
     if (!API_KEY || API_KEY === 'your_api_key_here') {
-      console.log('⚠️ API key yok, demo veri döndürülüyor');
       return getDemoWeather(language);
     }
 
@@ -202,7 +198,6 @@ const getWeatherFromWeatherKit = async (latitude, longitude, language = 'tr') =>
   try {
     // WeatherKit sadece native iOS uygulamalarında çalışır
     // React Native/Expo'da direkt erişim yok
-    console.log('🍎 WeatherKit kullanılamıyor (Expo/React Native sınırlaması)');
     return null;
   } catch (error) {
     console.error('❌ WeatherKit hatası:', error);
@@ -214,27 +209,22 @@ const getWeatherFromWeatherKit = async (latitude, longitude, language = 'tr') =>
 export const getCurrentWeather = async (language = 'tr') => {
   try {
     // Önce kullanıcının konumunu almaya çalış
-    console.log('📍 Konum bilgisi alınıyor...');
     const location = await getUserLocation();
     
     if (location) {
-      console.log('✅ Konum alındı:', location);
       
       // Önce WeatherKit'i dene (iOS 16+)
       try {
         const weatherKitData = await getWeatherFromWeatherKit(location.latitude, location.longitude, language);
         if (weatherKitData) {
-          console.log('🍎 WeatherKit verisi alındı:', weatherKitData);
           return { success: true, data: weatherKitData, source: 'weatherkit' };
         }
       } catch (weatherKitError) {
-        console.log('⚠️ WeatherKit kullanılamıyor, OpenWeatherMap deneniyor...');
       }
       
       // WeatherKit başarısızsa OpenWeatherMap'i dene
       try {
         const weather = await getWeatherByCoordinates(location.latitude, location.longitude, language);
-        console.log('✅ OpenWeatherMap verisi alındı:', weather);
         return { success: true, data: weather, source: 'openweather' };
       } catch (weatherError) {
         console.error('❌ OpenWeatherMap hatası:', weatherError);
@@ -244,7 +234,6 @@ export const getCurrentWeather = async (language = 'tr') => {
     }
 
     // Konum alınamazsa demo veri döndür
-    console.log('⚠️ Konum alınamadı, demo veri gösteriliyor');
     return { success: true, data: getDemoWeather(language), source: 'demo' };
     
   } catch (error) {

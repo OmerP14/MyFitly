@@ -27,15 +27,17 @@ export default function LoginScreen({ navigation }) {
     loadSavedCredentials();
   }, []);
 
+  // "Remember Me" only remembers the email address to pre-fill the form.
+  // Passwords are never persisted in AsyncStorage (or anywhere on-device) -
+  // Supabase's own session persistence (see src/config/supabase.js) is what
+  // keeps the user signed in between app launches.
   const loadSavedCredentials = async () => {
     try {
       const savedEmail = await AsyncStorage.getItem('remembered_email');
-      const savedPassword = await AsyncStorage.getItem('remembered_password');
       const rememberMeStatus = await AsyncStorage.getItem('remember_me');
-      
-      if (savedEmail && savedPassword && rememberMeStatus === 'true') {
+
+      if (savedEmail && rememberMeStatus === 'true') {
         setEmail(savedEmail);
-        setPassword(savedPassword);
         setRememberMe(true);
       }
     } catch (error) {
@@ -47,11 +49,9 @@ export default function LoginScreen({ navigation }) {
     try {
       if (rememberMe) {
         await AsyncStorage.setItem('remembered_email', email);
-        await AsyncStorage.setItem('remembered_password', password);
         await AsyncStorage.setItem('remember_me', 'true');
       } else {
         await AsyncStorage.removeItem('remembered_email');
-        await AsyncStorage.removeItem('remembered_password');
         await AsyncStorage.removeItem('remember_me');
       }
     } catch (error) {
@@ -67,48 +67,25 @@ export default function LoginScreen({ navigation }) {
 
     try {
       setLoading(true);
-      console.log('🔐 Giriş yapılıyor...', { email: email.trim(), passwordLength: password.length });
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password,
       });
 
-      console.log('🔐 Supabase auth response:', { data: !!data, error: error?.message });
-
       if (error) {
         console.error('❌ Giriş hatası:', error);
-        Alert.alert(t.error, error.message === 'Invalid login credentials' 
-          ? t.invalid_credentials 
+        Alert.alert(t.error, error.message === 'Invalid login credentials'
+          ? t.invalid_credentials
           : error.message);
         return;
       }
 
-      console.log('✅ Giriş başarılı:', data.user.id);
-      
-      // Beni hatırla seçeneği aktifse bilgileri kaydet
+      // Beni hatırla seçeneği aktifse email'i kaydet
       await saveCredentials();
-      
-      // Session'ı manuel olarak kontrol et
-      const { data: sessionData } = await supabase.auth.getSession();
-      console.log('🔍 Manuel session kontrolü:', { hasSession: !!sessionData.session });
-      
-      // Kullanıcının profil bilgilerini kontrol et
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
-
-      console.log('👤 Profil kontrolü:', { userData: !!userData, userError: userError?.message });
-
-      if (userError || !userData) {
-        console.log('⚠️ Kullanıcı profili bulunamadı, profil kurulum ekranına yönlendirilecek...');
-        // Profil yoksa ProfileSetup ekranına yönlendirilecek
-      }
 
       // Navigation otomatik olacak çünkü UserContext auth state'ini izliyor
-      
+
     } catch (error) {
       console.error('❌ Beklenmeyen hata:', error);
       Alert.alert(t.error, t.something_went_wrong);

@@ -59,7 +59,6 @@ export const getWeightData = async (userId, periodType = 'monthly') => {
 
     if (error) throw error;
     
-    console.log('📊 Kilo verileri getirildi:', { userId, periodType, count: data?.length || 0 });
     
     return {
       success: true,
@@ -209,7 +208,6 @@ export const getStrengthData = async (userId, periodType = 'monthly', exerciseNa
 
     if (error) throw error;
     
-    console.log('📊 Ağırlık verileri getirildi:', { userId, periodType, exerciseName, count: data?.length || 0 });
     
     return {
       success: true,

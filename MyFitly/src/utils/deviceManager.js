@@ -12,25 +12,19 @@ export const getOrCreateDeviceId = async () => {
       deviceId = generateUUID();
       await AsyncStorage.setItem('device_id', deviceId);
       
-      console.log('Yeni device ID oluşturuldu:', deviceId);
       
       // Supabase'de kullanıcı oluştur (eğer bağlantı varsa)
       try {
-        console.log('Supabase kullanıcı oluşturma deneniyor...');
         await createUserInSupabase(deviceId);
-        console.log('✅ Supabase kullanıcı başarıyla oluşturuldu');
       } catch (error) {
         console.warn('⚠️ Supabase kullanıcı oluşturulamadı, offline mod:', error);
         // Offline mod için devam et
       }
     } else {
-      console.log('Mevcut device ID bulundu:', deviceId);
       
       // Supabase'de kullanıcı var mı kontrol et
       try {
-        console.log('Supabase kullanıcı kontrolü yapılıyor...');
         await ensureUserExistsInSupabase(deviceId);
-        console.log('✅ Supabase kullanıcı kontrolü başarılı');
       } catch (error) {
         console.warn('⚠️ Supabase kullanıcı kontrolü başarısız, offline mod:', error);
         // Offline mod için devam et
@@ -131,10 +125,8 @@ const ensureUserExistsInSupabase = async (deviceId) => {
     } else if (error) {
       throw error;
     } else {
-      console.log('Supabase kullanıcı mevcut:', data);
     }
   } catch (error) {
-    console.log('⚠️ Supabase kullanıcı kontrolü hatası (normal):', error.message);
     throw error;
   }
 };
@@ -143,7 +135,6 @@ const ensureUserExistsInSupabase = async (deviceId) => {
 export const clearDeviceId = async () => {
   try {
     await AsyncStorage.removeItem('device_id');
-    console.log('Device ID temizlendi');
   } catch (error) {
     console.error('Device ID temizleme hatası:', error);
   }
@@ -202,7 +193,6 @@ export const updateUserInSupabase = async (deviceId, updates) => {
       throw error;
     }
 
-    console.log('Kullanıcı bilgileri güncellendi:', data);
     return data;
   } catch (error) {
     console.error('Kullanıcı güncelleme hatası:', error);

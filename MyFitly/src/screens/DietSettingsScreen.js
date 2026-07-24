@@ -1,9 +1,8 @@
 // src/screens/DietSettingsScreen.js
-import React, { useState, useEffect, useMemo } from 'react';
-import { Text, View, ScrollView, TouchableOpacity, TextInput, Switch } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { Text, View, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
 import Card from '../components/Card';
 import Header from '../components/Header';
 import { spacing } from '../theme/colors';
@@ -109,7 +108,6 @@ export default function DietSettingsScreen({ navigation }) {
   const saveSettings = async () => {
     setLoading(true);
     try {
-      console.log('💾 Ayarlar kaydediliyor...', settings);
 
       // Users tablosunu güncelle (sadece temel bilgiler)
       const { error: userError } = await supabase
@@ -274,7 +272,7 @@ export default function DietSettingsScreen({ navigation }) {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: colors.textMuted, fontSize: 12, marginBottom: spacing.xs }}>
-                  {t.weight || 'Kilo'} (kg)
+                  {t.body_weight || 'Kilo'} (kg)
                 </Text>
                 <TextInput
                   style={{

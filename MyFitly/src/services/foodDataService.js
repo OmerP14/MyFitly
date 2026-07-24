@@ -116,7 +116,6 @@ const turkishFoods = englishFoods.map(food => [food[1], food[1], food[2], food[3
 
 export const loadFoodData = async (language = 'en') => {
   try {
-    console.log(`🔄 ${language} besin verileri yükleniyor...`);
     
     // Mevcut verileri temizle
     const { error: deleteError } = await supabase
@@ -156,7 +155,6 @@ export const loadFoodData = async (language = 'en') => {
       throw error;
     }
     
-    console.log(`✅ ${foodsData.length} besin verisi yüklendi (${language})`);
     return { success: true, count: foodsData.length };
     
   } catch (error) {
@@ -175,7 +173,6 @@ export const checkFoodDataExists = async () => {
     if (error) throw error;
     
     const count = data?.[0]?.count || 0;
-    console.log(`📊 Veritabanında ${count} aktif besin var`);
     return count > 0;
     
   } catch (error) {

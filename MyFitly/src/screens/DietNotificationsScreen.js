@@ -1,6 +1,6 @@
 // src/screens/DietNotificationsScreen.js
 import React, { useState, useEffect, useRef } from 'react';
-import { Text, View, ScrollView, TouchableOpacity, Switch, Alert, FlatList, Modal, Dimensions } from 'react-native';
+import { Text, View, ScrollView, TouchableOpacity, Switch, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,12 +13,10 @@ import Card from '../components/Card';
 // Gerçek context'ler import edildi, mock'lar kaldırıldı
 
 const scheduleNotification = async (id, title, body, type, time, interval) => {
-  console.log('📱 Bildirim planlandı:', { id, title, body, type, time, interval });
   return Promise.resolve();
 };
 
 const cancelNotification = async (id) => {
-  console.log('❌ Bildirim iptal edildi:', id);
   return Promise.resolve();
 };
 
@@ -119,7 +117,6 @@ export default function DietNotificationsScreen({ navigation }) {
 
   const saveSettings = async () => {
     try {
-      console.log('💾 Bildirim ayarları kaydediliyor...', settings);
 
       // Bildirim ayarlarını veritabanında güncelle
       const { error: notificationError } = await supabase
@@ -149,7 +146,6 @@ export default function DietNotificationsScreen({ navigation }) {
         return;
       }
 
-      console.log('✅ Bildirim ayarları başarıyla kaydedildi');
 
       // Bildirimleri güncelle
       await updateNotifications();
@@ -157,7 +153,6 @@ export default function DietNotificationsScreen({ navigation }) {
       // Real-time senkronizasyon tetikle
       if (userData?.id) {
         await syncService.fullSync(userData.id);
-        console.log('🔄 Veriler real-time senkronize edildi');
       }
 
       Alert.alert('Başarılı', 'Bildirim ayarları kaydedildi ve senkronize edildi');
@@ -183,17 +178,14 @@ export default function DietNotificationsScreen({ navigation }) {
       // Yeni bildirimleri planla
       if (settings.waterReminders) {
         await scheduleWaterReminder(settings.waterReminderInterval);
-        console.log('💧 Su hatırlatıcısı ayarlandı:', settings.waterReminderInterval, 'saat');
       }
 
       if (settings.vitaminReminders) {
         await scheduleVitaminReminder(settings.vitaminReminderTime);
-        console.log('💊 Vitamin hatırlatıcısı ayarlandı:', settings.vitaminReminderTime);
       }
 
       if (settings.sleepReminders) {
         await scheduleSleepReminder(settings.sleepReminderTime);
-        console.log('🌙 Uyku hatırlatıcısı ayarlandı:', settings.sleepReminderTime);
       }
 
       // Yemek hatırlatıcıları için ayrı ayrı planla
@@ -208,10 +200,8 @@ export default function DietNotificationsScreen({ navigation }) {
         await scheduleMealReminder('Öğle Yemeği', { hour: lunchHour, minute: lunchMinute });
         await scheduleMealReminder('Akşam Yemeği', { hour: dinnerHour, minute: dinnerMinute });
         
-        console.log('🍽️ Yemek hatırlatıcıları ayarlandı');
       }
 
-      console.log('✅ Tüm bildirimler güncellendi');
     } catch (error) {
       console.error('❌ Bildirim güncelleme hatası:', error);
     }
@@ -221,13 +211,11 @@ export default function DietNotificationsScreen({ navigation }) {
   useEffect(() => {
     const startSync = async () => {
       if (userData?.id) {
-        console.log('🔄 Real-time senkronizasyon başlatılıyor...');
         await syncService.startRealtimeSync(userData.id);
         
         // Tam senkronizasyon yap
         const syncData = await syncService.fullSync(userData.id);
         if (syncData) {
-          console.log('✅ Veriler senkronize edildi:', syncData);
         }
       }
     };
@@ -341,7 +329,6 @@ export default function DietNotificationsScreen({ navigation }) {
             if (navigation && navigation.goBack) {
               navigation.goBack();
             } else {
-              console.log('Navigation bulunamadı');
             }
           }}
           style={{

@@ -63,15 +63,8 @@ function AppContent() {
   
   // Bildirim dinleyicileri
   useEffect(() => {
-    // Bildirim geldiğinde
-    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-      console.log('🔔 Bildirim alındı:', notification);
-    });
-
-    // Bildirime tıklandığında
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('👆 Bildirime tıklandı:', response);
-    });
+    notificationListener.current = Notifications.addNotificationReceivedListener(() => {});
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(() => {});
 
     return () => {
       if (notificationListener.current) {
@@ -134,21 +127,14 @@ export default function App() {
     const initializeApp = async () => {
       // Test verilerini temizle (sadece development modunda)
       if (__DEV__) {
-        console.log('🧹 Test verileri temizleniyor...');
         await runTestCleanup();
       }
       
       // Reklamları başlat
       initializeAds();
-      
+
       // Bildirim izin durumunu kontrol et (kullanıcıdan sormadan)
-      console.log('🔔 Bildirim izin durumu kontrol ediliyor...');
-      const hasPermission = await checkPermissionStatus();
-      if (hasPermission) {
-        console.log('✅ Bildirim izinleri zaten verilmiş');
-      } else {
-        console.log('ℹ️ Bildirim izni henüz verilmemiş (profil veya ayarlardan istenecek)');
-      }
+      await checkPermissionStatus();
     };
 
     initializeApp();

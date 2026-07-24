@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Modal, TextInput, Alert, ActivityIndicator, Dimensions, FlatList, Switch, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Modal, TextInput, Alert, ActivityIndicator, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -75,7 +75,6 @@ export default function TrainingScreen({ navigation, route }) {
   // Reklam durumunu logla (sadece Free kullanıcılar için)
   useEffect(() => {
     if (!isPro) {
-      console.log('📺 Reklam durumu değişti:', { adLoaded, adLoading });
     }
   }, [adLoaded, adLoading, isPro]);
 
@@ -121,7 +120,6 @@ export default function TrainingScreen({ navigation, route }) {
       const savedLastDate = await AsyncStorage.getItem('last_training_date');
       
       if (savedLastDate !== today) {
-        console.log('📅 Training: Yeni gün tespit edildi, bugünkü egzersizler güncelleniyor...');
         await AsyncStorage.setItem('last_training_date', today);
         // Bugünkü egzersizleri yeniden yükle
         const todayExercises = await programService.getExercises(userId, new Date().getDay());
@@ -169,9 +167,7 @@ export default function TrainingScreen({ navigation, route }) {
   const loadTemplatePrograms = async () => {
     try {
       setIsLoadingTemplates(true);
-      console.log('🔄 Template programs loading...');
       const programs = await programService.getTemplatePrograms();
-      console.log('📋 Template programs loaded:', programs);
       setTemplatePrograms(programs || []);
     } catch (error) {
       console.error('❌ Template programs load error:', error);
@@ -224,43 +220,32 @@ export default function TrainingScreen({ navigation, route }) {
             style: 'destructive',
             onPress: async () => {
               try {
-                console.log('🗑️ Program kaldırılıyor:', program.name);
                 
                 // Premium kullanıcılara reklam gösterilmez
                 if (!isPro) {
                   // Önce reklam göster - ZORLA GÖSTER
-                  console.log('📺 Program silme için reklam gösteriliyor...');
-                  console.log('🔍 Reklam durumu:', { adLoaded, adLoading });
                   
                   // Reklamı zorla göster
                   try {
-                    console.log('📺 Reklam zorla gösteriliyor...');
                     await showAd();
-                    console.log('✅ Reklam izlendi, program siliniyor...');
                   } catch (adError) {
                     console.warn('⚠️ Reklam gösterilemedi:', adError);
-                    console.log('⚠️ Reklam hatası detayı:', adError.message);
                     
                     // Reklam gösterilemezse de devam et
-                    console.log('⚠️ Reklam gösterilemedi, program direkt siliniyor...');
                   }
                 } else {
-                  console.log('✨ Premium kullanıcı - reklam atlandı');
                 }
                 
                 // Reklam sonrası kısa bekleme
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 
                 await programService.removeUserProgram(program.id);
-                console.log('✅ Program başarıyla kaldırıldı');
                 
                 // Verileri yenile
                 await loadTrainingData();
                 
                 // userPrograms state'ini de güncelle
                 const updatedPrograms = await programService.getUserPrograms(userId);
-                console.log('🔍 Kaldırma sonrası user programs:', updatedPrograms);
-                console.log('🔍 Kaldırma sonrası program sayısı:', updatedPrograms ? updatedPrograms.length : 0);
                 setUserPrograms(updatedPrograms || []);
                 
                 Alert.alert(
@@ -303,50 +288,37 @@ export default function TrainingScreen({ navigation, route }) {
 
       // Debug: Mevcut user programs'ı kontrol et
       const currentUserPrograms = await programService.getUserPrograms(userId);
-      console.log('🔍 Mevcut user programs:', currentUserPrograms);
-      console.log('🔍 Program sayısı:', currentUserPrograms ? currentUserPrograms.length : 0);
 
       // Premium kullanıcılara reklam gösterilmez
       if (!isPro) {
         // Önce reklam göster
-        console.log('📺 Reklam kontrolü:', { adLoaded, adLoading });
         
         if (adLoaded) {
-          console.log('📺 Reklam gösteriliyor...');
           try {
             await showAd();
-            console.log('✅ Reklam izlendi, program ekleniyor...');
           } catch (adError) {
             console.warn('⚠️ Reklam gösterilemedi:', adError);
             // Reklam gösterilemezse de devam et
           }
         } else {
-          console.log('⚠️ Reklam durumu:', { adLoaded, adLoading });
-          console.log('⚠️ Reklam hazır değil, program direkt ekleniyor...');
           
           // Reklam hazır değilse yeni reklam yüklemeye çalış
-          console.log('🔄 Yeni reklam yükleniyor...');
           try {
             if (loadAd) {
               loadAd();
-              console.log('✅ Reklam yükleme başlatıldı');
             } else {
-              console.log('⚠️ loadAd fonksiyonu mevcut değil');
             }
           } catch (loadError) {
             console.warn('⚠️ Reklam yükleme hatası:', loadError);
           }
         }
       } else {
-        console.log('✨ Premium kullanıcı - reklam atlandı, program direkt ekleniyor');
       }
 
       // Reklam işleminden sonra daha uzun bekleme ekle
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      console.log('🔄 ProgramService.addTemplateProgramToUser çağrılıyor...');
       await programService.addTemplateProgramToUser(userId, program.id);
-      console.log('✅ Program başarıyla eklendi, veriler yenileniyor...');
       
       // Modal'ı kapat
       setShowTemplateDetail(false);
@@ -362,7 +334,6 @@ export default function TrainingScreen({ navigation, route }) {
         const updatedPrograms = await programService.getUserPrograms(userId);
         setUserPrograms(updatedPrograms || []);
         
-        console.log('✅ Veriler başarıyla yenilendi');
       } catch (loadError) {
         console.error('❌ Veri yenileme hatası:', loadError);
         setIsLoading(false);
@@ -379,7 +350,6 @@ export default function TrainingScreen({ navigation, route }) {
           {
             text: t.ok || 'OK',
             onPress: () => {
-              console.log('✅ Program ekleme işlemi tamamlandı');
             }
           }
         ]
@@ -400,7 +370,6 @@ export default function TrainingScreen({ navigation, route }) {
         errorMessage = 'Bu program zaten eklenmiş!';
       }
       
-      console.log('🚨 Kullanıcıya gösterilecek hata:', errorMessage);
       Alert.alert(t.error || 'Error', errorMessage);
     }
   };
@@ -521,8 +490,6 @@ export default function TrainingScreen({ navigation, route }) {
     const todayExercises = (exercises && exercises[today]) ? exercises[today] : [];
     
     // Debug log'ları ekle
-    console.log('📊 Training - Bugünkü egzersizler:', todayExercises.length);
-    console.log('📊 Training - Egzersiz detayları:', todayExercises.map(ex => ({ name: ex.name, sets: ex.sets, reps: ex.reps })));
     
     return todayExercises;
   };
@@ -865,7 +832,6 @@ export default function TrainingScreen({ navigation, route }) {
                               overflow: 'hidden'
                             }}
                             onAdFailedToLoad={(error) => {
-                              console.log('Banner reklam yüklenemedi (normal):', error);
                             }}
                           />
                         </View>
@@ -896,7 +862,6 @@ export default function TrainingScreen({ navigation, route }) {
                         overflow: 'hidden'
                       }}
                       onAdFailedToLoad={(error) => {
-                        console.log('Banner reklam yüklenemedi (normal):', error);
                       }}
                     />
                   </View>
@@ -1010,7 +975,7 @@ export default function TrainingScreen({ navigation, route }) {
                           {translateExerciseName(exercise.name, language)}
                         </Text>
                         <Text style={{ color: colors.textMuted, fontSize: 14, marginTop: 2 }}>
-                          {exercise.sets} {t.sets || 'sets'} × {exercise.reps} {t.reps || 'reps'} {exercise.weight > 0 && `@ ${exercise.weight}kg`}
+                          {exercise.sets} {t.sets || 'sets'} × {exercise.reps} {t.reps_unit || 'reps'} {exercise.weight > 0 && `@ ${exercise.weight}kg`}
                         </Text>
                       </View>
                       <TouchableOpacity
