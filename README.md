@@ -8,15 +8,15 @@ A fitness & diet tracking mobile app built with **React Native (Expo)** and **Su
 
 | Login | Register | Dashboard |
 |---|---|---|
-| ![Login](MyFitly/screenshots/06_login.png) | ![Register](MyFitly/screenshots/07_register.png) | ![Dashboard](MyFitly/screenshots/01_dashboard.png) |
+| ![Login](screenshots/06_login.png) | ![Register](screenshots/07_register.png) | ![Dashboard](screenshots/01_dashboard.png) |
 
 | Training | Tracking | Diet |
 |---|---|---|
-| ![Training](MyFitly/screenshots/02_training.png) | ![Tracking](MyFitly/screenshots/03_tracking.png) | ![Diet](MyFitly/screenshots/04_diet.png) |
+| ![Training](screenshots/02_training.png) | ![Tracking](screenshots/03_tracking.png) | ![Diet](screenshots/04_diet.png) |
 
 | Profile | Diet — Water & Meals | Diet — Meal Slots |
 |---|---|---|
-| ![Profile](MyFitly/screenshots/05_profile.png) | ![Diet water tracking](MyFitly/screenshots/08_diet_water.png) | ![Diet meal slots](MyFitly/screenshots/09_diet_meals.png) |
+| ![Profile](screenshots/05_profile.png) | ![Diet water tracking](screenshots/08_diet_water.png) | ![Diet meal slots](screenshots/09_diet_meals.png) |
 
 ## Features
 
@@ -43,7 +43,7 @@ A fitness & diet tracking mobile app built with **React Native (Expo)** and **Su
 ## Project Structure
 
 ```
-MyFitly/
+
 ├── src/
 │   ├── screens/       # one file per app screen
 │   ├── components/    # shared UI components
@@ -67,7 +67,7 @@ npx expo start
 
 ### Environment variables
 
-Copy `MyFitly/.env.example` to `MyFitly/.env` and fill in:
+Copy `.env.example` to `.env` and fill in:
 
 ```
 EXPO_PUBLIC_SUPABASE_URL=
@@ -75,7 +75,7 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 EXPO_PUBLIC_OPENWEATHER_API_KEY=
 ```
 
-- **Supabase**: create a free project at [supabase.com](https://supabase.com), then run the SQL files under `MyFitly/SQLs/realsqls/` against it **in numeric order** to create the schema (users, workouts, diet, tracking, subscriptions, RLS policies).
+- **Supabase**: create a free project at [supabase.com](https://supabase.com), then run the SQL files under `SQLs/realsqls/` against it **in numeric order** to create the schema (users, workouts, diet, tracking, subscriptions, RLS policies).
 - **OpenWeatherMap**: a free key from [openweathermap.org/api](https://openweathermap.org/api). Optional — the app falls back to demo weather data if this is missing.
 
 Without a configured Supabase project, the app still starts, but auth/data screens will show connection errors — this is expected, not a bug.
